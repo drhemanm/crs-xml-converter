@@ -208,6 +208,94 @@ const trackUserRegistration = (method, plan = 'free', wasAnonymous = false) => {
 };
 
 // ==========================================
+// GIIN DATABASE (In production, this will be in Firebase)
+// ==========================================
+
+const GIIN_DATABASE = [
+  {
+    giin: "ABC123.00000.MU.001",
+    fiName: "Fictional Data Ltd",
+    country: "MU",
+    countryName: "Mauritius", 
+    address: "123 Business Park, Ebene",
+    city: "Ebene",
+    type: "Bank"
+  },
+  {
+    giin: "XYZ789.12345.US.456",
+    fiName: "Global Investment Bank USA",
+    country: "US",
+    countryName: "United States",
+    address: "Wall Street 456, New York",
+    city: "New York",
+    type: "Investment Bank"
+  },
+  {
+    giin: "DEF456.67890.GB.789",
+    fiName: "London Capital Partners Ltd",
+    country: "GB", 
+    countryName: "United Kingdom",
+    address: "Canary Wharf Tower, London",
+    city: "London",
+    type: "Investment Manager"
+  },
+  {
+    giin: "GHI123.11111.SG.222",
+    fiName: "Singapore Private Wealth Bank",
+    country: "SG",
+    countryName: "Singapore", 
+    address: "Marina Bay Financial Centre",
+    city: "Singapore",
+    type: "Private Bank"
+  },
+  {
+    giin: "JKL789.22222.DE.333",
+    fiName: "Deutsche Asset Management GmbH",
+    country: "DE",
+    countryName: "Germany",
+    address: "Frankfurt Financial District",
+    city: "Frankfurt",
+    type: "Asset Manager"
+  },
+  {
+    giin: "MNO456.33333.JP.444", 
+    fiName: "Tokyo Securities Co Ltd",
+    country: "JP",
+    countryName: "Japan",
+    address: "Shibuya Business Tower",
+    city: "Tokyo", 
+    type: "Securities Firm"
+  },
+  {
+    giin: "PQR123.44444.CA.555",
+    fiName: "Canadian Trust Bank",
+    country: "CA",
+    countryName: "Canada",
+    address: "Bay Street Financial Centre, Toronto",
+    city: "Toronto",
+    type: "Trust Bank"
+  },
+  {
+    giin: "STU789.55555.AU.666",
+    fiName: "Australia Investment Holdings Pty",
+    country: "AU", 
+    countryName: "Australia",
+    address: "Collins Street, Melbourne",
+    city: "Melbourne",
+    type: "Investment Company"
+  },
+  {
+    giin: "TEST01.00000.MU.123",
+    fiName: "Test Bank of Mauritius Ltd",
+    country: "MU",
+    countryName: "Mauritius",
+    address: "123 Test Street, Port Louis",
+    city: "Port Louis",
+    type: "Test Bank"
+  }
+];
+
+// ==========================================
 // BUSINESS CONFIGURATION
 // ==========================================
 
@@ -1188,7 +1276,7 @@ const Navigation = () => {
               iAfrica
             </div>
             <div className="hidden md:block">
-              <span className="text-lg font-semibold text-gray-900">CRS Converter</span>
+              <span className="text-lg font-semibold text-gray-900">Compliance Platform</span>
               <span className="text-sm text-gray-500 ml-2">by {COMPANY_NAME}</span>
             </div>
           </div>
@@ -1308,12 +1396,13 @@ const HeroSection = () => {
           </div>
           
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Convert CRS Data to
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> XML Format</span>
+            Turn Your Financial Data Into
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Tax Authority Ready Reports</span> 
+            <span className="block">in Minutes</span>
           </h1>
           
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Transform Excel/CSV financial data into compliant CRS OECD XML format instantly. 
+            Transform your Excel/CSV financial data into compliant regulatory reports instantly. 
             Try it now with <strong>{usageStatus.remaining} free conversions</strong> - no signup required!
           </p>
 
@@ -1396,8 +1485,8 @@ const FeaturesSection = () => {
     },
     {
       icon: <Globe className="w-8 h-8 text-blue-600" />,
-      title: "OECD Standards",
-      description: "Generate XML files that meet all OECD CRS requirements and standards"
+      title: "Regulatory Standards",
+      description: "Generate reports that meet all international regulatory requirements and standards"
     },
     {
       icon: <Users className="w-8 h-8 text-purple-600" />,
@@ -1412,7 +1501,7 @@ const FeaturesSection = () => {
     {
       icon: <Headphones className="w-8 h-8 text-pink-600" />,
       title: "Expert Support",
-      description: "Get help from our CRS compliance experts via email, chat, or phone"
+      description: "Get help from our compliance experts via email, chat, or phone"
     }
   ];
 
@@ -1421,10 +1510,10 @@ const FeaturesSection = () => {
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-gray-900 mb-6">
-            Why Choose Our CRS Converter?
+            Why Choose Our Compliance Platform?
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Built specifically for financial institutions requiring OECD CRS compliance
+            Built specifically for financial institutions requiring regulatory compliance reporting
           </p>
         </div>
 
@@ -1442,7 +1531,7 @@ const FeaturesSection = () => {
         <div className="mt-16 text-center">
           <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8 max-w-2xl mx-auto">
             <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              Ready to try our converter?
+              Ready to try our platform?
             </h3>
             <p className="text-gray-600 mb-6">
               No commitment needed. Try 3 conversions completely free, then register for 3 more!
@@ -1461,7 +1550,220 @@ const FeaturesSection = () => {
 };
 
 // ==========================================
-// ENHANCED FILE CONVERTER WITH ANONYMOUS SUPPORT
+// GIIN LOOKUP COMPONENT
+// ==========================================
+
+const GIINLookupComponent = ({ onSelect }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedFI, setSelectedFI] = useState(null);
+  const [searchType, setSearchType] = useState('both');
+
+  const searchGIINDatabase = (term) => {
+    if (!term || term.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    
+    setTimeout(() => {
+      const results = GIIN_DATABASE.filter(fi => {
+        const searchLower = term.toLowerCase();
+        const matchesGIIN = fi.giin.toLowerCase().includes(searchLower);
+        const matchesName = fi.fiName.toLowerCase().includes(searchLower);
+        const matchesCountry = fi.countryName.toLowerCase().includes(searchLower);
+        const matchesCity = fi.city.toLowerCase().includes(searchLower);
+        
+        if (searchType === 'giin') return matchesGIIN;
+        if (searchType === 'name') return matchesName || matchesCountry;
+        return matchesGIIN || matchesName || matchesCountry || matchesCity;
+      });
+      
+      setSearchResults(results);
+      setIsSearching(false);
+    }, 200);
+  };
+
+  useEffect(() => {
+    searchGIINDatabase(searchTerm);
+  }, [searchTerm, searchType]);
+
+  const handleSelect = (fi) => {
+    setSelectedFI(fi);
+    setSearchTerm('');
+    setSearchResults([]);
+    if (onSelect) onSelect(fi);
+  };
+
+  const formatGIIN = (giin) => {
+    const parts = giin.split('.');
+    return (
+      <span className="font-mono text-sm">
+        <span className="text-blue-600">{parts[0]}</span>.
+        <span className="text-green-600">{parts[1]}</span>.
+        <span className="text-purple-600">{parts[2]}</span>.
+        <span className="text-orange-600">{parts[3]}</span>
+      </span>
+    );
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <Building2 className="w-5 h-5 mr-2 text-blue-600" />
+        GIIN/Financial Institution Lookup
+        <span className="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">NEW</span>
+      </h3>
+      
+      {/* Search Type Selector */}
+      <div className="mb-4">
+        <div className="flex space-x-2 text-sm">
+          <button
+            onClick={() => setSearchType('both')}
+            className={`px-3 py-1 rounded-full transition-colors ${
+              searchType === 'both' 
+                ? 'bg-blue-100 text-blue-800' 
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Search All
+          </button>
+          <button
+            onClick={() => setSearchType('giin')}
+            className={`px-3 py-1 rounded-full transition-colors ${
+              searchType === 'giin' 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            GIIN Only
+          </button>
+          <button
+            onClick={() => setSearchType('name')}
+            className={`px-3 py-1 rounded-full transition-colors ${
+              searchType === 'name' 
+                ? 'bg-purple-100 text-purple-800' 
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Name/Country
+          </button>
+        </div>
+      </div>
+
+      {/* Search Input */}
+      <div className="relative mb-4">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Building2 className="h-4 w-4 text-gray-400" />
+        </div>
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder={
+            searchType === 'giin' 
+              ? 'Enter GIIN (e.g., ABC123.00000.MU.001)'
+              : searchType === 'name'
+              ? 'Enter Financial Institution name or country'
+              : 'Enter GIIN, Institution name, or country'
+          }
+        />
+        {isSearching && (
+          <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+          </div>
+        )}
+      </div>
+
+      {/* Search Results */}
+      {searchResults.length > 0 && (
+        <div className="mb-4 max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
+          {searchResults.map((fi, index) => (
+            <div
+              key={index}
+              onClick={() => handleSelect(fi)}
+              className="p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900 mb-1">
+                    {fi.fiName}
+                  </div>
+                  <div className="mb-1">
+                    {formatGIIN(fi.giin)}
+                  </div>
+                  <div className="text-sm text-gray-500 flex items-center">
+                    <Globe className="w-3 h-3 mr-1" />
+                    {fi.city}, {fi.countryName} ({fi.country})
+                  </div>
+                </div>
+                <div className="ml-4">
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                    {fi.type}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* No Results */}
+      {searchTerm.length >= 2 && searchResults.length === 0 && !isSearching && (
+        <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-lg">
+          <AlertCircle className="w-6 h-6 mx-auto mb-2" />
+          <div className="font-medium">No matching institutions found</div>
+          <div className="text-sm mt-1">
+            Try searching by GIIN, institution name, or country
+          </div>
+        </div>
+      )}
+
+      {/* Selected FI Display */}
+      {selectedFI && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center mb-3">
+            <CheckCircle2 className="w-5 h-5 text-green-600 mr-2" />
+            <h4 className="font-semibold text-green-900">Selected Institution</h4>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div>
+              <div className="font-medium text-gray-700">Institution:</div>
+              <div className="text-gray-900">{selectedFI.fiName}</div>
+            </div>
+            <div>
+              <div className="font-medium text-gray-700">GIIN:</div>
+              <div>{formatGIIN(selectedFI.giin)}</div>
+            </div>
+            <div>
+              <div className="font-medium text-gray-700">Country:</div>
+              <div className="text-gray-900">{selectedFI.countryName} ({selectedFI.country})</div>
+            </div>
+            <div>
+              <div className="font-medium text-gray-700">Type:</div>
+              <div className="text-gray-900">{selectedFI.type}</div>
+            </div>
+          </div>
+          
+          <div className="mt-3 text-xs text-green-700">
+            ✅ Form fields below will be auto-populated with this information
+          </div>
+        </div>
+      )}
+
+      {/* Database Info */}
+      <div className="mt-4 text-xs text-gray-500 text-center bg-gray-50 rounded p-2">
+        💼 Database: {GIIN_DATABASE.length} institutions • 🔍 Search by GIIN, name, or country
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// ENHANCED FILE CONVERTER WITH ANONYMOUS SUPPORT + GIIN LOOKUP
 // ==========================================
 
 const FileConverterSection = () => {
@@ -1491,6 +1793,38 @@ const FileConverterSection = () => {
 
   // Get current usage status
   const usageStatus = getUserConversionStatus(user, userDoc);
+
+  // Handle GIIN/FI selection from lookup
+  const handleInstitutionSelect = (fi) => {
+    setSettings(prevSettings => ({
+      ...prevSettings,
+      reportingFI: {
+        ...prevSettings.reportingFI,
+        name: fi.fiName,
+        giin: fi.giin,
+        country: fi.country,
+        address: fi.address
+      }
+    }));
+
+    // Clear any validation errors for fields that were auto-populated
+    setValidationErrors(prev => {
+      const { fiName, giin, ...rest } = prev;
+      return rest;
+    });
+    
+    setValidationWarnings(prev => {
+      const { fiName, giin, ...rest } = prev;
+      return rest;
+    });
+
+    // Show success message
+    trackEvent('giin_lookup_used', {
+      selected_giin: fi.giin,
+      selected_fi: fi.fiName,
+      user_type: user ? 'registered' : 'anonymous'
+    });
+  };
 
   // Validation handlers (same as before)
   const handleFINameChange = (value) => {
@@ -1764,10 +2098,10 @@ const FileConverterSection = () => {
         
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            Convert Your CRS Data
+            Convert Your Financial Data
           </h2>
           <p className="text-xl text-gray-600">
-            Upload Excel or CSV files and convert them to OECD CRS XML format
+            Upload Excel or CSV files and convert them to regulatory-compliant reports
           </p>
           
           {/* Usage Status Display */}
@@ -1807,6 +2141,9 @@ const FileConverterSection = () => {
             </div>
           )}
         </div>
+
+        {/* GIIN/Financial Institution Lookup */}
+        <GIINLookupComponent onSelect={handleInstitutionSelect} />
 
         {/* Test Mode Toggle */}
         <div className="mb-6 flex items-center justify-center">
@@ -2119,7 +2456,7 @@ const FileConverterSection = () => {
               <div className="flex items-center">
                 <CheckCircle2 className="w-5 h-5 text-green-600 mr-2" />
                 <span className="text-sm text-green-700">
-                  XML file generated successfully and ready for OECD CRS submission!
+                  Report generated successfully and ready for tax authority submission!
                   {isTestMode && ' (TEST MODE - Do not submit to authorities)'}
                 </span>
               </div>
@@ -2204,7 +2541,7 @@ const PricingSection = () => {
             Simple, Transparent Pricing
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Choose the plan that fits your CRS conversion needs. All plans include GDPR compliance and expert support.
+            Choose the plan that fits your compliance reporting needs. All plans include GDPR compliance and expert support.
           </p>
         </div>
 
@@ -2358,7 +2695,7 @@ const PricingSection = () => {
               High-volume processing, white-label options, or custom integrations available.
             </p>
             <a
-              href={`mailto:${SUPPORT_EMAIL}?subject=Custom CRS Solution Inquiry`}
+              href={`mailto:${SUPPORT_EMAIL}?subject=Custom Compliance Solution Inquiry`}
               className="inline-flex items-center px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 font-semibold"
             >
               <Mail className="w-5 h-5 mr-2" />
@@ -2409,7 +2746,7 @@ const DashboardSection = () => {
             Welcome back, {userDoc?.displayName || user.email?.split('@')[0]}!
           </h2>
           <p className="text-xl text-gray-600">
-            Manage your CRS conversions and account settings
+            Manage your compliance reporting and account settings
           </p>
         </div>
 
@@ -2515,7 +2852,7 @@ const DashboardSection = () => {
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">
-                        CRS XML Conversion
+                        Compliance Report Generated
                       </p>
                       <p className="text-sm text-gray-600">
                         {conversion.timestamp ? new Date(conversion.timestamp.seconds * 1000).toLocaleDateString() : 'Recent'}
@@ -2574,7 +2911,7 @@ export default function CRSXMLConverter() {
           {/* Support Contact */}
           <div className="fixed bottom-6 right-6 z-50">
             <div className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors cursor-pointer"
-                 onClick={() => window.open(`mailto:${SUPPORT_EMAIL}?subject=CRS XML Converter Support`, '_blank')}
+                 onClick={() => window.open(`mailto:${SUPPORT_EMAIL}?subject=Financial Compliance Platform Support`, '_blank')}
                  title={`Contact Support: ${SUPPORT_EMAIL}`}>
               <Mail className="w-6 h-6" />
             </div>
