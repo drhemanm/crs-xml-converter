@@ -712,7 +712,7 @@ const HeroSection = () => {
 };
 
 const AuthSection = () => {
-  const { user, login, register, signInWithGoogle, resetPassword } = useAuth();
+  const { user, login, register, signInWithGoogle } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
