@@ -45,6 +45,9 @@ import {
 // Import Excel processing library
 import * as XLSX from 'xlsx';
 
+// Import PayPal
+import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
+
 // ==========================================
 // FIREBASE CONFIGURATION
 // ==========================================
@@ -57,6 +60,32 @@ const firebaseConfig = {
   messagingSenderId: "120438086826",
   appId: "1:120438086826:web:089fcf98b869e677c104d3",
   measurementId: "G-0T1ZEY9XTL"
+};
+
+// PayPal Configuration
+const PAYPAL_CONFIG = {
+  clientId: process.env.REACT_APP_ENVIRONMENT === 'production' 
+    ? process.env.REACT_APP_PAYPAL_CLIENT_ID_LIVE 
+    : (process.env.REACT_APP_PAYPAL_CLIENT_ID || 'AQq1234567890_sandbox_client_id'), // Replace with your sandbox client ID
+  currency: "USD",
+  intent: "subscription",
+  environment: process.env.REACT_APP_ENVIRONMENT || 'sandbox'
+};
+
+// PayPal Subscription Plans (You'll get these IDs from PayPal Dashboard)
+const PAYPAL_PLANS = {
+  professional: {
+    planId: 'P-5ML4271244454362WXNWU5NQ', // Replace with your actual plan ID
+    name: 'Professional Plan',
+    price: 29,
+    conversions: 100
+  },
+  enterprise: {
+    planId: 'P-2UF78835G6983704MXNWU6FQ', // Replace with your actual plan ID
+    name: 'Enterprise Plan', 
+    price: 99,
+    conversions: 1000
+  }
 };
 
 // Initialize Firebase
@@ -309,6 +338,309 @@ const validateFIName = (name) => {
   }
   
   return { valid: true };
+};
+
+// ==========================================
+// PAYPAL SUBSCRIPTION COMPONENT
+// ==========================================
+
+const PayPalSubscription = ({ plan, onSuccess, onError, onCancel }) => {
+  const { user, upgradePlan } = useAuth();
+  const [loading, setLoading] = useState(false);
+  
+  const createSubscription = (data, actions) => {
+    const planDetails = PAYPAL_PLANS[plan];
+    
+    return actions.subscription.create({
+      plan_id: planDetails.planId,
+      application_context: {
+        brand_name: 'iAfrica CRS Converter',
+        user_action: 'SUBSCRIBE_NOW',
+        return_url: `${window.location.origin}/subscription/success`,
+        cancel_url: `${window.location.origin}/subscription/cancelled`
+      },
+      subscriber: {
+        email_address: user?.email || ''
+      }
+    });
+  };
+
+  const onApprove = async (data, actions) => {
+    setLoading(true);
+    try {
+      console.log('Subscription approved:', data);
+      
+      // Update user plan in Firebase
+      await upgradePlan(plan, data.subscriptionID);
+      
+      onSuccess({
+        subscriptionId: data.subscriptionID,
+        plan: plan
+      });
+      
+      trackEvent('subscription_success', {
+        plan: plan,
+        subscription_id: data.subscriptionID,
+        value: PAYPAL_PLANS[plan].price
+      });
+      
+    } catch (error) {
+      console.error('Subscription error:', error);
+      onError(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onCancelHandler = (data) => {
+    console.log('Subscription cancelled:', data);
+    onCancel();
+    trackEvent('subscription_cancelled', { plan: plan });
+  };
+
+  const onErrorHandler = (err) => {
+    console.error('PayPal error:', err);
+    onError(err);
+    trackEvent('subscription_error', { plan: plan, error: err.message });
+  };
+
+  return (
+    <div className="paypal-container">
+      {loading && (
+        <div className="text-center py-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-sm text-gray-600">Processing subscription...</p>
+        </div>
+      )}
+      
+      <PayPalButtons
+        style={{
+          shape: 'rect',
+          color: 'blue',
+          layout: 'vertical',
+          label: 'subscribe',
+          height: 55
+        }}
+        createSubscription={createSubscription}
+        onApprove={onApprove}
+        onCancel={onCancelHandler}
+        onError={onErrorHandler}
+        disabled={loading}
+      />
+    </div>
+  );
+};
+
+// ==========================================
+// AUTHENTICATION SECTION (MISSING - THIS IS WHY SIGN IN WASN'T WORKING!)
+// ==========================================
+
+const AuthSection = () => {
+  const { user, login, register, signInWithGoogle, resetPassword } = useAuth();
+  const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    displayName: '',
+    company: ''
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+    
+    try {
+      if (isLogin) {
+        await login(formData.email, formData.password);
+        setMessage('Successfully signed in!');
+      } else {
+        await register(formData.email, formData.password, formData.displayName, formData.company);
+        setMessage('Account created! Please verify your email.');
+      }
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    setMessage('');
+    
+    try {
+      await signInWithGoogle();
+      setMessage('Successfully signed in with Google!');
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!formData.email) {
+      setMessage('Please enter your email address first.');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await resetPassword(formData.email);
+      setMessage('Password reset email sent! Check your inbox.');
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  if (user) {
+    return null; // Don't show auth section if user is already logged in
+  }
+
+  return (
+    <div id="auth" className="py-20 bg-white">
+      <div className="max-w-md mx-auto px-6">
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              {isLogin ? 'Sign In' : 'Create Account'}
+            </h2>
+            <p className="text-gray-600">
+              {isLogin ? 'Access your dashboard and conversions' : 'Get 3 additional free conversions'}
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="your@email.com"
+                required
+              />
+            </div>
+
+            {!isLogin && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    name="displayName"
+                    value={formData.displayName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="John Doe"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Company (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    name="company"
+                    value={formData.company}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Your Company Name"
+                  />
+                </div>
+              </>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+          </div>
+
+          {message && (
+            <div className={`mt-4 p-3 rounded-md text-sm ${
+              message.includes('Success') || message.includes('sent') 
+                ? 'bg-green-50 text-green-700 border border-green-200' 
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              {message}
+            </div>
+          )}
+
+          <div className="mt-6">
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-semibold"
+            >
+              {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+            </button>
+          </div>
+
+          <div className="mt-4">
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full py-3 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center"
+            >
+              <GoogleIcon className="w-5 h-5 mr-2" />
+              Sign {isLogin ? 'in' : 'up'} with Google
+            </button>
+          </div>
+
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-blue-600 hover:text-blue-700 text-sm"
+            >
+              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+            </button>
+          </div>
+
+          {isLogin && (
+            <div className="mt-4 text-center">
+              <button
+                onClick={handleResetPassword}
+                className="text-sm text-gray-600 hover:text-gray-700"
+              >
+                Forgot your password?
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ==========================================
@@ -1822,8 +2154,397 @@ const FileConverterSection = () => {
   );
 };
 
-// [Continue with other components - Auth, Dashboard, Pricing sections...]
-// These remain largely the same but with updated messaging for the trial model
+// ==========================================
+// PRICING SECTION WITH PAYPAL INTEGRATION
+// ==========================================
+
+const PricingSection = () => {
+  const { user, userDoc } = useAuth();
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState('');
+
+  const handleSubscriptionSuccess = (result) => {
+    setSubscriptionStatus('success');
+    setSelectedPlan(null);
+    alert(`🎉 Successfully subscribed to ${result.plan} plan! Your account has been upgraded.`);
+    setTimeout(() => window.location.reload(), 1000);
+  };
+
+  const handleSubscriptionError = (error) => {
+    setSubscriptionStatus('error');
+    setSelectedPlan(null);
+    alert(`❌ Subscription failed: ${error.message}. Please try again.`);
+  };
+
+  const handleSubscriptionCancel = () => {
+    setSelectedPlan(null);
+  };
+
+  const handleUpgrade = (planKey) => {
+    if (!user) {
+      alert('Please sign in first to upgrade your plan.');
+      document.getElementById('auth')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    
+    if (userDoc?.plan === planKey) {
+      alert('You are already on this plan!');
+      return;
+    }
+    
+    setSelectedPlan(planKey);
+    trackEvent('upgrade_attempt', { plan: planKey });
+  };
+
+  return (
+    <div id="pricing" className="py-20 bg-gray-50">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold text-gray-900 mb-6">
+            Simple, Transparent Pricing
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Choose the plan that fits your CRS conversion needs. All plans include GDPR compliance and expert support.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          {Object.entries(PRICING_PLANS).map(([key, plan]) => {
+            const isCurrentPlan = userDoc?.plan === key;
+            const canUpgrade = user && !isCurrentPlan && key !== 'free';
+            
+            return (
+              <div key={key} className={`relative bg-white rounded-xl shadow-lg p-8 ${
+                plan.popular ? 'ring-2 ring-blue-500' : 'border border-gray-200'
+              }`}>
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-medium flex items-center">
+                      <Crown className="w-4 h-4 mr-1" />
+                      Most Popular
+                    </span>
+                  </div>
+                )}
+                
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                  <div className="flex items-center justify-center mb-4">
+                    <span className="text-4xl font-bold text-gray-900">
+                      ${plan.price}
+                    </span>
+                    {plan.price > 0 && <span className="text-gray-600 ml-2">/month</span>}
+                  </div>
+                  <p className="text-gray-600">
+                    {plan.conversions} conversions {plan.price > 0 ? 'per month' : 'after registration'}
+                  </p>
+                </div>
+
+                <div className="space-y-3 mb-8">
+                  {plan.features.map((feature, index) => (
+                    <div key={index} className="flex items-center">
+                      <Check className={`w-5 h-5 mr-3 ${plan.color === 'blue' ? 'text-blue-600' : plan.color === 'purple' ? 'text-purple-600' : 'text-gray-400'}`} />
+                      <span className="text-gray-700">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-center">
+                  {isCurrentPlan ? (
+                    <div className="py-3 bg-gray-100 text-gray-600 rounded-lg font-medium">
+                      <Check className="w-5 h-5 inline mr-2" />
+                      Current Plan
+                    </div>
+                  ) : canUpgrade ? (
+                    <button
+                      onClick={() => handleUpgrade(key)}
+                      className={`w-full py-3 rounded-lg font-semibold transition-colors ${
+                        plan.color === 'blue' 
+                          ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                          : plan.color === 'purple' 
+                          ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                          : 'bg-gray-600 text-white hover:bg-gray-700'
+                      }`}
+                    >
+                      {plan.buttonText}
+                    </button>
+                  ) : key === 'free' ? (
+                    <button
+                      onClick={() => !user && document.getElementById('auth')?.scrollIntoView({ behavior: 'smooth' })}
+                      className="w-full py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                    >
+                      {user ? 'Current Plan' : 'Sign Up Free'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => document.getElementById('auth')?.scrollIntoView({ behavior: 'smooth' })}
+                      className="w-full py-3 bg-gray-200 text-gray-500 rounded-lg font-medium"
+                    >
+                      Sign In Required
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* PayPal Subscription Modal */}
+        {selectedPlan && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Subscribe to {PRICING_PLANS[selectedPlan]?.name}
+                </h3>
+                <button
+                  onClick={handleSubscriptionCancel}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-blue-900">
+                      ${PRICING_PLANS[selectedPlan]?.price}/month
+                    </p>
+                    <p className="text-sm text-blue-700">
+                      {PRICING_PLANS[selectedPlan]?.conversions} conversions per month
+                    </p>
+                  </div>
+                  <div className="text-blue-600">
+                    <CreditCard className="w-8 h-8" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  You'll be redirected to PayPal to complete your subscription. Cancel anytime from your PayPal account.
+                </p>
+              </div>
+
+              <PayPalSubscription
+                plan={selectedPlan}
+                onSuccess={handleSubscriptionSuccess}
+                onError={handleSubscriptionError}
+                onCancel={handleSubscriptionCancel}
+              />
+
+              <div className="mt-4 text-center">
+                <button
+                  onClick={handleSubscriptionCancel}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-700 text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+
+              <div className="mt-4 text-xs text-gray-500 text-center">
+                Secure payment powered by PayPal • Cancel anytime
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-16 text-center">
+          <div className="bg-white rounded-xl p-8 max-w-2xl mx-auto">
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">
+              Need a Custom Solution?
+            </h3>
+            <p className="text-gray-600 mb-6">
+              High-volume processing, white-label options, or custom integrations available.
+            </p>
+            <a
+              href={`mailto:${SUPPORT_EMAIL}?subject=Custom CRS Solution Inquiry`}
+              className="inline-flex items-center px-6 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 font-semibold"
+            >
+              <Mail className="w-5 h-5 mr-2" />
+              Contact Sales
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// DASHBOARD SECTION
+// ==========================================
+
+const DashboardSection = () => {
+  const { user, userDoc, getUserConversions } = useAuth();
+  const [conversions, setConversions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadConversions = async () => {
+      if (user) {
+        try {
+          const userConversions = await getUserConversions();
+          setConversions(userConversions);
+        } catch (error) {
+          console.error('Error loading conversions:', error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadConversions();
+  }, [user, getUserConversions]);
+
+  const usageStatus = getUserConversionStatus(user, userDoc);
+
+  if (!user) return null;
+
+  return (
+    <div id="dashboard" className="py-20 bg-white">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="mb-12">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            Welcome back, {userDoc?.displayName || user.email?.split('@')[0]}!
+          </h2>
+          <p className="text-xl text-gray-600">
+            Manage your CRS conversions and account settings
+          </p>
+        </div>
+
+        {/* Usage Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+            <div className="flex items-center">
+              <div className="bg-blue-100 rounded-lg p-3">
+                <Activity className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-blue-900">Conversions Used</p>
+                <p className="text-2xl font-bold text-blue-900">
+                  {usageStatus.used}/{usageStatus.limit}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-green-50 rounded-xl p-6 border border-green-200">
+            <div className="flex items-center">
+              <div className="bg-green-100 rounded-lg p-3">
+                <Target className="w-6 h-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-green-900">Remaining</p>
+                <p className="text-2xl font-bold text-green-900">{usageStatus.remaining}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-purple-50 rounded-xl p-6 border border-purple-200">
+            <div className="flex items-center">
+              <div className="bg-purple-100 rounded-lg p-3">
+                <Crown className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-purple-900">Current Plan</p>
+                <p className="text-2xl font-bold text-purple-900 capitalize">
+                  {userDoc?.plan || 'Free'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Usage Progress */}
+        <div className="bg-gray-50 rounded-xl p-6 mb-12">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Monthly Usage</h3>
+            <span className="text-sm text-gray-600">
+              {Math.round(usageStatus.percentUsed)}% used
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div
+              className={`h-3 rounded-full transition-all duration-300 ${
+                usageStatus.percentUsed > 90 ? 'bg-red-500' :
+                usageStatus.percentUsed > 75 ? 'bg-yellow-500' :
+                'bg-blue-500'
+              }`}
+              style={{ width: `${Math.min(usageStatus.percentUsed, 100)}%` }}
+            ></div>
+          </div>
+          
+          {usageStatus.remaining === 0 && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center">
+                <AlertCircle className="w-5 h-5 text-yellow-600 mr-3" />
+                <div>
+                  <p className="font-medium text-yellow-800">Conversion limit reached</p>
+                  <p className="text-sm text-yellow-700">
+                    Upgrade your plan to continue converting files this month.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm font-medium"
+              >
+                View Pricing Plans
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Conversions */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-6">Recent Conversions</h3>
+          
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-2 text-gray-600">Loading conversions...</p>
+            </div>
+          ) : conversions.length > 0 ? (
+            <div className="space-y-4">
+              {conversions.map((conversion, index) => (
+                <div key={conversion.id || index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="bg-green-100 rounded-full p-2 mr-4">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        CRS XML Conversion
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {conversion.timestamp ? new Date(conversion.timestamp.seconds * 1000).toLocaleDateString() : 'Recent'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Success
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-4">No conversions yet</p>
+              <button
+                onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Start Converting
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // ==========================================
 // MAIN APP COMPONENT
@@ -1831,53 +2552,65 @@ const FileConverterSection = () => {
 
 export default function CRSXMLConverter() {
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <HeroSection />
-        <FeaturesSection />
-        <FileConverterSection />
-        {/* AuthSection, DashboardSection, PricingSection would go here */}
-        
-        {/* Support Contact */}
-        <div className="fixed bottom-6 right-6 z-50">
-          <div className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors cursor-pointer"
-               onClick={() => window.open(`mailto:${SUPPORT_EMAIL}?subject=CRS XML Converter Support`, '_blank')}
-               title={`Contact Support: ${SUPPORT_EMAIL}`}>
-            <Mail className="w-6 h-6" />
+    <PayPalScriptProvider 
+      options={{
+        'client-id': PAYPAL_CONFIG.clientId,
+        components: 'buttons',
+        intent: 'subscription',
+        vault: true,
+        currency: PAYPAL_CONFIG.currency
+      }}
+    >
+      <AuthProvider>
+        <div className="min-h-screen bg-gray-50">
+          <Navigation />
+          <HeroSection />
+          <FeaturesSection />
+          <FileConverterSection />
+          <AuthSection />
+          <DashboardSection />
+          <PricingSection />
+          
+          {/* Support Contact */}
+          <div className="fixed bottom-6 right-6 z-50">
+            <div className="bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors cursor-pointer"
+                 onClick={() => window.open(`mailto:${SUPPORT_EMAIL}?subject=CRS XML Converter Support`, '_blank')}
+                 title={`Contact Support: ${SUPPORT_EMAIL}`}>
+              <Mail className="w-6 h-6" />
+            </div>
           </div>
+          
+          {/* Footer */}
+          <footer className="bg-gray-900 text-white py-12">
+            <div className="max-w-7xl mx-auto px-6">
+              <div className="flex flex-col md:flex-row items-center justify-between">
+                <div className="flex items-center space-x-4 mb-4 md:mb-0">
+                  <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-red-400 bg-clip-text text-transparent">
+                    iAfrica
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold">{COMPANY_NAME}</p>
+                    <p className="text-sm text-gray-400">Innovative financial technology solutions for Africa</p>
+                  </div>
+                </div>
+                <div className="text-center md:text-right text-sm text-gray-400">
+                  <p>Contact: <a href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-400 hover:text-blue-300">{SUPPORT_EMAIL}</a></p>
+                  <p className="font-medium text-white">{COMPANY_NAME}</p>
+                  <div className="flex items-center justify-center md:justify-end space-x-4 mt-2">
+                    <span className="flex items-center">
+                      Powered by Firebase + PayPal
+                      <Shield className="w-4 h-4 text-green-400 ml-1" />
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-8 pt-8 border-t border-gray-700 text-center text-sm text-gray-400">
+                <p>© 2024 {COMPANY_NAME}. All rights reserved. | Professional CRS OECD XML Converter</p>
+              </div>
+            </div>
+          </footer>
         </div>
-        
-        {/* Footer */}
-        <footer className="bg-gray-900 text-white py-12">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="flex flex-col md:flex-row items-center justify-between">
-              <div className="flex items-center space-x-4 mb-4 md:mb-0">
-                <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-red-400 bg-clip-text text-transparent">
-                  iAfrica
-                </div>
-                <div>
-                  <p className="text-lg font-semibold">{COMPANY_NAME}</p>
-                  <p className="text-sm text-gray-400">Innovative financial technology solutions for Africa</p>
-                </div>
-              </div>
-              <div className="text-center md:text-right text-sm text-gray-400">
-                <p>Contact: <a href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-400 hover:text-blue-300">{SUPPORT_EMAIL}</a></p>
-                <p className="font-medium text-white">{COMPANY_NAME}</p>
-                <div className="flex items-center justify-center md:justify-end space-x-4 mt-2">
-                  <span className="flex items-center">
-                    Powered by Firebase
-                    <Shield className="w-4 h-4 text-green-400 ml-1" />
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="mt-8 pt-8 border-t border-gray-700 text-center text-sm text-gray-400">
-              <p>© 2024 {COMPANY_NAME}. All rights reserved. | Professional CRS OECD XML Converter</p>
-            </div>
-          </div>
-        </footer>
-      </div>
-    </AuthProvider>
+      </AuthProvider>
+    </PayPalScriptProvider>
   );
 }
