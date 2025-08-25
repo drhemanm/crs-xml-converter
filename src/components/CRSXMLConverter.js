@@ -6,6 +6,8 @@ import {
   getAuth, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
   sendPasswordResetEmail,
@@ -36,7 +38,7 @@ import {
   User, Building2, Menu, LogOut, CreditCard, BarChart3,
   Star, Crown, Sparkles, ArrowRight, Check, Users, Calendar,
   TrendingUp, Award, Headphones, Smartphone, Eye, History,
-  DollarSign, Target, Activity, Briefcase
+  DollarSign, Target, Activity, Briefcase, AlertTriangle
 } from 'lucide-react';
 
 // Import Excel processing library
@@ -62,10 +64,122 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const analytics = getAnalytics(app);
 
+// Initialize Google Auth Provider
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
+
 console.log('🔥 Firebase initialized successfully!');
 
 // ==========================================
-// AUTHENTICATION CONTEXT WITH REAL FIREBASE
+// VALIDATION FUNCTIONS
+// ==========================================
+
+const validateGIIN = (giin) => {
+  if (!giin || giin.trim() === '') {
+    return { valid: false, message: "GIIN is required for CRS compliance", severity: 'error' };
+  }
+  
+  // GIIN format: XXXXXX.XXXXX.XX.XXX (19 characters)
+  const giinRegex = /^[A-Z0-9]{6}\.[A-Z0-9]{5}\.[A-Z]{2}\.[A-Z0-9]{3}$/;
+  
+  if (!giinRegex.test(giin.toUpperCase())) {
+    return { 
+      valid: false, 
+      message: "Invalid GIIN format. Should be: XXXXXX.XXXXX.XX.XXX (e.g., ABC123.00000.ME.123)", 
+      severity: 'error' 
+    };
+  }
+  
+  // Check if it looks like test data
+  if (giin.toUpperCase().includes('TEST') || giin.includes('00000')) {
+    return { 
+      valid: true, 
+      message: "This appears to be test data. Ensure you have a real GIIN for live CRS submissions.", 
+      severity: 'warning' 
+    };
+  }
+  
+  return { valid: true };
+};
+
+const validateTaxYear = (year) => {
+  const currentYear = new Date().getFullYear();
+  const minYear = 2014; // CRS started in 2014
+  
+  if (!year) {
+    return { valid: false, message: "Tax year is required", severity: 'error' };
+  }
+  
+  if (year < minYear || year > currentYear) {
+    return { 
+      valid: false, 
+      message: `Tax year must be between ${minYear} and ${currentYear}`, 
+      severity: 'error' 
+    };
+  }
+  
+  if (year === currentYear) {
+    return { 
+      valid: true, 
+      message: `Reporting for current year (${currentYear}). Ensure this is correct for your jurisdiction.`, 
+      severity: 'warning' 
+    };
+  }
+  
+  return { valid: true };
+};
+
+const validateFIName = (name) => {
+  if (!name || name.trim() === '') {
+    return { valid: false, message: "Financial Institution name is required", severity: 'error' };
+  }
+  
+  if (name.toLowerCase().includes('test') || name.toLowerCase().includes('sample')) {
+    return { 
+      valid: true, 
+      message: "This appears to be test data. Use your actual FI name for live submissions.", 
+      severity: 'warning' 
+    };
+  }
+  
+  return { valid: true };
+};
+
+const validateAllFields = (settings) => {
+  const errors = [];
+  const warnings = [];
+  
+  // Validate FI Name
+  const fiNameValidation = validateFIName(settings.reportingFI.name);
+  if (!fiNameValidation.valid) {
+    errors.push(fiNameValidation.message);
+  } else if (fiNameValidation.severity === 'warning') {
+    warnings.push(fiNameValidation.message);
+  }
+  
+  // Validate GIIN
+  const giinValidation = validateGIIN(settings.reportingFI.giin);
+  if (!giinValidation.valid) {
+    errors.push(giinValidation.message);
+  } else if (giinValidation.severity === 'warning') {
+    warnings.push(giinValidation.message);
+  }
+  
+  // Validate Tax Year
+  const taxYearValidation = validateTaxYear(settings.taxYear);
+  if (!taxYearValidation.valid) {
+    errors.push(taxYearValidation.message);
+  } else if (taxYearValidation.severity === 'warning') {
+    warnings.push(taxYearValidation.message);
+  }
+  
+  return { errors, warnings };
+};
+
+// ==========================================
+// AUTHENTICATION CONTEXT WITH GOOGLE AUTH
 // ==========================================
 
 const AuthContext = createContext();
@@ -92,8 +206,23 @@ const AuthProvider = ({ children }) => {
           console.log('✅ User data loaded from Firestore:', userData);
           setUserDoc(userData);
         } else {
-          console.log('⚠️ User document not found in Firestore');
-          setUserDoc(null);
+          console.log('⚠️ User document not found in Firestore - creating new one...');
+          // Create user document if it doesn't exist (for Google sign-in users)
+          const userData = {
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
+            company: '',
+            plan: 'free',
+            conversionsUsed: 0,
+            conversionsLimit: 3,
+            subscriptionStatus: 'active',
+            createdAt: serverTimestamp(),
+            lastLogin: serverTimestamp(),
+            provider: firebaseUser.providerData[0]?.providerId || 'email'
+          };
+          
+          await setDoc(userDocRef, userData);
+          setUserDoc(userData);
         }
         
         setUser(firebaseUser);
@@ -129,7 +258,8 @@ const AuthProvider = ({ children }) => {
         conversionsLimit: 3,
         subscriptionStatus: 'active',
         createdAt: serverTimestamp(),
-        lastLogin: serverTimestamp()
+        lastLogin: serverTimestamp(),
+        provider: 'email'
       };
       
       await setDoc(doc(db, 'users', newUser.uid), userData);
@@ -164,6 +294,33 @@ const AuthProvider = ({ children }) => {
       
     } catch (error) {
       console.error('❌ Login failed:', error);
+      throw new Error(getFirebaseErrorMessage(error.code));
+    }
+  };
+
+  const signInWithGoogle = async () => {
+    console.log('🚀 Starting Google sign-in...');
+    
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      console.log('✅ Google sign-in successful:', user.uid);
+      
+      // Update last login time
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      if (userDocSnap.exists()) {
+        await updateDoc(userDocRef, {
+          lastLogin: serverTimestamp()
+        });
+      }
+      
+      return user;
+      
+    } catch (error) {
+      console.error('❌ Google sign-in failed:', error);
       throw new Error(getFirebaseErrorMessage(error.code));
     }
   };
@@ -286,7 +443,7 @@ const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{ 
-      user, userDoc, loading, login, register, logout, resetPassword, 
+      user, userDoc, loading, login, register, signInWithGoogle, logout, resetPassword, 
       updateUserUsage, upgradePlan, getUserConversions 
     }}>
       {children}
@@ -316,6 +473,10 @@ const getFirebaseErrorMessage = (errorCode) => {
       return 'Please enter a valid email address.';
     case 'auth/too-many-requests':
       return 'Too many failed attempts. Please try again later.';
+    case 'auth/popup-closed-by-user':
+      return 'Sign-in cancelled. Please try again.';
+    case 'auth/popup-blocked':
+      return 'Pop-up blocked by browser. Please allow pop-ups and try again.';
     default:
       return 'An error occurred. Please try again.';
   }
@@ -462,6 +623,31 @@ const generateCRSXML = (data, settings) => {
 };
 
 // ==========================================
+// GOOGLE ICON COMPONENT
+// ==========================================
+
+const GoogleIcon = ({ className }) => (
+  <svg className={className} viewBox="0 0 24 24">
+    <path
+      fill="#4285F4"
+      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+    />
+  </svg>
+);
+
+// ==========================================
 // NAVIGATION COMPONENT
 // ==========================================
 
@@ -522,7 +708,7 @@ const Navigation = () => {
                       {userDoc?.plan || 'free'} Plan
                     </div>
                   </div>
-                  {user && !user.emailVerified && (
+                  {user && !user.emailVerified && userDoc?.provider === 'email' && (
                     <div className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
                       Verify Email
                     </div>
@@ -730,11 +916,11 @@ const FeaturesSection = () => {
 };
 
 // ==========================================
-// AUTHENTICATION SECTION WITH REAL FIREBASE
+// ENHANCED AUTHENTICATION SECTION WITH GOOGLE
 // ==========================================
 
 const AuthSection = () => {
-  const { user, loading, login, register, resetPassword } = useAuth();
+  const { user, loading, login, register, signInWithGoogle, resetPassword } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [isResetPassword, setIsResetPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -769,6 +955,23 @@ const AuthSection = () => {
       }
     } catch (err) {
       console.error('❌ Authentication error:', err);
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setSuccess('');
+    setIsSubmitting(true);
+
+    try {
+      console.log('🚀 Attempting Google sign-in...');
+      await signInWithGoogle();
+      setSuccess('Welcome! Signed in with Google successfully.');
+    } catch (err) {
+      console.error('❌ Google sign-in error:', err);
       setError(err.message);
     } finally {
       setIsSubmitting(false);
@@ -810,6 +1013,28 @@ const AuthSection = () => {
               }
             </p>
           </div>
+
+          {/* Google Sign-In Button */}
+          {!isResetPassword && (
+            <div className="mb-6">
+              <button
+                onClick={handleGoogleSignIn}
+                disabled={isSubmitting}
+                className="w-full py-3 px-4 border border-gray-300 rounded-md flex items-center justify-center space-x-2 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <GoogleIcon className="w-5 h-5" />
+                <span className="font-medium text-gray-700">
+                  {isLogin ? 'Sign in with Google' : 'Sign up with Google'}
+                </span>
+              </button>
+              
+              <div className="mt-4 flex items-center">
+                <div className="flex-1 border-t border-gray-300"></div>
+                <div className="px-4 text-sm text-gray-500">or</div>
+                <div className="flex-1 border-t border-gray-300"></div>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             
@@ -1144,7 +1369,7 @@ const DashboardSection = () => {
 };
 
 // ==========================================
-// FILE CONVERTER COMPONENT
+// ENHANCED FILE CONVERTER WITH VALIDATION
 // ==========================================
 
 const FileConverterSection = () => {
@@ -1153,6 +1378,9 @@ const FileConverterSection = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [xmlResult, setXmlResult] = useState(null);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
+  const [validationWarnings, setValidationWarnings] = useState({});
+  const [isTestMode, setIsTestMode] = useState(false);
   const [settings, setSettings] = useState({
     reportingFI: {
       name: '',
@@ -1167,6 +1395,67 @@ const FileConverterSection = () => {
   });
 
   const fileInputRef = useRef(null);
+
+  // Real-time validation handlers
+  const handleFINameChange = (value) => {
+    setSettings({
+      ...settings,
+      reportingFI: { ...settings.reportingFI, name: value }
+    });
+    
+    const validation = validateFIName(value);
+    if (!validation.valid) {
+      setValidationErrors(prev => ({ ...prev, fiName: validation.message }));
+      setValidationWarnings(prev => { const {fiName, ...rest} = prev; return rest; });
+    } else {
+      setValidationErrors(prev => { const {fiName, ...rest} = prev; return rest; });
+      if (validation.severity === 'warning') {
+        setValidationWarnings(prev => ({ ...prev, fiName: validation.message }));
+      } else {
+        setValidationWarnings(prev => { const {fiName, ...rest} = prev; return rest; });
+      }
+    }
+  };
+
+  const handleGIINChange = (value) => {
+    setSettings({
+      ...settings,
+      reportingFI: { ...settings.reportingFI, giin: value.toUpperCase() }
+    });
+    
+    const validation = validateGIIN(value);
+    if (!validation.valid) {
+      setValidationErrors(prev => ({ ...prev, giin: validation.message }));
+      setValidationWarnings(prev => { const {giin, ...rest} = prev; return rest; });
+    } else {
+      setValidationErrors(prev => { const {giin, ...rest} = prev; return rest; });
+      if (validation.severity === 'warning') {
+        setValidationWarnings(prev => ({ ...prev, giin: validation.message }));
+      } else {
+        setValidationWarnings(prev => { const {giin, ...rest} = prev; return rest; });
+      }
+    }
+  };
+
+  const handleTaxYearChange = (value) => {
+    setSettings({
+      ...settings,
+      taxYear: parseInt(value)
+    });
+    
+    const validation = validateTaxYear(parseInt(value));
+    if (!validation.valid) {
+      setValidationErrors(prev => ({ ...prev, taxYear: validation.message }));
+      setValidationWarnings(prev => { const {taxYear, ...rest} = prev; return rest; });
+    } else {
+      setValidationErrors(prev => { const {taxYear, ...rest} = prev; return rest; });
+      if (validation.severity === 'warning') {
+        setValidationWarnings(prev => ({ ...prev, taxYear: validation.message }));
+      } else {
+        setValidationWarnings(prev => { const {taxYear, ...rest} = prev; return rest; });
+      }
+    }
+  };
 
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
@@ -1187,6 +1476,24 @@ const FileConverterSection = () => {
     }
   };
 
+  const validateBeforeGeneration = () => {
+    const validation = validateAllFields(settings);
+    
+    if (validation.errors.length > 0) {
+      setError(`Please fix the following errors:\n• ${validation.errors.join('\n• ')}`);
+      return false;
+    }
+    
+    if (validation.warnings.length > 0 && !isTestMode) {
+      const proceed = window.confirm(
+        `⚠️ Potential Issues Detected:\n\n${validation.warnings.map(w => `• ${w}`).join('\n')}\n\nThis may cause issues with CRS submission. Proceed anyway?`
+      );
+      if (!proceed) return false;
+    }
+    
+    return true;
+  };
+
   const processFile = async () => {
     if (!file || !user || !userDoc) {
       setError('Please upload a file and ensure you are logged in.');
@@ -1195,6 +1502,11 @@ const FileConverterSection = () => {
 
     if (userDoc.conversionsUsed >= userDoc.conversionsLimit) {
       setError('You have reached your conversion limit. Please upgrade your plan to continue.');
+      return;
+    }
+
+    // Validate before processing
+    if (!validateBeforeGeneration()) {
       return;
     }
 
@@ -1299,43 +1611,121 @@ const FileConverterSection = () => {
           </div>
         </div>
 
-        {/* Settings Form */}
+        {/* Test Mode Toggle */}
+        <div className="mb-6 flex items-center justify-center">
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isTestMode}
+              onChange={(e) => setIsTestMode(e.target.checked)}
+              className="sr-only"
+            />
+            <div className={`relative w-10 h-6 rounded-full transition-colors ${
+              isTestMode ? 'bg-blue-600' : 'bg-gray-300'
+            }`}>
+              <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                isTestMode ? 'transform translate-x-4' : ''
+              }`}></div>
+            </div>
+            <span className="ml-3 text-sm font-medium text-gray-700">
+              Test Mode (for development/testing)
+            </span>
+          </label>
+        </div>
+
+        {/* Test Mode Warning */}
+        {isTestMode && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center">
+              <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
+              <div>
+                <p className="font-medium text-red-800">TEST MODE ACTIVE</p>
+                <p className="text-sm text-red-700">
+                  This XML is for testing only. Do not submit to tax authorities.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Settings Form with Validation */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Reporting FI Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            {/* FI Name */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                FI Name
+                FI Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={settings.reportingFI.name}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  reportingFI: { ...settings.reportingFI, name: e.target.value }
-                })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => handleFINameChange(e.target.value)}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  validationErrors.fiName 
+                    ? 'border-red-300 focus:ring-red-500' 
+                    : validationWarnings.fiName 
+                    ? 'border-yellow-300 focus:ring-yellow-500' 
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
                 placeholder="Financial Institution Name"
               />
+              {validationErrors.fiName && (
+                <div className="mt-1 flex items-center">
+                  <AlertCircle className="w-4 h-4 text-red-500 mr-1" />
+                  <span className="text-xs text-red-600">{validationErrors.fiName}</span>
+                </div>
+              )}
+              {validationWarnings.fiName && !validationErrors.fiName && (
+                <div className="mt-1 flex items-center">
+                  <AlertTriangle className="w-4 h-4 text-yellow-600 mr-1" />
+                  <span className="text-xs text-yellow-700">{validationWarnings.fiName}</span>
+                </div>
+              )}
             </div>
+
+            {/* GIIN with Enhanced Validation */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                GIIN
+                GIIN <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={settings.reportingFI.giin}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  reportingFI: { ...settings.reportingFI, giin: e.target.value }
-                })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Global Intermediary Identification Number"
+                onChange={(e) => handleGIINChange(e.target.value)}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  validationErrors.giin 
+                    ? 'border-red-300 focus:ring-red-500' 
+                    : validationWarnings.giin 
+                    ? 'border-yellow-300 focus:ring-yellow-500' 
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
+                placeholder="ABC123.00000.ME.123"
+                pattern="[A-Z0-9]{6}\.[A-Z0-9]{5}\.[A-Z]{2}\.[A-Z0-9]{3}"
+                maxLength={19}
               />
+              <div className="mt-1 text-xs text-gray-500">
+                Format: 6 chars + 5 chars + 2 country + 3 chars (e.g., ABC123.00000.ME.123)
+              </div>
+              {validationErrors.giin && (
+                <div className="mt-1 flex items-center">
+                  <AlertCircle className="w-4 h-4 text-red-500 mr-1" />
+                  <span className="text-xs text-red-600">{validationErrors.giin}</span>
+                </div>
+              )}
+              {validationWarnings.giin && !validationErrors.giin && (
+                <div className="mt-1 flex items-center">
+                  <AlertTriangle className="w-4 h-4 text-yellow-600 mr-1" />
+                  <span className="text-xs text-yellow-700">{validationWarnings.giin}</span>
+                </div>
+              )}
             </div>
+
+            {/* Country */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Country
+                Country <span className="text-red-500">*</span>
               </label>
               <select
                 value={settings.reportingFI.country}
@@ -1352,23 +1742,43 @@ const FileConverterSection = () => {
                 <option value="EG">Egypt</option>
                 <option value="MA">Morocco</option>
                 <option value="GH">Ghana</option>
+                <option value="UG">Uganda</option>
+                <option value="TZ">Tanzania</option>
+                <option value="RW">Rwanda</option>
               </select>
             </div>
+
+            {/* Tax Year with Validation */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tax Year
+                Tax Year <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
                 value={settings.taxYear}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  taxYear: parseInt(e.target.value)
-                })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => handleTaxYearChange(e.target.value)}
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                  validationErrors.taxYear 
+                    ? 'border-red-300 focus:ring-red-500' 
+                    : validationWarnings.taxYear 
+                    ? 'border-yellow-300 focus:ring-yellow-500' 
+                    : 'border-gray-300 focus:ring-blue-500'
+                }`}
                 min="2014"
                 max={new Date().getFullYear()}
               />
+              {validationErrors.taxYear && (
+                <div className="mt-1 flex items-center">
+                  <AlertCircle className="w-4 h-4 text-red-500 mr-1" />
+                  <span className="text-xs text-red-600">{validationErrors.taxYear}</span>
+                </div>
+              )}
+              {validationWarnings.taxYear && !validationErrors.taxYear && (
+                <div className="mt-1 flex items-center">
+                  <AlertTriangle className="w-4 h-4 text-yellow-600 mr-1" />
+                  <span className="text-xs text-yellow-700">{validationWarnings.taxYear}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1404,7 +1814,11 @@ const FileConverterSection = () => {
           {error && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm flex items-center">
               <AlertCircle className="w-4 h-4 mr-2" />
-              {error}
+              <div>
+                {error.split('\n').map((line, index) => (
+                  <div key={index}>{line}</div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -1421,7 +1835,7 @@ const FileConverterSection = () => {
               </div>
               <button
                 onClick={processFile}
-                disabled={isProcessing || remainingConversions <= 0}
+                disabled={isProcessing || remainingConversions <= 0 || Object.keys(validationErrors).length > 0}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
                 {isProcessing ? (
@@ -1494,6 +1908,7 @@ const FileConverterSection = () => {
                 <CheckCircle2 className="w-5 h-5 text-green-600 mr-2" />
                 <span className="text-sm text-green-700">
                   XML file generated successfully and ready for OECD CRS submission!
+                  {isTestMode && ' (TEST MODE - Do not submit to authorities)'}
                 </span>
               </div>
             </div>
