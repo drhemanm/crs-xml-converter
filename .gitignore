@@ -28,3 +28,6 @@ firestore-debug.log
 
 # Environment variables
 .env
+
+REACT_APP_PAYPAL_CLIENT_ID=AUJJg3yZa5HYgAYVsUXEv1LYK0Wi5zsGDqqYngj9MhJB8Mwr1ly-tzHh-kjWO5cqHGhw0VXKEL0yJJCj
+REACT_APP_ENVIRONMENT=sandbox
