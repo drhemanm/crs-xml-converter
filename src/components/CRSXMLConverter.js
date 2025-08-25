@@ -1,9 +1,3 @@
-// ==========================================
-// REAL FIREBASE INTEGRATION - PRODUCTION READY
-// Replace your entire CRSXMLConverter.js file with this code
-// This uses REAL Firebase instead of mock data!
-// ==========================================
-
 import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
 
 // Firebase imports - REAL authentication and database
@@ -41,7 +35,8 @@ import {
   Shield, X, HelpCircle, Clock, Zap, Lock, Globe, ChevronRight,
   User, Building2, Menu, LogOut, CreditCard, BarChart3,
   Star, Crown, Sparkles, ArrowRight, Check, Users, Calendar,
-  TrendingUp, Award, Headphones, Smartphone
+  TrendingUp, Award, Headphones, Smartphone, Eye, History,
+  DollarSign, Target, Activity, Briefcase
 } from 'lucide-react';
 
 // Import Excel processing library
@@ -49,7 +44,6 @@ import * as XLSX from 'xlsx';
 
 // ==========================================
 // FIREBASE CONFIGURATION
-// Your actual Firebase config (we'll secure this with env variables)
 // ==========================================
 
 const firebaseConfig = {
@@ -64,25 +58,23 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);           // Authentication service
-export const db = getFirestore(app);        // Database service  
-export const analytics = getAnalytics(app); // Analytics service
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const analytics = getAnalytics(app);
 
 console.log('🔥 Firebase initialized successfully!');
 
 // ==========================================
 // AUTHENTICATION CONTEXT WITH REAL FIREBASE
-// This manages user login state using REAL Firebase Auth
 // ==========================================
 
 const AuthContext = createContext();
 
 const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);        // Current user from Firebase
-  const [loading, setLoading] = useState(true);  // Is Firebase checking auth state?
-  const [userDoc, setUserDoc] = useState(null);  // User document from Firestore
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [userDoc, setUserDoc] = useState(null);
 
-  // Listen to Firebase auth state changes
   useEffect(() => {
     console.log('🔍 Setting up Firebase auth state listener...');
     
@@ -92,7 +84,6 @@ const AuthProvider = ({ children }) => {
       if (firebaseUser) {
         console.log('👤 Loading user data from Firestore...');
         
-        // Get user document from Firestore
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
         
@@ -114,25 +105,21 @@ const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    // Cleanup listener on unmount
     return () => {
       console.log('🧹 Cleaning up auth listener');
       unsubscribe();
     };
   }, []);
 
-  // Register new user with Firebase and Firestore
   const register = async (email, password, displayName, company) => {
     console.log('🚀 Starting user registration with Firebase...');
     
     try {
-      // Create user account with Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const newUser = userCredential.user;
       
       console.log('✅ Firebase user created:', newUser.uid);
       
-      // Create user document in Firestore
       const userData = {
         email,
         displayName,
@@ -148,7 +135,6 @@ const AuthProvider = ({ children }) => {
       await setDoc(doc(db, 'users', newUser.uid), userData);
       console.log('✅ User document created in Firestore');
       
-      // Send email verification
       await sendEmailVerification(newUser);
       console.log('📧 Email verification sent');
       
@@ -161,7 +147,6 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  // Login user with Firebase
   const login = async (email, password) => {
     console.log('🚀 Starting user login with Firebase...');
     
@@ -171,7 +156,6 @@ const AuthProvider = ({ children }) => {
       
       console.log('✅ Firebase login successful:', loggedInUser.uid);
       
-      // Update last login time
       await updateDoc(doc(db, 'users', loggedInUser.uid), {
         lastLogin: serverTimestamp()
       });
@@ -184,7 +168,6 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  // Logout user
   const logout = async () => {
     console.log('🚀 Starting user logout...');
     
@@ -197,7 +180,6 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  // Send password reset email
   const resetPassword = async (email) => {
     console.log('🚀 Sending password reset email...');
     
@@ -210,19 +192,16 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  // Update user usage when they convert a file
   const updateUserUsage = async () => {
     if (user && userDoc) {
       console.log('📊 Updating user conversion usage...');
       
       try {
-        // Increment conversions used in Firestore
         await updateDoc(doc(db, 'users', user.uid), {
           conversionsUsed: increment(1),
           lastConversion: serverTimestamp()
         });
         
-        // Update local state
         setUserDoc(prev => ({
           ...prev,
           conversionsUsed: prev.conversionsUsed + 1
@@ -230,7 +209,6 @@ const AuthProvider = ({ children }) => {
         
         console.log('✅ Usage updated successfully');
         
-        // Log the conversion for analytics
         await addDoc(collection(db, 'conversions'), {
           userId: user.uid,
           timestamp: serverTimestamp(),
@@ -244,7 +222,6 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  // Upgrade user plan
   const upgradePlan = async (plan) => {
     if (user) {
       console.log('⬆️ Upgrading user plan to:', plan);
@@ -263,15 +240,11 @@ const AuthProvider = ({ children }) => {
           planUpdatedAt: serverTimestamp()
         };
         
-        // Update in Firestore
         await updateDoc(doc(db, 'users', user.uid), updateData);
-        
-        // Update local state
         setUserDoc(prev => ({ ...prev, ...updateData }));
         
         console.log('✅ Plan upgraded successfully');
         
-        // Log the upgrade for analytics
         await addDoc(collection(db, 'subscriptions'), {
           userId: user.uid,
           plan,
@@ -286,7 +259,6 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  // Get user conversion history
   const getUserConversions = async () => {
     if (user) {
       try {
@@ -312,26 +284,16 @@ const AuthProvider = ({ children }) => {
     return [];
   };
 
-  // Provide all these functions to the entire app
   return (
     <AuthContext.Provider value={{ 
-      user,                    // Firebase user object
-      userDoc,                 // Firestore user document
-      loading,                 // Is Firebase checking auth state?
-      login,                   // Function to log in
-      register,                // Function to register
-      logout,                  // Function to log out
-      resetPassword,           // Function to reset password
-      updateUserUsage,         // Function to track usage
-      upgradePlan,             // Function to upgrade plan
-      getUserConversions       // Function to get conversion history
+      user, userDoc, loading, login, register, logout, resetPassword, 
+      updateUserUsage, upgradePlan, getUserConversions 
     }}>
       {children}
     </AuthContext.Provider>
   );
 };
 
-// Hook to use authentication anywhere in the app
 const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -340,7 +302,6 @@ const useAuth = () => {
   return context;
 };
 
-// Helper function to convert Firebase error codes to user-friendly messages
 const getFirebaseErrorMessage = (errorCode) => {
   switch (errorCode) {
     case 'auth/user-not-found':
@@ -362,7 +323,6 @@ const getFirebaseErrorMessage = (errorCode) => {
 
 // ==========================================
 // PRICING PLANS CONFIGURATION
-// Same as before - no changes needed
 // ==========================================
 
 const PRICING_PLANS = {
@@ -419,8 +379,90 @@ const PRICING_PLANS = {
 };
 
 // ==========================================
+// CRS XML GENERATION LOGIC
+// ==========================================
+
+const generateCRSXML = (data, settings) => {
+  const { reportingFI, messageRefId, taxYear, reportingPeriod } = settings;
+  
+  const formatDate = (date) => {
+    return new Date(date).toISOString().split('T')[0];
+  };
+
+  const formatCurrency = (amount) => {
+    return parseFloat(amount || 0).toFixed(2);
+  };
+
+  const generateAccountReport = (account) => {
+    return `
+      <crs:AccountReport>
+        <crs:DocSpec>
+          <stf:DocTypeIndic>OECD1</stf:DocTypeIndic>
+          <stf:DocRefId>${account.AccountNumber || 'UNKNOWN'}</stf:DocRefId>
+          <stf:CorrDocRefId></stf:CorrDocRefId>
+        </crs:DocSpec>
+        <crs:AccountNumber>${account.AccountNumber || ''}</crs:AccountNumber>
+        <crs:AccountHolder>
+          <crs:Individual>
+            <crs:ResCountryCode>${account.ResCountryCode || 'XX'}</crs:ResCountryCode>
+            <crs:TIN issuedBy="${account.ResCountryCode || 'XX'}">${account.TIN || ''}</crs:TIN>
+            <crs:Name>
+              <crs:FirstName>${account.FirstName || ''}</crs:FirstName>
+              <crs:LastName>${account.LastName || ''}</crs:LastName>
+            </crs:Name>
+            <crs:Address>
+              <crs:CountryCode>${account.AddressCountryCode || account.ResCountryCode || 'XX'}</crs:CountryCode>
+              <crs:AddressFree>${account.Address || ''}</crs:AddressFree>
+            </crs:Address>
+            <crs:BirthInfo>
+              <crs:BirthDate>${account.BirthDate ? formatDate(account.BirthDate) : ''}</crs:BirthDate>
+              <crs:City>${account.BirthCity || ''}</crs:City>
+              <crs:CountryInfo>
+                <crs:CountryCode>${account.BirthCountryCode || 'XX'}</crs:CountryCode>
+              </crs:CountryInfo>
+            </crs:BirthInfo>
+          </crs:Individual>
+        </crs:AccountHolder>
+        <crs:AccountBalance currCode="${account.CurrCode || 'USD'}">${formatCurrency(account.AccountBalance)}</crs:AccountBalance>
+        <crs:Payment>
+          <crs:Type>CRS501</crs:Type>
+          <crs:PaymentAmnt currCode="${account.CurrCode || 'USD'}">${formatCurrency(account.PaymentAmount)}</crs:PaymentAmnt>
+        </crs:Payment>
+      </crs:AccountReport>`;
+  };
+
+  const accountReports = data.map(generateAccountReport).join('');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<crs:CRS_OECD xmlns:crs="urn:oecd:ties:crs:v1" xmlns:stf="urn:oecd:ties:stf:v4" version="1.0">
+  <crs:MessageSpec>
+    <stf:SendingCompanyIN>${reportingFI.giin || ''}</stf:SendingCompanyIN>
+    <stf:TransmittingCountry>${reportingFI.country || 'MU'}</stf:TransmittingCountry>
+    <stf:ReceivingCountry>XX</stf:ReceivingCountry>
+    <stf:MessageType>CRS</stf:MessageType>
+    <stf:Warning>Optional human readable warning</stf:Warning>
+    <stf:Contact>${reportingFI.contact || ''}</stf:Contact>
+    <stf:MessageRefId>${messageRefId}</stf:MessageRefId>
+    <stf:MessageTypeIndic>CRS701</stf:MessageTypeIndic>
+    <stf:ReportingPeriod>${taxYear}</stf:ReportingPeriod>
+    <stf:Timestamp>${new Date().toISOString()}</stf:Timestamp>
+  </crs:MessageSpec>
+  <crs:CrsBody>
+    <crs:ReportingFI>
+      <crs:ReportingFI_IN>${reportingFI.giin || ''}</crs:ReportingFI_IN>
+      <crs:Name>${reportingFI.name || ''}</crs:Name>
+      <crs:Address>
+        <crs:CountryCode>${reportingFI.country || 'MU'}</crs:CountryCode>
+        <crs:AddressFree>${reportingFI.address || ''}</crs:AddressFree>
+      </crs:Address>
+    </crs:ReportingFI>
+    ${accountReports}
+  </crs:CrsBody>
+</crs:CRS_OECD>`;
+};
+
+// ==========================================
 // NAVIGATION COMPONENT
-// Updated to use real Firebase user data
 // ==========================================
 
 const Navigation = () => {
@@ -480,7 +522,7 @@ const Navigation = () => {
                       {userDoc?.plan || 'free'} Plan
                     </div>
                   </div>
-                  {!user.emailVerified && (
+                  {user && !user.emailVerified && (
                     <div className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
                       Verify Email
                     </div>
@@ -561,7 +603,6 @@ const Navigation = () => {
 
 // ==========================================
 // HERO SECTION COMPONENT
-// Same as before - no changes needed
 // ==========================================
 
 const HeroSection = () => {
@@ -626,7 +667,6 @@ const HeroSection = () => {
 
 // ==========================================
 // FEATURES SECTION COMPONENT
-// Same as before - no changes needed
 // ==========================================
 
 const FeaturesSection = () => {
@@ -691,7 +731,6 @@ const FeaturesSection = () => {
 
 // ==========================================
 // AUTHENTICATION SECTION WITH REAL FIREBASE
-// Updated to use real Firebase Auth with better UX
 // ==========================================
 
 const AuthSection = () => {
@@ -708,7 +747,6 @@ const AuthSection = () => {
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -717,17 +755,14 @@ const AuthSection = () => {
 
     try {
       if (isResetPassword) {
-        // Handle password reset
         await resetPassword(formData.email);
         setSuccess('Password reset email sent! Check your inbox.');
         setIsResetPassword(false);
       } else if (isLogin) {
-        // Handle login
         console.log('🔑 Attempting login with Firebase...');
         await login(formData.email, formData.password);
         setSuccess('Welcome back! Redirecting to your dashboard...');
       } else {
-        // Handle registration
         console.log('📝 Attempting registration with Firebase...');
         await register(formData.email, formData.password, formData.displayName, formData.company);
         setSuccess('Account created successfully! Please check your email to verify your account.');
@@ -740,7 +775,6 @@ const AuthSection = () => {
     }
   };
 
-  // Don't show auth section if user is logged in
   if (loading) {
     return (
       <div className="py-20 flex justify-center items-center">
@@ -758,7 +792,6 @@ const AuthSection = () => {
     <div id="auth" className="py-20 bg-gray-50">
       <div className="max-w-md mx-auto px-6">
         <div className="bg-white rounded-lg shadow-lg p-8">
-          {/* Form Header */}
           <div className="text-center mb-8">
             <div className="mb-4">
               <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-red-500 bg-clip-text text-transparent">
@@ -778,10 +811,8 @@ const AuthSection = () => {
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             
-            {/* Registration fields */}
             {!isLogin && !isResetPassword && (
               <>
                 <div>
@@ -813,7 +844,6 @@ const AuthSection = () => {
               </>
             )}
             
-            {/* Email field */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email Address <span className="text-red-500">*</span>
@@ -828,7 +858,6 @@ const AuthSection = () => {
               />
             </div>
             
-            {/* Password field (not shown for password reset) */}
             {!isResetPassword && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -846,21 +875,18 @@ const AuthSection = () => {
               </div>
             )}
 
-            {/* Success message */}
             {success && (
               <div className="p-3 bg-green-50 border border-green-200 rounded text-green-700 text-sm">
                 {success}
               </div>
             )}
 
-            {/* Error message */}
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
                 {error}
               </div>
             )}
 
-            {/* Submit button */}
             <button
               type="submit"
               disabled={isSubmitting}
@@ -877,7 +903,6 @@ const AuthSection = () => {
             </button>
           </form>
 
-          {/* Form toggles */}
           <div className="mt-6 text-center space-y-2">
             {!isResetPassword ? (
               <>
@@ -920,7 +945,6 @@ const AuthSection = () => {
             )}
           </div>
 
-          {/* Free trial benefits */}
           {!isLogin && !isResetPassword && (
             <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
               <h4 className="font-medium text-green-800 mb-2">✅ What you get for free:</h4>
@@ -934,7 +958,6 @@ const AuthSection = () => {
             </div>
           )}
 
-          {/* Powered by Firebase notice */}
           <div className="mt-6 text-center">
             <p className="text-xs text-gray-500">
               🔐 Secured by Firebase • 🌍 GDPR Compliant
@@ -946,8 +969,690 @@ const AuthSection = () => {
   );
 };
 
-// Continue with Dashboard, Pricing, and other components...
-// For now, let's export the main app to test Firebase integration
+// ==========================================
+// DASHBOARD COMPONENT
+// ==========================================
+
+const DashboardSection = () => {
+  const { user, userDoc, getUserConversions } = useAuth();
+  const [conversions, setConversions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      loadConversions();
+    }
+  }, [user]);
+
+  const loadConversions = async () => {
+    setLoading(true);
+    try {
+      const userConversions = await getUserConversions();
+      setConversions(userConversions);
+    } catch (error) {
+      console.error('Failed to load conversions:', error);
+    }
+    setLoading(false);
+  };
+
+  if (!user) return null;
+
+  const usagePercentage = userDoc ? (userDoc.conversionsUsed / userDoc.conversionsLimit) * 100 : 0;
+  const remainingConversions = userDoc ? userDoc.conversionsLimit - userDoc.conversionsUsed : 0;
+
+  return (
+    <div id="dashboard" className="py-20 bg-white">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            Welcome back, {userDoc?.displayName || user.email?.split('@')[0]}!
+          </h2>
+          <p className="text-xl text-gray-600">
+            Here's your account overview and recent activity
+          </p>
+        </div>
+
+        {/* Usage Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-100 text-sm">Current Plan</p>
+                <p className="text-2xl font-bold capitalize">{userDoc?.plan || 'Free'}</p>
+              </div>
+              <Crown className="w-8 h-8 text-blue-200" />
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-green-100 text-sm">Conversions Used</p>
+                <p className="text-2xl font-bold">{userDoc?.conversionsUsed || 0}/{userDoc?.conversionsLimit || 3}</p>
+              </div>
+              <Activity className="w-8 h-8 text-green-200" />
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-purple-100 text-sm">Remaining</p>
+                <p className="text-2xl font-bold">{remainingConversions}</p>
+              </div>
+              <Target className="w-8 h-8 text-purple-200" />
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg p-6 text-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-orange-100 text-sm">Success Rate</p>
+                <p className="text-2xl font-bold">99.9%</p>
+              </div>
+              <Award className="w-8 h-8 text-orange-200" />
+            </div>
+          </div>
+        </div>
+
+        {/* Usage Progress Bar */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Monthly Usage</h3>
+            <span className="text-sm text-gray-600">
+              {usagePercentage.toFixed(1)}% used
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div 
+              className={`h-3 rounded-full transition-all duration-300 ${
+                usagePercentage > 80 ? 'bg-red-500' : 
+                usagePercentage > 60 ? 'bg-yellow-500' : 'bg-green-500'
+              }`}
+              style={{ width: `${Math.min(usagePercentage, 100)}%` }}
+            ></div>
+          </div>
+          {usagePercentage > 80 && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center">
+                <AlertCircle className="w-4 h-4 text-yellow-600 mr-2" />
+                <span className="text-sm text-yellow-700">
+                  You're running low on conversions. Consider upgrading your plan for unlimited access.
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Conversions */}
+        <div className="bg-white rounded-lg border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Recent Conversions</h3>
+              <History className="w-5 h-5 text-gray-400" />
+            </div>
+          </div>
+          <div className="p-6">
+            {loading ? (
+              <div className="text-center py-8">
+                <Clock className="w-8 h-8 animate-spin mx-auto text-blue-600 mb-4" />
+                <p className="text-gray-600">Loading conversions...</p>
+              </div>
+            ) : conversions.length > 0 ? (
+              <div className="space-y-4">
+                {conversions.map((conversion, index) => (
+                  <div key={conversion.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Conversion #{conversions.length - index}</p>
+                        <p className="text-sm text-gray-600">
+                          {conversion.timestamp?.toDate ? 
+                            conversion.timestamp.toDate().toLocaleDateString() : 
+                            'Recently'
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                      <span className="text-sm text-green-600 font-medium">Success</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600 mb-2">No conversions yet</p>
+                <p className="text-sm text-gray-500">Start by converting your first CRS file!</p>
+                <button 
+                  onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Convert Now
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// FILE CONVERTER COMPONENT
+// ==========================================
+
+const FileConverterSection = () => {
+  const { user, userDoc, updateUserUsage } = useAuth();
+  const [file, setFile] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [xmlResult, setXmlResult] = useState(null);
+  const [error, setError] = useState('');
+  const [settings, setSettings] = useState({
+    reportingFI: {
+      name: '',
+      giin: '',
+      country: 'MU',
+      address: '',
+      contact: ''
+    },
+    messageRefId: `MSG-${Date.now()}`,
+    taxYear: new Date().getFullYear() - 1,
+    reportingPeriod: `${new Date().getFullYear() - 1}-12-31`
+  });
+
+  const fileInputRef = useRef(null);
+
+  const handleFileSelect = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      const validTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-excel',
+        'text/csv'
+      ];
+      
+      if (validTypes.includes(selectedFile.type) || selectedFile.name.endsWith('.csv')) {
+        setFile(selectedFile);
+        setError('');
+        setXmlResult(null);
+      } else {
+        setError('Please select a valid Excel (.xlsx, .xls) or CSV file.');
+      }
+    }
+  };
+
+  const processFile = async () => {
+    if (!file || !user || !userDoc) {
+      setError('Please upload a file and ensure you are logged in.');
+      return;
+    }
+
+    if (userDoc.conversionsUsed >= userDoc.conversionsLimit) {
+      setError('You have reached your conversion limit. Please upgrade your plan to continue.');
+      return;
+    }
+
+    setIsProcessing(true);
+    setError('');
+
+    try {
+      const fileData = await file.arrayBuffer();
+      let data = [];
+
+      if (file.name.endsWith('.csv') || file.type.includes('csv')) {
+        // Process CSV file
+        const text = new TextDecoder().decode(fileData);
+        const lines = text.split('\n');
+        if (lines.length === 0) {
+          throw new Error('CSV file appears to be empty');
+        }
+        
+        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        
+        for (let i = 1; i < lines.length; i++) {
+          if (lines[i].trim()) {
+            const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+            const row = {};
+            headers.forEach((header, index) => {
+              row[header] = values[index] || '';
+            });
+            data.push(row);
+          }
+        }
+      } else {
+        // Process Excel file
+        const workbook = XLSX.read(fileData, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        data = XLSX.utils.sheet_to_json(worksheet);
+      }
+
+      if (data.length === 0) {
+        setError('The file appears to be empty or in an unsupported format.');
+        return;
+      }
+
+      console.log('Processing', data.length, 'records...');
+
+      // Generate XML
+      const xmlContent = generateCRSXML(data, settings);
+      setXmlResult(xmlContent);
+
+      // Update user usage
+      await updateUserUsage();
+
+    } catch (err) {
+      console.error('Processing error:', err);
+      setError('Failed to process the file. Please check the file format and try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const downloadXML = () => {
+    if (xmlResult) {
+      const blob = new Blob([xmlResult], { type: 'application/xml' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `CRS_OECD_${settings.taxYear}_${Date.now()}.xml`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const copyToClipboard = () => {
+    if (xmlResult) {
+      navigator.clipboard.writeText(xmlResult).then(() => {
+        alert('XML copied to clipboard!');
+      }).catch(() => {
+        alert('Failed to copy XML. Please select and copy manually.');
+      });
+    }
+  };
+
+  if (!user) return null;
+
+  const remainingConversions = userDoc ? userDoc.conversionsLimit - userDoc.conversionsUsed : 0;
+
+  return (
+    <div id="converter" className="py-20 bg-gray-50">
+      <div className="max-w-4xl mx-auto px-6">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            Convert Your CRS Data
+          </h2>
+          <p className="text-xl text-gray-600">
+            Upload Excel or CSV files and convert them to OECD CRS XML format
+          </p>
+          <div className="mt-4 inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm">
+            <Activity className="w-4 h-4 mr-2" />
+            {remainingConversions} conversion{remainingConversions !== 1 ? 's' : ''} remaining this month
+          </div>
+        </div>
+
+        {/* Settings Form */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Reporting FI Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                FI Name
+              </label>
+              <input
+                type="text"
+                value={settings.reportingFI.name}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  reportingFI: { ...settings.reportingFI, name: e.target.value }
+                })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Financial Institution Name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                GIIN
+              </label>
+              <input
+                type="text"
+                value={settings.reportingFI.giin}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  reportingFI: { ...settings.reportingFI, giin: e.target.value }
+                })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Global Intermediary Identification Number"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Country
+              </label>
+              <select
+                value={settings.reportingFI.country}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  reportingFI: { ...settings.reportingFI, country: e.target.value }
+                })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="MU">Mauritius</option>
+                <option value="ZA">South Africa</option>
+                <option value="KE">Kenya</option>
+                <option value="NG">Nigeria</option>
+                <option value="EG">Egypt</option>
+                <option value="MA">Morocco</option>
+                <option value="GH">Ghana</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tax Year
+              </label>
+              <input
+                type="number"
+                value={settings.taxYear}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  taxYear: parseInt(e.target.value)
+                })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min="2014"
+                max={new Date().getFullYear()}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* File Upload */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload Your File</h3>
+          
+          <div 
+            className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-lg font-medium text-gray-900 mb-2">
+              {file ? file.name : 'Choose your Excel or CSV file'}
+            </p>
+            <p className="text-gray-600 mb-4">
+              Drop your file here or click to browse
+            </p>
+            <div className="text-sm text-gray-500">
+              Supported formats: .xlsx, .xls, .csv (max 10MB)
+            </div>
+          </div>
+          
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+
+          {error && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm flex items-center">
+              <AlertCircle className="w-4 h-4 mr-2" />
+              {error}
+            </div>
+          )}
+
+          {file && !error && (
+            <div className="mt-4 flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <CheckCircle2 className="w-5 h-5 text-green-600" />
+                <div>
+                  <p className="font-medium text-green-900">{file.name}</p>
+                  <p className="text-sm text-green-700">
+                    {(file.size / 1024 / 1024).toFixed(2)} MB • Ready to process
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={processFile}
+                disabled={isProcessing || remainingConversions <= 0}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {isProcessing ? (
+                  <>
+                    <Clock className="w-4 h-4 animate-spin mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4 mr-2" />
+                    Convert to XML
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {remainingConversions <= 0 && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center">
+                <AlertCircle className="w-5 h-5 text-yellow-600 mr-3" />
+                <div>
+                  <p className="font-medium text-yellow-800">Conversion limit reached</p>
+                  <p className="text-sm text-yellow-700">
+                    Please upgrade your plan to continue converting files.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+                className="mt-3 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 text-sm"
+              >
+                View Pricing Plans
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* XML Result */}
+        {xmlResult && (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Generated XML</h3>
+              <div className="flex space-x-3">
+                <button
+                  onClick={copyToClipboard}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center text-sm"
+                >
+                  <Eye className="w-4 h-4 mr-2" />
+                  Copy
+                </button>
+                <button
+                  onClick={downloadXML}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center text-sm"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download XML
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+              <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">
+                {xmlResult.substring(0, 2000)}{xmlResult.length > 2000 ? '...' : ''}
+              </pre>
+            </div>
+
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center">
+                <CheckCircle2 className="w-5 h-5 text-green-600 mr-2" />
+                <span className="text-sm text-green-700">
+                  XML file generated successfully and ready for OECD CRS submission!
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// PRICING SECTION
+// ==========================================
+
+const PricingSection = () => {
+  const { user, userDoc, upgradePlan } = useAuth();
+  const [upgrading, setUpgrading] = useState(null);
+
+  const handleUpgrade = async (planId) => {
+    if (!user) {
+      document.getElementById('auth')?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+
+    if (planId === 'enterprise') {
+      window.open('mailto:sales@iafrica.com?subject=Enterprise Plan Inquiry', '_blank');
+      return;
+    }
+
+    setUpgrading(planId);
+    try {
+      await upgradePlan(planId);
+      alert('Plan upgraded successfully! Welcome to your new plan.');
+    } catch (error) {
+      console.error('Upgrade failed:', error);
+      alert('Upgrade failed. Please try again or contact support.');
+    } finally {
+      setUpgrading(null);
+    }
+  };
+
+  return (
+    <div id="pricing" className="py-20 bg-gray-50">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold text-gray-900 mb-6">
+            Choose Your Plan
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Select the perfect plan for your CRS compliance needs. All plans include GDPR compliance and expert support.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          {Object.entries(PRICING_PLANS).map(([planId, plan]) => {
+            const isCurrentPlan = userDoc?.plan === planId;
+            const colorClasses = {
+              gray: 'border-gray-200',
+              blue: 'border-blue-200 ring-2 ring-blue-500',
+              purple: 'border-purple-200'
+            };
+
+            return (
+              <div
+                key={planId}
+                className={`bg-white rounded-lg shadow-lg p-8 relative ${colorClasses[plan.color] || colorClasses.gray}`}
+              >
+                {plan.popular && (
+                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                    <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-medium">
+                      Most Popular
+                    </span>
+                  </div>
+                )}
+
+                <div className="text-center mb-8">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                  <div className="mb-4">
+                    <span className="text-4xl font-bold text-gray-900">${plan.price}</span>
+                    {plan.price > 0 && <span className="text-gray-600">/month</span>}
+                  </div>
+                  <p className="text-gray-600">
+                    {plan.conversions} conversions{plan.price > 0 ? '/month' : ' total'}
+                  </p>
+                </div>
+
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feature, index) => (
+                    <li key={index} className="flex items-center">
+                      <Check className="w-5 h-5 text-green-600 mr-3 flex-shrink-0" />
+                      <span className="text-gray-700">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => handleUpgrade(planId)}
+                  disabled={isCurrentPlan || upgrading === planId}
+                  className={`w-full py-3 px-6 rounded-lg font-medium transition-colors ${
+                    isCurrentPlan
+                      ? 'bg-gray-100 text-gray-600 cursor-not-allowed'
+                      : plan.color === 'blue'
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : plan.color === 'purple'
+                      ? 'bg-purple-600 text-white hover:bg-purple-700'
+                      : 'bg-gray-600 text-white hover:bg-gray-700'
+                  }`}
+                >
+                  {upgrading === planId ? (
+                    <>
+                      <Clock className="w-4 h-4 animate-spin inline mr-2" />
+                      Upgrading...
+                    </>
+                  ) : isCurrentPlan ? (
+                    'Current Plan'
+                  ) : (
+                    plan.buttonText
+                  )}
+                </button>
+
+                {isCurrentPlan && (
+                  <div className="mt-3 text-center">
+                    <span className="text-sm text-green-600 font-medium">
+                      ✓ You're on this plan
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-12 text-center">
+          <p className="text-gray-600 mb-4">
+            All plans include 24/7 technical support and 99.9% uptime SLA
+          </p>
+          <div className="flex items-center justify-center space-x-8 text-sm text-gray-500">
+            <div className="flex items-center">
+              <Shield className="w-4 h-4 mr-2" />
+              GDPR Compliant
+            </div>
+            <div className="flex items-center">
+              <Lock className="w-4 h-4 mr-2" />
+              Bank-Level Security
+            </div>
+            <div className="flex items-center">
+              <Globe className="w-4 h-4 mr-2" />
+              OECD Standards
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// MAIN APP COMPONENT
+// ==========================================
 
 export default function CRSXMLConverter() {
   return (
@@ -957,19 +1662,10 @@ export default function CRSXMLConverter() {
         <HeroSection />
         <FeaturesSection />
         <AuthSection />
+        <DashboardSection />
+        <FileConverterSection />
+        <PricingSection />
         
-        {/* Temporary message for testing */}
-        <div className="py-20 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">🔥 Firebase Integration Active!</h2>
-          <p className="text-gray-600">Real authentication and database now working!</p>
-          <div className="mt-4 text-sm text-gray-500">
-            <p>✅ Firebase Auth connected</p>
-            <p>✅ Firestore database connected</p>
-            <p>✅ User registration/login working</p>
-            <p>✅ Password reset working</p>
-          </div>
-        </div>
-
         {/* Footer */}
         <footer className="bg-gray-900 text-white py-12">
           <div className="max-w-7xl mx-auto px-6">
