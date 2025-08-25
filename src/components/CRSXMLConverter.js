@@ -1,6 +1,4 @@
 import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
-
-// Firebase imports
 import { initializeApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -9,9 +7,7 @@ import {
   signInWithPopup,
   GoogleAuthProvider,
   signOut,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  sendEmailVerification
+  onAuthStateChanged
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -20,34 +16,15 @@ import {
   getDoc, 
   updateDoc, 
   increment,
-  addDoc,
-  collection,
-  serverTimestamp,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs
+  serverTimestamp
 } from 'firebase/firestore';
-import { getAnalytics, logEvent } from 'firebase/analytics';
-
-// Icons
+import { getAnalytics } from 'firebase/analytics';
 import { 
-  Upload, Download, FileText, AlertCircle, CheckCircle2, Settings, 
-  Shield, X, HelpCircle, Clock, Zap, Lock, Globe, ChevronRight,
-  User, Building2, Menu, LogOut, CreditCard, BarChart3,
-  Star, Crown, Sparkles, ArrowRight, Check, Users, Calendar,
-  TrendingUp, Award, Headphones, Smartphone, Eye, History,
-  DollarSign, Target, Activity, Briefcase, AlertTriangle, Mail,
-  UserPlus
+  Upload, Download, AlertCircle, CheckCircle2, Clock, 
+  Activity, ArrowRight, Menu, LogOut
 } from 'lucide-react';
-
-// Excel processing
 import * as XLSX from 'xlsx';
 
-// ==========================================
-// SECURE FIREBASE CONFIGURATION
-// ==========================================
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -58,88 +35,24 @@ const firebaseConfig = {
   measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const analytics = getAnalytics(app);
 
-// Initialize Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: 'select_account'
-});
 
-// ==========================================
-// CONFIGURATION
-// ==========================================
 const SUPPORT_EMAIL = 'contact@iafrica.solutions';
 const COMPANY_NAME = 'Intelligent Africa Solutions Ltd';
 const ANONYMOUS_USAGE_KEY = 'crs_anonymous_usage';
 const ANONYMOUS_LIMIT = 3;
 
-const PRICING_PLANS = {
-  free: {
-    name: 'Free Plan',
-    price: 0,
-    conversions: 3,
-    features: [
-      '3 conversions after registration',
-      'Basic XML generation',
-      'Email support',
-      'Standard processing',
-      'GDPR compliant'
-    ],
-    buttonText: 'Current Plan',
-    popular: false,
-    color: 'gray'
-  },
-  professional: {
-    name: 'Professional',
-    price: 29,
-    conversions: 100,
-    features: [
-      '100 conversions/month',
-      'Priority processing',
-      'Email + Chat support',
-      'Bulk file processing',
-      'Usage analytics',
-      'Custom templates',
-      'API access'
-    ],
-    buttonText: 'Upgrade to Pro',
-    popular: true,
-    color: 'blue'
-  },
-  enterprise: {
-    name: 'Enterprise',
-    price: 99,
-    conversions: 1000,
-    features: [
-      '1,000 conversions/month',
-      'White-label option',
-      '24/7 phone support',
-      'API access',
-      'Custom integrations',
-      'Dedicated account manager',
-      'SLA guarantee',
-      'Priority queue'
-    ],
-    buttonText: 'Upgrade to Enterprise',
-    popular: false,
-    color: 'purple'
-  }
-};
-
-// ==========================================
-// UTILITY FUNCTIONS
-// ==========================================
 const getAnonymousUsage = () => {
   try {
-    const usage = JSON.parse(localStorage.getItem(ANONYMOUS_USAGE_KEY) || '{"count": 0, "conversions": []}');
+    const usage = JSON.parse(localStorage.getItem(ANONYMOUS_USAGE_KEY) || '{"count": 0}');
     return usage;
   } catch (error) {
-    return { count: 0, conversions: [] };
+    return { count: 0 };
   }
 };
 
@@ -147,19 +60,9 @@ const updateAnonymousUsage = () => {
   try {
     const usage = getAnonymousUsage();
     usage.count += 1;
-    usage.conversions.push({
-      timestamp: new Date().toISOString(),
-      success: true
-    });
-    
-    if (usage.conversions.length > 10) {
-      usage.conversions = usage.conversions.slice(-10);
-    }
-    
     localStorage.setItem(ANONYMOUS_USAGE_KEY, JSON.stringify(usage));
     return usage.count;
   } catch (error) {
-    console.error('Error updating anonymous usage:', error);
     return 0;
   }
 };
@@ -172,31 +75,13 @@ const canAnonymousUserConvert = () => {
     canConvert: remaining > 0,
     remaining: Math.max(0, remaining),
     used: usage.count,
-    limit: ANONYMOUS_LIMIT,
-    percentUsed: (usage.count / ANONYMOUS_LIMIT) * 100,
-    mustRegister: usage.count >= ANONYMOUS_LIMIT
+    limit: ANONYMOUS_LIMIT
   };
 };
 
-const trackEvent = (eventName, parameters = {}) => {
-  try {
-    if (analytics) {
-      logEvent(analytics, eventName, {
-        timestamp: new Date().toISOString(),
-        ...parameters
-      });
-    }
-  } catch (error) {
-    console.error('Analytics error:', error);
-  }
-};
-
-// ==========================================
-// VALIDATION FUNCTIONS
-// ==========================================
 const validateGIIN = (giin) => {
   if (!giin || giin.trim() === '') {
-    return { valid: false, message: "GIIN is required for CRS compliance", severity: 'error' };
+    return { valid: false, message: "GIIN is required for CRS compliance" };
   }
   
   const giinRegex = /^[A-Z0-9]{6}\.[A-Z0-9]{5}\.[A-Z]{2}\.[A-Z0-9]{3}$/;
@@ -204,27 +89,7 @@ const validateGIIN = (giin) => {
   if (!giinRegex.test(giin.toUpperCase())) {
     return { 
       valid: false, 
-      message: "Invalid GIIN format. Should be: XXXXXX.XXXXX.XX.XXX (e.g., ABC123.00000.ME.123)", 
-      severity: 'error' 
-    };
-  }
-  
-  return { valid: true };
-};
-
-const validateTaxYear = (year) => {
-  const currentYear = new Date().getFullYear();
-  const minYear = 2014;
-  
-  if (!year) {
-    return { valid: false, message: "Tax year is required", severity: 'error' };
-  }
-  
-  if (year < minYear || year > currentYear) {
-    return { 
-      valid: false, 
-      message: `Tax year must be between ${minYear} and ${currentYear}`, 
-      severity: 'error' 
+      message: "Invalid GIIN format. Should be: XXXXXX.XXXXX.XX.XXX"
     };
   }
   
@@ -233,22 +98,14 @@ const validateTaxYear = (year) => {
 
 const validateFIName = (name) => {
   if (!name || name.trim() === '') {
-    return { valid: false, message: "Financial Institution name is required", severity: 'error' };
+    return { valid: false, message: "Financial Institution name is required" };
   }
-  
   return { valid: true };
 };
 
-// ==========================================
-// CRS XML GENERATION
-// ==========================================
 const generateCRSXML = (data, settings) => {
   const { reportingFI, messageRefId, taxYear } = settings;
   
-  const formatDate = (date) => {
-    return new Date(date).toISOString().split('T')[0];
-  };
-
   const formatCurrency = (amount) => {
     return parseFloat(amount || 0).toFixed(2);
   };
@@ -259,7 +116,6 @@ const generateCRSXML = (data, settings) => {
         <crs:DocSpec>
           <stf:DocTypeIndic>OECD1</stf:DocTypeIndic>
           <stf:DocRefId>${account.AccountNumber || 'UNKNOWN'}</stf:DocRefId>
-          <stf:CorrDocRefId></stf:CorrDocRefId>
         </crs:DocSpec>
         <crs:AccountNumber>${account.AccountNumber || ''}</crs:AccountNumber>
         <crs:AccountHolder>
@@ -271,16 +127,9 @@ const generateCRSXML = (data, settings) => {
               <crs:LastName>${account.LastName || ''}</crs:LastName>
             </crs:Name>
             <crs:Address>
-              <crs:CountryCode>${account.AddressCountryCode || account.ResCountryCode || 'XX'}</crs:CountryCode>
+              <crs:CountryCode>${account.AddressCountryCode || 'XX'}</crs:CountryCode>
               <crs:AddressFree>${account.Address || ''}</crs:AddressFree>
             </crs:Address>
-            <crs:BirthInfo>
-              <crs:BirthDate>${account.BirthDate ? formatDate(account.BirthDate) : ''}</crs:BirthDate>
-              <crs:City>${account.BirthCity || ''}</crs:City>
-              <crs:CountryInfo>
-                <crs:CountryCode>${account.BirthCountryCode || 'XX'}</crs:CountryCode>
-              </crs:CountryInfo>
-            </crs:BirthInfo>
           </crs:Individual>
         </crs:AccountHolder>
         <crs:AccountBalance currCode="${account.CurrCode || 'USD'}">${formatCurrency(account.AccountBalance)}</crs:AccountBalance>
@@ -321,9 +170,6 @@ const generateCRSXML = (data, settings) => {
 </crs:CRS_OECD>`;
 };
 
-// ==========================================
-// AUTHENTICATION CONTEXT
-// ==========================================
 const AuthContext = createContext();
 
 const AuthProvider = ({ children }) => {
@@ -351,20 +197,15 @@ const AuthProvider = ({ children }) => {
       const userDocSnap = await getDoc(userDocRef);
       
       if (userDocSnap.exists()) {
-        const userData = userDocSnap.data();
-        setUserDoc(userData);
+        setUserDoc(userDocSnap.data());
       } else {
         const userData = {
           email: firebaseUser.email,
-          displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
-          company: '',
+          displayName: firebaseUser.displayName || firebaseUser.email.split('@')[0],
           plan: 'free',
           conversionsUsed: 0,
           conversionsLimit: 3,
-          subscriptionStatus: 'active',
-          createdAt: serverTimestamp(),
-          lastLogin: serverTimestamp(),
-          provider: firebaseUser.providerData[0]?.providerId || 'email'
+          createdAt: serverTimestamp()
         };
         
         await setDoc(userDocRef, userData);
@@ -379,99 +220,57 @@ const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (email, password, displayName, company) => {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const newUser = userCredential.user;
-      
-      const userData = {
-        email,
-        displayName,
-        company,
-        plan: 'free',
-        conversionsUsed: 0,
-        conversionsLimit: 3,
-        subscriptionStatus: 'active',
-        createdAt: serverTimestamp(),
-        lastLogin: serverTimestamp(),
-        provider: 'email'
-      };
-      
-      await setDoc(doc(db, 'users', newUser.uid), userData);
-      await sendEmailVerification(newUser);
-      
-      setUserDoc(userData);
-      return newUser;
-    } catch (error) {
-      throw new Error(getFirebaseErrorMessage(error.code));
-    }
+  const register = async (email, password, displayName) => {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const newUser = userCredential.user;
+    
+    const userData = {
+      email,
+      displayName,
+      plan: 'free',
+      conversionsUsed: 0,
+      conversionsLimit: 3,
+      createdAt: serverTimestamp()
+    };
+    
+    await setDoc(doc(db, 'users', newUser.uid), userData);
+    setUserDoc(userData);
+    return newUser;
   };
 
   const login = async (email, password) => {
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const loggedInUser = userCredential.user;
-      
-      await updateDoc(doc(db, 'users', loggedInUser.uid), {
-        lastLogin: serverTimestamp()
-      });
-      
-      return loggedInUser;
-    } catch (error) {
-      throw new Error(getFirebaseErrorMessage(error.code));
-    }
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
   };
 
   const signInWithGoogle = async () => {
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      return result.user;
-    } catch (error) {
-      throw new Error(getFirebaseErrorMessage(error.code));
-    }
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
   };
 
   const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  const resetPassword = async (email) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-    } catch (error) {
-      throw new Error(getFirebaseErrorMessage(error.code));
-    }
+    await signOut(auth);
   };
 
   const updateUserUsage = async () => {
     if (user && userDoc) {
-      try {
-        await updateDoc(doc(db, 'users', user.uid), {
-          conversionsUsed: increment(1),
-          lastConversion: serverTimestamp()
-        });
-        
-        const newUsage = userDoc.conversionsUsed + 1;
-        setUserDoc(prev => ({
-          ...prev,
-          conversionsUsed: newUsage
-        }));
-        
-        return newUsage;
-      } catch (error) {
-        throw error;
-      }
+      await updateDoc(doc(db, 'users', user.uid), {
+        conversionsUsed: increment(1)
+      });
+      
+      const newUsage = userDoc.conversionsUsed + 1;
+      setUserDoc(prev => ({
+        ...prev,
+        conversionsUsed: newUsage
+      }));
+      
+      return newUsage;
     }
   };
 
   return (
     <AuthContext.Provider value={{ 
-      user, userDoc, loading, login, register, signInWithGoogle, logout, resetPassword, 
-      updateUserUsage
+      user, userDoc, loading, login, register, signInWithGoogle, logout, updateUserUsage
     }}>
       {children}
     </AuthContext.Provider>
@@ -486,26 +285,6 @@ const useAuth = () => {
   return context;
 };
 
-const getFirebaseErrorMessage = (errorCode) => {
-  switch (errorCode) {
-    case 'auth/user-not-found':
-      return 'No account found with this email address.';
-    case 'auth/wrong-password':
-      return 'Invalid password. Please try again.';
-    case 'auth/email-already-in-use':
-      return 'An account with this email already exists.';
-    case 'auth/weak-password':
-      return 'Password should be at least 6 characters long.';
-    case 'auth/invalid-email':
-      return 'Please enter a valid email address.';
-    default:
-      return 'An error occurred. Please try again.';
-  }
-};
-
-// ==========================================
-// UTILITY FUNCTIONS
-// ==========================================
 const getUserConversionStatus = (user, userDoc) => {
   const anonymousStatus = canAnonymousUserConvert();
   
@@ -515,80 +294,38 @@ const getUserConversionStatus = (user, userDoc) => {
       remaining: anonymousStatus.remaining,
       used: anonymousStatus.used,
       limit: anonymousStatus.limit,
-      percentUsed: anonymousStatus.percentUsed,
-      mustRegister: anonymousStatus.mustRegister,
-      userType: 'anonymous',
-      reason: anonymousStatus.mustRegister ? 'Anonymous trial limit reached. Please register to continue.' : null
+      userType: 'anonymous'
     };
   }
   
   if (!userDoc) {
-    return {
-      canConvert: false,
-      remaining: 0,
-      used: 0,
-      limit: 0,
-      percentUsed: 100,
-      userType: 'registered',
-      reason: 'User data not found. Please try logging in again.'
-    };
+    return { canConvert: false, remaining: 0, used: 0, limit: 0, userType: 'registered' };
   }
   
-  const { conversionsUsed = 0, conversionsLimit = 3, subscriptionStatus = 'active' } = userDoc;
-  
-  if (subscriptionStatus !== 'active') {
-    return {
-      canConvert: false,
-      remaining: 0,
-      used: conversionsUsed,
-      limit: conversionsLimit,
-      percentUsed: 100,
-      userType: 'registered',
-      reason: 'Subscription inactive. Please contact support.'
-    };
-  }
-  
+  const { conversionsUsed = 0, conversionsLimit = 3 } = userDoc;
   const remaining = Math.max(0, conversionsLimit - conversionsUsed);
-  const canConvert = remaining > 0;
   
   return {
-    canConvert,
+    canConvert: remaining > 0,
     remaining,
     used: conversionsUsed,
     limit: conversionsLimit,
-    percentUsed: (conversionsUsed / conversionsLimit) * 100,
-    userType: 'registered',
-    reason: !canConvert ? `You've used all ${conversionsLimit} conversions for your ${userDoc.plan || 'free'} plan. Please upgrade to continue.` : null
+    userType: 'registered'
   };
 };
 
-// ==========================================
-// COMPONENTS
-// ==========================================
 const GoogleIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24">
-    <path
-      fill="#4285F4"
-      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-    />
-    <path
-      fill="#34A853"
-      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-    />
-    <path
-      fill="#FBBC05"
-      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-    />
-    <path
-      fill="#EA4335"
-      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-    />
+    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
   </svg>
 );
 
 const Navigation = () => {
   const { user, userDoc, logout } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const usageStatus = getUserConversionStatus(user, userDoc);
 
   const handleLogout = async () => {
     try {
@@ -598,8 +335,6 @@ const Navigation = () => {
     }
   };
 
-  const usageStatus = getUserConversionStatus(user, userDoc);
-
   return (
     <nav className="bg-white shadow-sm border-b sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-6">
@@ -608,40 +343,27 @@ const Navigation = () => {
             <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-red-500 bg-clip-text text-transparent">
               iAfrica
             </div>
-            <div className="hidden md:block">
-              <span className="text-lg font-semibold text-gray-900">Compliance Platform</span>
-              <span className="text-sm text-gray-500 ml-2">by {COMPANY_NAME}</span>
-            </div>
+            <span className="text-lg font-semibold text-gray-900">CRS Converter</span>
           </div>
 
-          <div className="hidden md:flex items-center space-x-6">
-            <button 
-              onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
-              className="text-gray-700 hover:text-blue-600 font-medium"
-            >
-              Convert
-            </button>
-            
+          <div className="flex items-center space-x-6">
             {user ? (
-              <>
-                <div className="flex items-center space-x-3 pl-6 border-l border-gray-200">
-                  <div className="text-sm">
-                    <div className="font-medium text-gray-900">
-                      {userDoc?.displayName || user.email?.split('@')[0]}
-                    </div>
-                    <div className="text-gray-500 capitalize">
-                      {userDoc?.plan || 'free'} Plan ({usageStatus.remaining}/{usageStatus.limit})
-                    </div>
+              <div className="flex items-center space-x-3">
+                <div className="text-sm">
+                  <div className="font-medium text-gray-900">
+                    {userDoc?.displayName || user.email?.split('@')[0]}
                   </div>
-                  <button 
-                    onClick={handleLogout}
-                    className="p-2 text-gray-500 hover:text-gray-700"
-                    title="Sign Out"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
+                  <div className="text-gray-500">
+                    {usageStatus.remaining}/{usageStatus.limit} remaining
+                  </div>
                 </div>
-              </>
+                <button 
+                  onClick={handleLogout}
+                  className="p-2 text-gray-500 hover:text-gray-700"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
             ) : (
               <div className="flex items-center space-x-3 text-sm">
                 <div className="text-gray-600">
@@ -653,22 +375,9 @@ const Navigation = () => {
                 >
                   Sign In
                 </button>
-                <button 
-                  onClick={() => document.getElementById('auth')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Register Free
-                </button>
               </div>
             )}
           </div>
-
-          <button 
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
         </div>
       </div>
     </nav>
@@ -688,7 +397,6 @@ const HeroSection = () => {
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
             Turn Your Financial Data Into
             <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Tax Authority Ready Reports</span> 
-            <span className="block">in Minutes</span>
           </h1>
           
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
@@ -696,15 +404,13 @@ const HeroSection = () => {
             Try it now with <strong>{usageStatus.remaining} free conversions</strong> - no signup required!
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-            <button 
-              onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
-              className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center text-lg font-semibold"
-            >
-              Try Free Now ({usageStatus.remaining} conversions left)
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </button>
-          </div>
+          <button 
+            onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
+            className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center text-lg font-semibold mx-auto"
+          >
+            Try Free Now ({usageStatus.remaining} conversions left)
+            <ArrowRight className="w-5 h-5 ml-2" />
+          </button>
         </div>
       </div>
     </div>
@@ -719,8 +425,7 @@ const AuthSection = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    displayName: '',
-    company: ''
+    displayName: ''
   });
 
   const handleSubmit = async (e) => {
@@ -733,8 +438,8 @@ const AuthSection = () => {
         await login(formData.email, formData.password);
         setMessage('Successfully signed in!');
       } else {
-        await register(formData.email, formData.password, formData.displayName, formData.company);
-        setMessage('Account created! Please verify your email.');
+        await register(formData.email, formData.password, formData.displayName);
+        setMessage('Account created!');
       }
     } catch (error) {
       setMessage(error.message);
@@ -745,8 +450,6 @@ const AuthSection = () => {
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
-    setMessage('');
-    
     try {
       await signInWithGoogle();
       setMessage('Successfully signed in with Google!');
@@ -764,9 +467,7 @@ const AuthSection = () => {
     });
   };
 
-  if (user) {
-    return null;
-  }
+  if (user) return null;
 
   return (
     <div id="auth" className="py-20 bg-white">
@@ -777,7 +478,7 @@ const AuthSection = () => {
               {isLogin ? 'Sign In' : 'Create Account'}
             </h2>
             <p className="text-gray-600">
-              {isLogin ? 'Access your dashboard and conversions' : 'Get 3 additional free conversions'}
+              {isLogin ? 'Access your conversions' : 'Get 3 additional free conversions'}
             </p>
           </div>
 
@@ -798,36 +499,20 @@ const AuthSection = () => {
             </div>
 
             {!isLogin && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    name="displayName"
-                    value={formData.displayName}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="John Doe"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Company (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    name="company"
-                    value={formData.company}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Your Company Name"
-                  />
-                </div>
-              </>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  name="displayName"
+                  value={formData.displayName}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="John Doe"
+                  required
+                />
+              </div>
             )}
 
             <div>
@@ -847,7 +532,7 @@ const AuthSection = () => {
 
             {message && (
               <div className={`p-3 rounded-md text-sm ${
-                message.includes('Success') || message.includes('sent') 
+                message.includes('Success') 
                   ? 'bg-green-50 text-green-700 border border-green-200' 
                   : 'bg-red-50 text-red-700 border border-red-200'
               }`}>
@@ -920,7 +605,11 @@ const FileConverterSection = () => {
     if (!validation.valid) {
       setValidationErrors(prev => ({ ...prev, fiName: validation.message }));
     } else {
-      setValidationErrors(prev => { const {fiName, ...rest} = prev; return rest; });
+      setValidationErrors(prev => { 
+        const newErrors = { ...prev };
+        delete newErrors.fiName;
+        return newErrors;
+      });
     }
   };
 
@@ -934,21 +623,11 @@ const FileConverterSection = () => {
     if (!validation.valid) {
       setValidationErrors(prev => ({ ...prev, giin: validation.message }));
     } else {
-      setValidationErrors(prev => { const {giin, ...rest} = prev; return rest; });
-    }
-  };
-
-  const handleTaxYearChange = (value) => {
-    setSettings({
-      ...settings,
-      taxYear: parseInt(value)
-    });
-    
-    const validation = validateTaxYear(parseInt(value));
-    if (!validation.valid) {
-      setValidationErrors(prev => ({ ...prev, taxYear: validation.message }));
-    } else {
-      setValidationErrors(prev => { const {taxYear, ...rest} = prev; return rest; });
+      setValidationErrors(prev => { 
+        const newErrors = { ...prev };
+        delete newErrors.giin;
+        return newErrors;
+      });
     }
   };
 
@@ -978,7 +657,7 @@ const FileConverterSection = () => {
     }
 
     if (!usageStatus.canConvert) {
-      setError(usageStatus.reason);
+      setError('You have reached your conversion limit. Please register for more conversions.');
       return;
     }
 
@@ -997,10 +676,6 @@ const FileConverterSection = () => {
       if (file.name.endsWith('.csv') || file.type.includes('csv')) {
         const text = new TextDecoder().decode(fileData);
         const lines = text.split('\n');
-        if (lines.length === 0) {
-          throw new Error('CSV file appears to be empty');
-        }
-        
         const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
         
         for (let i = 1; i < lines.length; i++) {
@@ -1021,7 +696,7 @@ const FileConverterSection = () => {
       }
 
       if (data.length === 0) {
-        setError('The file appears to be empty or in an unsupported format.');
+        setError('The file appears to be empty.');
         return;
       }
 
@@ -1030,23 +705,13 @@ const FileConverterSection = () => {
 
       if (user) {
         await updateUserUsage();
-        trackEvent('file_conversion', {
-          file_type: file.type.includes('csv') ? 'csv' : 'excel',
-          record_count: data.length,
-          user_plan: userDoc?.plan || 'free',
-          user_type: 'registered'
-        });
       } else {
         updateAnonymousUsage();
-        trackEvent('anonymous_conversion', {
-          file_type: file.type.includes('csv') ? 'csv' : 'excel',
-          record_count: data.length
-        });
       }
 
     } catch (err) {
       console.error('Processing error:', err);
-      setError('Failed to process the file. Please check the file format and try again.');
+      setError('Failed to process the file. Please check the file format.');
     } finally {
       setIsProcessing(false);
     }
@@ -1074,14 +739,14 @@ const FileConverterSection = () => {
             Convert Your Financial Data
           </h2>
           <p className="text-xl text-gray-600">
-            Upload Excel or CSV files and convert them to regulatory-compliant reports
+            Upload Excel or CSV files and convert them to CRS XML format
           </p>
           
           <div className="mt-4 inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm">
             <Activity className="w-4 h-4 mr-2" />
             {usageStatus.userType === 'anonymous' 
               ? `Free Trial: ${usageStatus.remaining}/${usageStatus.limit} conversions remaining`
-              : `${usageStatus.remaining}/${usageStatus.limit} conversions remaining this month`
+              : `${usageStatus.remaining}/${usageStatus.limit} conversions remaining`
             }
           </div>
         </div>
@@ -1098,18 +763,11 @@ const FileConverterSection = () => {
                 type="text"
                 value={settings.reportingFI.name}
                 onChange={(e) => handleFINameChange(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  validationErrors.fiName 
-                    ? 'border-red-300 focus:ring-red-500' 
-                    : 'border-gray-300 focus:ring-blue-500'
-                }`}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Financial Institution Name"
               />
               {validationErrors.fiName && (
-                <div className="mt-1 flex items-center">
-                  <AlertCircle className="w-4 h-4 text-red-500 mr-1" />
-                  <span className="text-xs text-red-600">{validationErrors.fiName}</span>
-                </div>
+                <div className="mt-1 text-xs text-red-600">{validationErrors.fiName}</div>
               )}
             </div>
 
@@ -1121,25 +779,18 @@ const FileConverterSection = () => {
                 type="text"
                 value={settings.reportingFI.giin}
                 onChange={(e) => handleGIINChange(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  validationErrors.giin 
-                    ? 'border-red-300 focus:ring-red-500' 
-                    : 'border-gray-300 focus:ring-blue-500'
-                }`}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="ABC123.00000.ME.123"
                 maxLength={19}
               />
               {validationErrors.giin && (
-                <div className="mt-1 flex items-center">
-                  <AlertCircle className="w-4 h-4 text-red-500 mr-1" />
-                  <span className="text-xs text-red-600">{validationErrors.giin}</span>
-                </div>
+                <div className="mt-1 text-xs text-red-600">{validationErrors.giin}</div>
               )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Country <span className="text-red-500">*</span>
+                Country
               </label>
               <select
                 value={settings.reportingFI.country}
@@ -1158,26 +809,19 @@ const FileConverterSection = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tax Year <span className="text-red-500">*</span>
+                Tax Year
               </label>
               <input
                 type="number"
                 value={settings.taxYear}
-                onChange={(e) => handleTaxYearChange(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
-                  validationErrors.taxYear 
-                    ? 'border-red-300 focus:ring-red-500' 
-                    : 'border-gray-300 focus:ring-blue-500'
-                }`}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  taxYear: parseInt(e.target.value)
+                })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 min="2014"
                 max={new Date().getFullYear()}
               />
-              {validationErrors.taxYear && (
-                <div className="mt-1 flex items-center">
-                  <AlertCircle className="w-4 h-4 text-red-500 mr-1" />
-                  <span className="text-xs text-red-600">{validationErrors.taxYear}</span>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -1193,9 +837,7 @@ const FileConverterSection = () => {
             <p className="text-lg font-medium text-gray-900 mb-2">
               {file ? file.name : 'Choose your Excel or CSV file'}
             </p>
-            <p className="text-gray-600 mb-4">
-              Drop your file here or click to browse
-            </p>
+            <p className="text-gray-600">Click to browse</p>
           </div>
           
           <input
@@ -1225,7 +867,7 @@ const FileConverterSection = () => {
               <button
                 onClick={processFile}
                 disabled={isProcessing || !usageStatus.canConvert || Object.keys(validationErrors).length > 0}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
               >
                 {isProcessing ? (
                   <>
@@ -1233,10 +875,7 @@ const FileConverterSection = () => {
                     Processing...
                   </>
                 ) : (
-                  <>
-                    <Zap className="w-4 h-4 mr-2" />
-                    Convert to XML
-                  </>
+                  'Convert to XML'
                 )}
               </button>
             </div>
@@ -1266,7 +905,7 @@ const FileConverterSection = () => {
               <div className="flex items-center">
                 <CheckCircle2 className="w-5 h-5 text-green-600 mr-2" />
                 <span className="text-sm text-green-700">
-                  Report generated successfully and ready for tax authority submission!
+                  Report generated successfully!
                 </span>
               </div>
             </div>
@@ -1277,9 +916,6 @@ const FileConverterSection = () => {
   );
 };
 
-// ==========================================
-// MAIN APP COMPONENT
-// ==========================================
 export default function CRSXMLConverter() {
   return (
     <AuthProvider>
@@ -1291,19 +927,14 @@ export default function CRSXMLConverter() {
         
         <footer className="bg-gray-900 text-white py-12">
           <div className="max-w-7xl mx-auto px-6">
-            <div className="flex flex-col md:flex-row items-center justify-between">
-              <div className="flex items-center space-x-4 mb-4 md:mb-0">
-                <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-red-400 bg-clip-text text-transparent">
-                  iAfrica
-                </div>
-                <div>
-                  <p className="text-lg font-semibold">{COMPANY_NAME}</p>
-                  <p className="text-sm text-gray-400">Innovative financial technology solutions for Africa</p>
-                </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-red-400 bg-clip-text text-transparent mb-2">
+                iAfrica
               </div>
-              <div className="text-center md:text-right text-sm text-gray-400">
-                <p>Contact: <a href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-400 hover:text-blue-300">{SUPPORT_EMAIL}</a></p>
-              </div>
+              <p className="text-lg font-semibold">{COMPANY_NAME}</p>
+              <p className="text-sm text-gray-400 mt-2">
+                Contact: <a href={`mailto:${SUPPORT_EMAIL}`} className="text-blue-400 hover:text-blue-300">{SUPPORT_EMAIL}</a>
+              </p>
             </div>
           </div>
         </footer>
