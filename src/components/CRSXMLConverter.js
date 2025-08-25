@@ -201,7 +201,7 @@ const PayPalButton = ({ plan, user, onSuccess, onError }) => {
   useEffect(() => {
     // Load PayPal SDK
     const script = document.createElement('script');
-    script.src = "https://www.paypal.com/sdk/js?client-id=YOUR_PAYPAL_CLIENT_ID&currency=USD";
+    script.src = "https://www.paypal.com/sdk/js?client-id=AUJJg3yZa5HYgAYVsUXEv1LYK0Wi5zsGDqqYngj9MhJB8Mwr1ly-tzHh-kjWO5cqHGhw0VXKEL0yJJCj&currency=USD";
     script.async = true;
     script.onload = () => {
       setIsLoading(false);
