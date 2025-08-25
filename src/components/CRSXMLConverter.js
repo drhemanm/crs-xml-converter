@@ -2942,7 +2942,7 @@ export default function CRSXMLConverter() {
                 </div>
               </div>
               <div className="mt-8 pt-8 border-t border-gray-700 text-center text-sm text-gray-400">
-                <p>© 2024 {COMPANY_NAME}. All rights reserved. | Professional CRS OECD XML Converter</p>
+                <p>© 2025 {COMPANY_NAME}. All rights reserved. | Professional CRS OECD XML Converter</p>
               </div>
             </div>
           </footer>
