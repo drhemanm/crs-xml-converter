@@ -1449,16 +1449,16 @@ const HeroSection = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">10,000+</div>
-              <div className="text-gray-600">Files Converted</div>
+              <div className="text-3xl font-bold text-blue-600">⚡ Instant</div>
+              <div className="text-gray-600">Processing - No Waiting</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">500+</div>
-              <div className="text-gray-600">Happy Customers</div>
+              <div className="text-3xl font-bold text-green-600">🔒 100% Secure</div>
+              <div className="text-gray-600">Client-Side Only</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600">99.9%</div>
-              <div className="text-gray-600">Accuracy Rate</div>
+              <div className="text-3xl font-bold text-purple-600">💰 Free to Try</div>
+              <div className="text-gray-600">No Credit Card Required</div>
             </div>
           </div>
         </div>
