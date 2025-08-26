@@ -17,7 +17,6 @@ const Documentation = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
       <div className="max-w-6xl mx-auto px-4 py-16">
         
-        {/* Back Button */}
         <div className="mb-8">
           <Link 
             to="/" 
@@ -28,7 +27,6 @@ const Documentation = () => {
           </Link>
         </div>
         
-        {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-4">
             <Book className="w-12 h-12 text-emerald-400 mr-3" />
@@ -41,7 +39,6 @@ const Documentation = () => {
 
         <div className="grid md:grid-cols-4 gap-8">
           
-          {/* Navigation Sidebar */}
           <div className="md:col-span-1">
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 sticky top-8">
               <h3 className="text-lg font-semibold text-white mb-4">Contents</h3>
@@ -67,11 +64,9 @@ const Documentation = () => {
             </div>
           </div>
 
-          {/* Content Area */}
           <div className="md:col-span-3">
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8">
               
-              {/* Getting Started */}
               {activeSection === 'getting-started' && (
                 <div className="space-y-8">
                   <div>
@@ -167,7 +162,6 @@ const Documentation = () => {
                 </div>
               )}
 
-              {/* File Formats */}
               {activeSection === 'file-formats' && (
                 <div className="space-y-8">
                   <div>
@@ -283,7 +277,6 @@ const Documentation = () => {
                 </div>
               )}
 
-              {/* Conversion Process */}
               {activeSection === 'conversion-process' && (
                 <div className="space-y-8">
                   <div>
@@ -398,7 +391,7 @@ const Documentation = () => {
                     <div className="grid md:grid-cols-3 gap-4">
                       <div className="bg-white/5 rounded-lg p-4 border border-white/10">
                         <h4 className="font-semibold text-white mb-2">Small Files</h4>
-                        <p className="text-emerald-400 text-2xl font-bold mb-2">< 1 min</p>
+                        <p className="text-emerald-400 text-2xl font-bold mb-2">&lt; 1 min</p>
                         <p className="text-gray-300 text-sm">Up to 1,000 records</p>
                       </div>
                       <div className="bg-white/5 rounded-lg p-4 border border-white/10">
@@ -416,7 +409,6 @@ const Documentation = () => {
                 </div>
               )}
 
-              {/* Troubleshooting */}
               {activeSection === 'troubleshooting' && (
                 <div className="space-y-8">
                   <div>
@@ -436,13 +428,13 @@ const Documentation = () => {
                       <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
                         <div className="flex items-start mb-3">
                           <AlertTriangle className="w-5 h-5 text-red-400 mr-2 mt-0.5 flex-shrink-0" />
-                          <h4 className="font-semibold text-red-100">"Missing required field: account_number"</h4>
+                          <h4 className="font-semibold text-red-100">Missing required field: account_number</h4>
                         </div>
                         <p className="text-gray-300 mb-3">Your data is missing the account_number column or some rows have empty account numbers.</p>
                         <div className="bg-gray-800 rounded p-3">
                           <p className="text-emerald-400 text-sm font-semibold">Solution:</p>
                           <ul className="text-gray-300 text-sm mt-2 space-y-1">
-                            <li>• Ensure your file has an "account_number" column</li>
+                            <li>• Ensure your file has an account_number column</li>
                             <li>• Check that all rows have account numbers filled in</li>
                             <li>• Remove any empty rows from your data</li>
                           </ul>
@@ -452,7 +444,7 @@ const Documentation = () => {
                       <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
                         <div className="flex items-start mb-3">
                           <AlertTriangle className="w-5 h-5 text-red-400 mr-2 mt-0.5 flex-shrink-0" />
-                          <h4 className="font-semibold text-red-100">"Invalid file format"</h4>
+                          <h4 className="font-semibold text-red-100">Invalid file format</h4>
                         </div>
                         <p className="text-gray-300 mb-3">The uploaded file is not in a supported format.</p>
                         <div className="bg-gray-800 rounded p-3">
@@ -468,7 +460,7 @@ const Documentation = () => {
                       <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
                         <div className="flex items-start mb-3">
                           <AlertTriangle className="w-5 h-5 text-red-400 mr-2 mt-0.5 flex-shrink-0" />
-                          <h4 className="font-semibold text-red-100">"File too large"</h4>
+                          <h4 className="font-semibold text-red-100">File too large</h4>
                         </div>
                         <p className="text-gray-300 mb-3">Your file exceeds the maximum allowed size.</p>
                         <div className="bg-gray-800 rounded p-3">
@@ -485,13 +477,13 @@ const Documentation = () => {
                       <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
                         <div className="flex items-start mb-3">
                           <AlertTriangle className="w-5 h-5 text-amber-400 mr-2 mt-0.5 flex-shrink-0" />
-                          <h4 className="font-semibold text-amber-100">"Conversion taking longer than expected"</h4>
+                          <h4 className="font-semibold text-amber-100">Conversion taking longer than expected</h4>
                         </div>
                         <p className="text-gray-300 mb-3">Large files may take several minutes to process.</p>
                         <div className="bg-gray-800 rounded p-3">
                           <p className="text-emerald-400 text-sm font-semibold">What to do:</p>
                           <ul className="text-gray-300 text-sm mt-2 space-y-1">
-                            <li>• Please be patient, don't refresh the page</li>
+                            <li>• Please be patient, do not refresh the page</li>
                             <li>• Large files (5,000+ records) can take 5-10 minutes</li>
                             <li>• Professional and Enterprise users get priority processing</li>
                           </ul>
@@ -540,7 +532,7 @@ const Documentation = () => {
                   <div>
                     <h3 className="text-xl font-semibold text-white mb-4">Still Need Help?</h3>
                     <div className="bg-white/5 rounded-lg p-6 border border-white/10">
-                      <p className="text-gray-300 mb-4">If you're still experiencing issues after following this troubleshooting guide:</p>
+                      <p className="text-gray-300 mb-4">If you are still experiencing issues after following this troubleshooting guide:</p>
                       <div className="flex flex-wrap gap-4">
                         <Link 
                           to="/support"
@@ -562,7 +554,6 @@ const Documentation = () => {
                 </div>
               )}
 
-              {/* API Reference */}
               {activeSection === 'api-reference' && (
                 <div className="space-y-8">
                   <div>
@@ -581,7 +572,7 @@ const Documentation = () => {
                       <div>
                         <h3 className="text-lg font-semibold text-amber-100 mb-2">API Coming Soon</h3>
                         <p className="text-amber-100 mb-4">
-                          We're working on a REST API that will allow you to integrate CRS XML conversion directly into your applications.
+                          We are working on a REST API that will allow you to integrate CRS XML conversion directly into your applications.
                         </p>
                         <h4 className="font-semibold text-amber-100 mb-2">Planned Features:</h4>
                         <ul className="text-amber-100 space-y-1 text-sm ml-4">
@@ -616,7 +607,7 @@ const Documentation = () => {
 
                   <div>
                     <h3 className="text-xl font-semibold text-white mb-4">Sample API Usage (Preview)</h3>
-                    <p className="text-gray-300 mb-4">Here's what the API might look like when it's ready:</p>
+                    <p className="text-gray-300 mb-4">Here is what the API might look like when it is ready:</p>
                     <div className="bg-gray-800 rounded-lg p-4 overflow-x-auto">
                       <pre className="text-emerald-400 text-sm">
 {`// POST /api/v1/convert
@@ -649,7 +640,6 @@ const Documentation = () => {
           </div>
         </div>
 
-        {/* Back to Top Button */}
         <div className="text-center mt-8 mb-12">
           <Link 
             to="/" 
@@ -660,7 +650,6 @@ const Documentation = () => {
           </Link>
         </div>
 
-        {/* Footer */}
         <div className="text-center">
           <p className="text-gray-400">
             © 2024 iAfrica Compliance. All rights reserved.
