@@ -32,14 +32,18 @@
     "autoprefixer": "^10.4.0",
     "@testing-library/jest-dom": "^5.16.4",
     "@testing-library/react": "^13.3.0",
-    "@testing-library/user-event": "^13.5.0"
+    "@testing-library/user-event": "^13.5.0",
+    "firebase-tools": "^12.9.1"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "build:prod": "npm run build && firebase deploy"
+    "deploy": "npm run build && firebase deploy",
+    "deploy:hosting": "firebase deploy --only hosting",
+    "init:firebase": "firebase init",
+    "login:firebase": "firebase login"
   },
   "eslintConfig": {
     "extends": [
@@ -62,29 +66,5 @@
   "engines": {
     "node": ">=16.0.0",
     "npm": ">=8.0.0"
-  }
-}
-
-{
-  "hosting": {
-    "public": "build",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ],
-    "headers": [
-      {
-        "source": "**",
-        "headers": [
-          {
-            "key": "Strict-Transport-Security",
-            "value": "max-age=31536000; includeSubDomains"
-          }
-        ]
-      }
-    ]
   }
 }
