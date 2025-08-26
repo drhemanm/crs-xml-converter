@@ -81,6 +81,14 @@ const COMPANY_NAME = 'Intelligent Africa Solutions Ltd';
 const ANONYMOUS_USAGE_KEY = 'crs_anonymous_usage';
 const ANONYMOUS_LIMIT = 3;
 
+// Audit trail configuration
+const AUDIT_COLLECTIONS = {
+  USER_ACTIONS: 'audit_user_actions',
+  FILE_PROCESSING: 'audit_file_processing', 
+  XML_GENERATION: 'audit_xml_generation',
+  DATA_ACCESS: 'audit_data_access'
+};
+
 // Realistic pricing plans
 const PRICING_PLANS = {
   free: {
@@ -467,6 +475,109 @@ const getFieldDescription = (field) => {
     'payment_type': 'Payment Type (CRS501-CRS504)'
   };
   return descriptions[field] || field;
+};
+
+// ==========================================
+// AUDIT TRAIL FUNCTIONS
+// ==========================================
+
+const getSessionId = () => {
+  let sessionId = sessionStorage.getItem('audit_session_id');
+  if (!sessionId) {
+    sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    sessionStorage.setItem('audit_session_id', sessionId);
+  }
+  return sessionId;
+};
+
+const logAuditEvent = async (eventType, eventData, user = null) => {
+  try {
+    const auditEntry = {
+      timestamp: serverTimestamp(),
+      eventType,
+      userId: user?.uid || 'anonymous',
+      userEmail: user?.email || 'anonymous',
+      sessionId: getSessionId(),
+      userAgent: navigator.userAgent,
+      eventData,
+      compliance: {
+        dataClassification: 'CONFIDENTIAL',
+        regulatoryScope: 'CRS_OECD'
+      }
+    };
+
+    await addDoc(collection(db, AUDIT_COLLECTIONS.USER_ACTIONS), auditEntry);
+    console.log(`Audit Event Logged: ${eventType}`);
+  } catch (error) {
+    console.error('Audit logging failed:', error);
+  }
+};
+
+const logFileProcessing = async (fileData, validationResults, user = null) => {
+  try {
+    const auditEntry = {
+      timestamp: serverTimestamp(),
+      userId: user?.uid || 'anonymous',
+      userEmail: user?.email || 'anonymous',
+      sessionId: getSessionId(),
+      fileMetadata: {
+        filename: fileData.name,
+        fileSize: fileData.size,
+        fileType: fileData.type,
+        recordCount: validationResults.summary?.totalRows || 0,
+        validRecords: validationResults.summary?.validRows || 0,
+        invalidRecords: validationResults.summary?.invalidRows || 0
+      },
+      validationResults: {
+        isValid: validationResults.isValid,
+        errorCount: validationResults.errors?.length || 0,
+        missingColumns: validationResults.missingColumns?.length || 0
+      },
+      complianceFlags: {
+        containsPII: true,
+        dataClassification: 'CONFIDENTIAL',
+        regulatoryScope: 'CRS_OECD'
+      }
+    };
+
+    await addDoc(collection(db, AUDIT_COLLECTIONS.FILE_PROCESSING), auditEntry);
+    console.log('File processing audit logged');
+  } catch (error) {
+    console.error('File processing audit failed:', error);
+  }
+};
+
+const logXMLGeneration = async (conversionData, settingsUsed, user = null) => {
+  try {
+    const auditEntry = {
+      timestamp: serverTimestamp(),
+      userId: user?.uid || 'anonymous',
+      userEmail: user?.email || 'anonymous',
+      sessionId: getSessionId(),
+      conversionDetails: {
+        recordCount: conversionData.recordCount,
+        taxYear: settingsUsed.taxYear,
+        reportingCountry: settingsUsed.reportingFI.country,
+        messageRefId: settingsUsed.messageRefId,
+        xmlSize: conversionData.xml.length
+      },
+      institutionData: {
+        giinProvided: !!settingsUsed.reportingFI.giin,
+        institutionCountry: settingsUsed.reportingFI.country
+      },
+      complianceMetadata: {
+        crsStandard: 'OECD_CRS_v1.0',
+        xmlValidation: 'PASSED',
+        dataMinimization: true,
+        purposeLimitation: 'CRS_REGULATORY_REPORTING'
+      }
+    };
+
+    await addDoc(collection(db, AUDIT_COLLECTIONS.XML_GENERATION), auditEntry);
+    console.log('XML generation audit logged');
+  } catch (error) {
+    console.error('XML generation audit failed:', error);
+  }
 };
 
 // ==========================================
@@ -1549,7 +1660,14 @@ const CRSConverter = () => {
       setData([]);
       setResult(null);
       setError(null);
-      processFile(selectedFile);
+      
+	  // Log file upload audit event
+	  logAuditEvent('file_upload', {
+	    filename: selectedFile.name,
+        fileSize: selectedFile.size,
+        fileType: selectedFile.type
+      }, user);
+	  processFile(selectedFile);
     }
   };
 
@@ -1581,6 +1699,8 @@ const CRSConverter = () => {
 
     const validation = validateCRSData(jsonData);
     setValidationResults(validation);
+	// Add this line after the validation results are set
+    await logFileProcessing(file, validation, user);
 
     setData(jsonData);
     trackEvent('file_processed', {
@@ -1592,6 +1712,13 @@ const CRSConverter = () => {
 
   } catch (err) {
     console.error('File processing error:', err);
+	
+	// Log processing error
+	await logAuditEvent('file_processing_error', {
+	  filename: file.name,
+	  error: err.message
+	}, user);  
+	
     setError(`Failed to process file: ${err.message}`);
   } finally {
     setProcessing(false);
@@ -1636,6 +1763,12 @@ const CRSConverter = () => {
     setError(null);
 
     try {
+	  // Log conversion start
+	  await logAuditEvent('xml_conversion_started', {
+	    recordCount: data.length,
+		taxYear: settings.taxYear
+	  }, user);	
+	  
       const xml = generateCRSXML(data, settings, validationResults);
       
       if (user && userDoc) {
@@ -1648,6 +1781,12 @@ const CRSConverter = () => {
           conversion_number: getAnonymousUsage().count
         });
       }
+	  
+	  // Log successful XML generation
+	  await logXMLGeneration({
+	    recordCount: data.length,
+		xml: xml
+	  }, settings, user);
 
       setResult({
         xml,
@@ -1663,6 +1802,13 @@ const CRSConverter = () => {
 
     } catch (err) {
       console.error('Conversion error:', err);
+	  
+	  // Log conversion error
+	  await logAuditEvent('xml_conversion_error', {
+	    error: err.message,
+		recordCount: data.length
+	  }, user);	
+	  
       setError(`Conversion failed: ${err.message}`);
       trackEvent('conversion_error', {
         error: err.message,
@@ -1675,6 +1821,13 @@ const CRSConverter = () => {
 
   const handleDownload = () => {
     if (!result) return;
+	
+	// Log file download audit event
+	logAuditEvent('xml_download', {
+	  filename: result.filename,
+	  recordCount: result.recordCount,
+	  fileSize: result.xml.length
+	}, user);
 
     const blob = new Blob([result.xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
