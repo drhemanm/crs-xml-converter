@@ -68,3 +68,13 @@
     "npm": ">=8.0.0"
   }
 }
+
+{
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "deploy:vercel": "vercel --prod"
+  }
+}
