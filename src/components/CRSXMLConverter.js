@@ -1034,7 +1034,7 @@ const HeroSection = () => {
               <div className="text-gray-600">Latest Standards</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600"><5 Min</div>
+              <div className="text-3xl font-bold text-purple-600"> Less than 5 Min</div>
               <div className="text-gray-600">Average Processing</div>
             </div>
           </div>
