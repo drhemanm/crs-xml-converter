@@ -1713,6 +1713,8 @@ const handlePlanSelect = (planKey) => {
                         </li>
                       ))}
                     </ul>
+					
+					<div id={`paypal-button-${planKey}`} className="mb-3"></div>
 
                     <button
                       onClick={() => handlePlanSelect(planKey)}
