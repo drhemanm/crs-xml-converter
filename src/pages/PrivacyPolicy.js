@@ -1,14 +1,26 @@
 import React from 'react';
-import { Shield, Lock, Eye, Database, Mail, FileText } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Shield, Lock, Eye, Database, Mail, FileText, ArrowLeft, Home } from 'lucide-react';
 
 const PrivacyPolicy = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
       <div className="max-w-4xl mx-auto px-4 py-16">
+        
+        {/* Back Button */}
+        <div className="mb-8">
+          <Link 
+            to="/" 
+            className="inline-flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors duration-200 backdrop-blur-sm border border-white/20"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Main Page
+          </Link>
+        </div>
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-4">
-            <Shield className="w-12 h-12 text-blue-400 mr-3" />
+            <Shield className="w-12 h-12 text-emerald-400 mr-3" />
             <h1 className="text-4xl font-bold text-white">Privacy Policy</h1>
           </div>
           <p className="text-xl text-gray-300">
@@ -25,7 +37,7 @@ const PrivacyPolicy = () => {
           {/* Introduction */}
           <section>
             <div className="flex items-center mb-4">
-              <Eye className="w-6 h-6 text-blue-400 mr-3" />
+              <Eye className="w-6 h-6 text-emerald-400 mr-3" />
               <h2 className="text-2xl font-semibold text-white">Introduction</h2>
             </div>
             <p className="text-gray-300 leading-relaxed">
@@ -36,7 +48,7 @@ const PrivacyPolicy = () => {
           {/* Information We Collect */}
           <section>
             <div className="flex items-center mb-4">
-              <Database className="w-6 h-6 text-blue-400 mr-3" />
+              <Database className="w-6 h-6 text-emerald-400 mr-3" />
               <h2 className="text-2xl font-semibold text-white">Information We Collect</h2>
             </div>
             <div className="space-y-4 text-gray-300">
@@ -71,7 +83,7 @@ const PrivacyPolicy = () => {
           {/* How We Use Information */}
           <section>
             <div className="flex items-center mb-4">
-              <FileText className="w-6 h-6 text-blue-400 mr-3" />
+              <FileText className="w-6 h-6 text-emerald-400 mr-3" />
               <h2 className="text-2xl font-semibold text-white">How We Use Your Information</h2>
             </div>
             <ul className="list-disc list-inside space-y-2 text-gray-300 ml-4">
@@ -89,7 +101,7 @@ const PrivacyPolicy = () => {
           {/* Data Security */}
           <section>
             <div className="flex items-center mb-4">
-              <Lock className="w-6 h-6 text-blue-400 mr-3" />
+              <Lock className="w-6 h-6 text-emerald-400 mr-3" />
               <h2 className="text-2xl font-semibold text-white">Data Security</h2>
             </div>
             <div className="space-y-4 text-gray-300">
@@ -162,13 +174,13 @@ const PrivacyPolicy = () => {
           {/* Contact Information */}
           <section>
             <div className="flex items-center mb-4">
-              <Mail className="w-6 h-6 text-blue-400 mr-3" />
+              <Mail className="w-6 h-6 text-emerald-400 mr-3" />
               <h2 className="text-2xl font-semibold text-white">Contact Us</h2>
             </div>
             <div className="text-gray-300">
               <p>For privacy-related questions or to exercise your rights, contact us:</p>
-              <div className="mt-4 p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                <p><strong>Email:</strong> <a href="mailto:contact@iafrica.solutions" className="text-blue-400 hover:text-blue-300">contact@iafrica.solutions</a></p>
+              <div className="mt-4 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                <p><strong>Email:</strong> <a href="mailto:contact@iafrica.solutions" className="text-emerald-400 hover:text-emerald-300">contact@iafrica.solutions</a></p>
                 <p><strong>Subject:</strong> Privacy Policy Inquiry</p>
                 <p><strong>Response Time:</strong> Within 48 hours</p>
               </div>
@@ -185,8 +197,19 @@ const PrivacyPolicy = () => {
 
         </div>
 
+        {/* Back to Top Button */}
+        <div className="text-center mt-8 mb-12">
+          <Link 
+            to="/" 
+            className="inline-flex items-center px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors duration-200 font-medium"
+          >
+            <Home className="w-5 h-5 mr-2" />
+            Return to CRS Converter
+          </Link>
+        </div>
+
         {/* Footer */}
-        <div className="text-center mt-12">
+        <div className="text-center">
           <p className="text-gray-400">
             © 2024 iAfrica Compliance. All rights reserved.
           </p>
