@@ -102,7 +102,7 @@ const PRICING_PLANS = {
     name: 'Professional',
     price: 79,
     conversions: 100,
-    paypalPlanId: 'P-REPLACE_WITH_REAL_PLAN_ID',
+    paypalPlanId: 'P-37021577G4809293BNCWWCBI',
     features: [
       '100 conversions/month',
       'Priority email support',
@@ -119,7 +119,7 @@ const PRICING_PLANS = {
     name: 'Enterprise',
     price: 299,
     conversions: 1000,
-    paypalPlanId: 'P-REPLACE_WITH_REAL_PLAN_ID_2',
+    paypalPlanId: 'P-85257906JW695051MNCWWEIQ',
     features: [
       '1,000 conversions/month',
       'Priority phone + email support',
