@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, Lock, Eye, Database, Mail, FileText, ArrowLeft, Home } from 'lucide-react';
+import { Shield, ArrowLeft, Eye, Lock, Trash2, Download, AlertTriangle, CheckCircle, Mail } from 'lucide-react';
 
 const PrivacyPolicy = () => {
   return (
@@ -17,18 +17,18 @@ const PrivacyPolicy = () => {
             Back to Main Page
           </Link>
         </div>
+
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-4">
             <Shield className="w-12 h-12 text-emerald-400 mr-3" />
             <h1 className="text-4xl font-bold text-white">Privacy Policy</h1>
           </div>
-          <p className="text-xl text-gray-300">
-            How we protect and handle your personal information
-          </p>
-          <p className="text-sm text-gray-400 mt-2">
-            Last updated: August 26, 2025
-          </p>
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 max-w-2xl mx-auto">
+            <p className="text-emerald-100 text-sm">
+              <strong>GDPR Compliant</strong> • Last updated: August 26, 2025
+            </p>
+          </div>
         </div>
 
         {/* Content */}
@@ -36,182 +36,316 @@ const PrivacyPolicy = () => {
           
           {/* Introduction */}
           <section>
-            <div className="flex items-center mb-4">
-              <Eye className="w-6 h-6 text-emerald-400 mr-3" />
-              <h2 className="text-2xl font-semibold text-white">Introduction</h2>
-            </div>
-            <p className="text-gray-300 leading-relaxed">
-              iAfrica Compliance ("we," "our," or "us") operates iafrica-compliance.com. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our CRS XML conversion services.
+            <h2 className="text-2xl font-bold text-white mb-4">1. Introduction</h2>
+            <p className="text-gray-300 mb-4">
+              iAfrica Compliance ("we," "our," or "us") is committed to protecting your privacy and personal data. 
+              This Privacy Policy explains how we collect, use, process, and protect your information when you use 
+              our CRS XML Converter service, in compliance with the General Data Protection Regulation (GDPR) and 
+              other applicable data protection laws.
             </p>
-          </section>
-
-          {/* Information We Collect */}
-          <section>
-            <div className="flex items-center mb-4">
-              <Database className="w-6 h-6 text-emerald-400 mr-3" />
-              <h2 className="text-2xl font-semibold text-white">Information We Collect</h2>
-            </div>
-            <div className="space-y-4 text-gray-300">
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Personal Information</h3>
-                <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>Email address (for account creation and communication)</li>
-                  <li>Name (when provided during registration)</li>
-                  <li>Payment information (processed securely through PayPal)</li>
-                  <li>Usage data and analytics</li>
-                </ul>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">File Data</h3>
-                <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>Files uploaded for CRS XML conversion (temporarily processed)</li>
-                  <li>Conversion history and usage statistics</li>
-                  <li>File metadata (size, format, conversion timestamp)</li>
-                </ul>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Technical Information</h3>
-                <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>IP address and browser information</li>
-                  <li>Device type and operating system</li>
-                  <li>Usage patterns and feature interactions</li>
-                </ul>
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+              <div className="flex items-start">
+                <CheckCircle className="w-5 h-5 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
+                <div className="text-blue-100">
+                  <p className="font-medium">Your Rights Under GDPR:</p>
+                  <p className="text-sm mt-1">You have the right to access, rectify, erase, restrict, port, and object to processing of your personal data.</p>
+                </div>
               </div>
             </div>
           </section>
 
-          {/* How We Use Information */}
+          {/* Data Controller */}
           <section>
-            <div className="flex items-center mb-4">
-              <FileText className="w-6 h-6 text-emerald-400 mr-3" />
-              <h2 className="text-2xl font-semibold text-white">How We Use Your Information</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">2. Data Controller</h2>
+            <div className="bg-white/5 rounded-lg p-4">
+              <p className="text-gray-300 mb-2"><strong>Data Controller:</strong> iAfrica Compliance</p>
+              <p className="text-gray-300 mb-2"><strong>Address:</strong> [Your Business Address]</p>
+              <p className="text-gray-300 mb-2"><strong>Email:</strong> privacy@iafrica.solutions</p>
+              <p className="text-gray-300 mb-2"><strong>DPO Contact:</strong> dpo@iafrica.solutions</p>
+              <p className="text-gray-300"><strong>EU Representative:</strong> [If applicable]</p>
             </div>
-            <ul className="list-disc list-inside space-y-2 text-gray-300 ml-4">
-              <li>Provide and maintain our CRS XML conversion services</li>
-              <li>Process your file conversions and manage your account</li>
-              <li>Send important service updates and notifications</li>
-              <li>Process payments and manage subscriptions</li>
-              <li>Improve our services through analytics and usage data</li>
-              <li>Provide customer support and respond to inquiries</li>
-              <li>Ensure security and prevent fraud</li>
-              <li>Comply with legal obligations and regulatory requirements</li>
-            </ul>
           </section>
 
-          {/* Data Security */}
+          {/* Personal Data Collection */}
           <section>
-            <div className="flex items-center mb-4">
-              <Lock className="w-6 h-6 text-emerald-400 mr-3" />
-              <h2 className="text-2xl font-semibold text-white">Data Security</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">3. Personal Data We Collect</h2>
+            
+            <div className="space-y-4">
+              <div className="bg-white/5 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-white mb-3">3.1 Account Information</h3>
+                <ul className="text-gray-300 space-y-2">
+                  <li>• Email address (for authentication and communication)</li>
+                  <li>• Name (for personalization and support)</li>
+                  <li>• Company information (if applicable)</li>
+                  <li>• Account preferences and settings</li>
+                </ul>
+                <p className="text-sm text-amber-200 mt-2">
+                  <strong>Legal Basis:</strong> Contract performance and legitimate interests
+                </p>
+              </div>
+
+              <div className="bg-white/5 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-white mb-3">3.2 File Processing Data</h3>
+                <ul className="text-gray-300 space-y-2">
+                  <li>• Financial data uploaded for conversion (temporarily processed)</li>
+                  <li>• File metadata (size, type, upload timestamp)</li>
+                  <li>• Conversion logs and error reports</li>
+                </ul>
+                <div className="bg-red-500/10 border border-red-500/20 rounded p-3 mt-3">
+                  <div className="flex items-start">
+                    <AlertTriangle className="w-4 h-4 text-red-400 mr-2 mt-0.5 flex-shrink-0" />
+                    <div className="text-red-100 text-sm">
+                      <p><strong>Important:</strong> Uploaded files are processed temporarily and automatically deleted within 24 hours. We do not permanently store your financial data.</p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-amber-200 mt-2">
+                  <strong>Legal Basis:</strong> Contract performance
+                </p>
+              </div>
+
+              <div className="bg-white/5 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-white mb-3">3.3 Technical Data</h3>
+                <ul className="text-gray-300 space-y-2">
+                  <li>• IP address (anonymized after 30 days)</li>
+                  <li>• Browser type and version</li>
+                  <li>• Usage analytics (anonymized)</li>
+                  <li>• Error logs and performance metrics</li>
+                </ul>
+                <p className="text-sm text-amber-200 mt-2">
+                  <strong>Legal Basis:</strong> Legitimate interests (service improvement and security)
+                </p>
+              </div>
             </div>
-            <div className="space-y-4 text-gray-300">
-              <p>We implement industry-standard security measures to protect your information:</p>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li><strong>Encryption:</strong> All data transmission is encrypted using SSL/TLS</li>
-                <li><strong>Secure Storage:</strong> Data is stored on secure Firebase servers with encryption at rest</li>
-                <li><strong>Access Control:</strong> Limited access to personal data on a need-to-know basis</li>
-                <li><strong>File Processing:</strong> Uploaded files are processed temporarily and not permanently stored</li>
-                <li><strong>Payment Security:</strong> Payment processing handled securely through PayPal</li>
+          </section>
+
+          {/* How We Use Data */}
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">4. How We Use Your Personal Data</h2>
+            <div className="space-y-4">
+              <div className="bg-white/5 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-white mb-3">Service Provision</h3>
+                <ul className="text-gray-300 space-y-1">
+                  <li>• Process file conversions to CRS XML format</li>
+                  <li>• Provide user authentication and account management</li>
+                  <li>• Monitor usage limits and billing</li>
+                  <li>• Provide customer support</li>
+                </ul>
+              </div>
+              
+              <div className="bg-white/5 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-white mb-3">Legal Obligations</h3>
+                <ul className="text-gray-300 space-y-1">
+                  <li>• Comply with financial regulations</li>
+                  <li>• Maintain audit logs as required by law</li>
+                  <li>• Respond to lawful requests from authorities</li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          {/* Data Sharing */}
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">5. Data Sharing and Third Parties</h2>
+            <div className="bg-white/5 rounded-lg p-4">
+              <p className="text-gray-300 mb-4">We do not sell, rent, or share your personal data except in the following circumstances:</p>
+              <ul className="text-gray-300 space-y-2">
+                <li>• <strong>Service Providers:</strong> Cloud hosting (AWS/Google Cloud), payment processing (Stripe), email services</li>
+                <li>• <strong>Legal Requirements:</strong> When required by law or to protect our legal rights</li>
+                <li>• <strong>Business Transfers:</strong> In case of merger, acquisition, or sale of assets</li>
+              </ul>
+              <div className="bg-green-500/10 border border-green-500/20 rounded p-3 mt-4">
+                <p className="text-green-100 text-sm">
+                  <strong>Data Processing Agreements:</strong> All third-party processors are bound by GDPR-compliant data processing agreements.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* International Transfers */}
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">6. International Data Transfers</h2>
+            <div className="bg-white/5 rounded-lg p-4">
+              <p className="text-gray-300 mb-3">
+                Your data may be processed in countries outside the European Economic Area (EEA). 
+                We ensure adequate protection through:
+              </p>
+              <ul className="text-gray-300 space-y-2">
+                <li>• EU Standard Contractual Clauses</li>
+                <li>• Adequacy decisions by the European Commission</li>
+                <li>• Certification schemes (e.g., Privacy Shield successors)</li>
               </ul>
             </div>
           </section>
 
           {/* Data Retention */}
           <section>
-            <h2 className="text-2xl font-semibold text-white mb-4">Data Retention</h2>
-            <div className="space-y-3 text-gray-300">
-              <p><strong>Account Data:</strong> Retained while your account is active and for 2 years after account closure</p>
-              <p><strong>Usage Data:</strong> Retained for analytics purposes for up to 3 years</p>
-              <p><strong>Uploaded Files:</strong> Processed temporarily and deleted immediately after conversion</p>
-              <p><strong>Payment Records:</strong> Retained for 7 years for tax and compliance purposes</p>
-            </div>
-          </section>
-
-          {/* Your Rights (GDPR) */}
-          <section>
-            <h2 className="text-2xl font-semibold text-white mb-4">Your Rights Under GDPR</h2>
-            <p className="text-gray-300 mb-4">If you are a resident of the European Union, you have the following rights:</p>
-            <ul className="list-disc list-inside space-y-2 text-gray-300 ml-4">
-              <li><strong>Right to Access:</strong> Request copies of your personal data</li>
-              <li><strong>Right to Rectification:</strong> Request correction of inaccurate data</li>
-              <li><strong>Right to Erasure:</strong> Request deletion of your personal data</li>
-              <li><strong>Right to Restrict Processing:</strong> Request limitation of data processing</li>
-              <li><strong>Right to Data Portability:</strong> Request transfer of your data</li>
-              <li><strong>Right to Object:</strong> Object to processing of your personal data</li>
-            </ul>
-          </section>
-
-          {/* Cookies */}
-          <section>
-            <h2 className="text-2xl font-semibold text-white mb-4">Cookies and Tracking</h2>
-            <div className="space-y-3 text-gray-300">
-              <p>We use cookies and similar technologies to:</p>
-              <ul className="list-disc list-inside space-y-1 ml-4">
-                <li>Remember your preferences and settings</li>
-                <li>Analyze website traffic and usage patterns</li>
-                <li>Provide personalized experiences</li>
-                <li>Ensure security and prevent fraud</li>
-              </ul>
-              <p className="mt-3">You can control cookies through your browser settings.</p>
-            </div>
-          </section>
-
-          {/* Third-Party Services */}
-          <section>
-            <h2 className="text-2xl font-semibold text-white mb-4">Third-Party Services</h2>
-            <p className="text-gray-300 mb-4">We use the following third-party services:</p>
-            <ul className="list-disc list-inside space-y-1 text-gray-300 ml-4">
-              <li><strong>Firebase:</strong> Database and authentication services</li>
-              <li><strong>PayPal:</strong> Payment processing</li>
-              <li><strong>Google Analytics:</strong> Website usage analytics</li>
-              <li><strong>Vercel:</strong> Website hosting and deployment</li>
-            </ul>
-            <p className="text-gray-300 mt-3">
-              These services have their own privacy policies and data handling practices.
-            </p>
-          </section>
-
-          {/* Contact Information */}
-          <section>
-            <div className="flex items-center mb-4">
-              <Mail className="w-6 h-6 text-emerald-400 mr-3" />
-              <h2 className="text-2xl font-semibold text-white">Contact Us</h2>
-            </div>
-            <div className="text-gray-300">
-              <p>For privacy-related questions or to exercise your rights, contact us:</p>
-              <div className="mt-4 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-                <p><strong>Email:</strong> <a href="mailto:contact@iafrica.solutions" className="text-emerald-400 hover:text-emerald-300">contact@iafrica.solutions</a></p>
-                <p><strong>Subject:</strong> Privacy Policy Inquiry</p>
-                <p><strong>Response Time:</strong> Within 48 hours</p>
+            <h2 className="text-2xl font-bold text-white mb-4">7. Data Retention</h2>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-white/5 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-white mb-3">Account Data</h3>
+                <ul className="text-gray-300 text-sm space-y-1">
+                  <li>• Active accounts: Stored while account is active</li>
+                  <li>• Inactive accounts: Deleted after 3 years</li>
+                  <li>• Account deletion: 30 days after request</li>
+                </ul>
+              </div>
+              <div className="bg-white/5 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-white mb-3">Processing Data</h3>
+                <ul className="text-gray-300 text-sm space-y-1">
+                  <li>• Uploaded files: Deleted within 24 hours</li>
+                  <li>• Conversion logs: 12 months</li>
+                  <li>• Technical logs: 30 days (anonymized)</li>
+                </ul>
               </div>
             </div>
           </section>
 
-          {/* Updates */}
+          {/* Your Rights */}
           <section>
-            <h2 className="text-2xl font-semibold text-white mb-4">Policy Updates</h2>
-            <p className="text-gray-300">
-              We may update this Privacy Policy periodically. We will notify users of significant changes by email or through our website. The "Last updated" date at the top indicates when changes were last made.
-            </p>
+            <h2 className="text-2xl font-bold text-white mb-4">8. Your Rights Under GDPR</h2>
+            <div className="space-y-3">
+              <div className="flex items-start bg-white/5 rounded-lg p-3">
+                <Eye className="w-5 h-5 text-blue-400 mr-3 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="text-white font-medium">Right to Access</h3>
+                  <p className="text-gray-300 text-sm">Request a copy of your personal data we hold</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start bg-white/5 rounded-lg p-3">
+                <Lock className="w-5 h-5 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="text-white font-medium">Right to Rectification</h3>
+                  <p className="text-gray-300 text-sm">Correct inaccurate or incomplete personal data</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start bg-white/5 rounded-lg p-3">
+                <Trash2 className="w-5 h-5 text-red-400 mr-3 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="text-white font-medium">Right to Erasure ("Right to be Forgotten")</h3>
+                  <p className="text-gray-300 text-sm">Request deletion of your personal data</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start bg-white/5 rounded-lg p-3">
+                <Download className="w-5 h-5 text-purple-400 mr-3 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="text-white font-medium">Right to Data Portability</h3>
+                  <p className="text-gray-300 text-sm">Receive your data in a structured, machine-readable format</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 mt-4">
+              <p className="text-emerald-100 font-medium mb-2">How to Exercise Your Rights:</p>
+              <p className="text-emerald-100 text-sm mb-2">
+                Contact us at <a href="mailto:privacy@iafrica.solutions" className="underline">privacy@iafrica.solutions</a> 
+                or use our <Link to="/data-request" className="underline">Data Request Portal</Link>
+              </p>
+              <p className="text-emerald-100 text-sm">
+                We will respond to your request within 30 days (may be extended by 2 months for complex requests).
+              </p>
+            </div>
           </section>
 
-        </div>
+          {/* Security */}
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">9. Data Security</h2>
+            <div className="bg-white/5 rounded-lg p-4">
+              <p className="text-gray-300 mb-3">We implement industry-standard security measures:</p>
+              <div className="grid md:grid-cols-2 gap-4">
+                <ul className="text-gray-300 space-y-2">
+                  <li>• End-to-end encryption (AES-256)</li>
+                  <li>• Secure data transmission (TLS 1.3)</li>
+                  <li>• Regular security audits</li>
+                  <li>• Access controls and monitoring</li>
+                </ul>
+                <ul className="text-gray-300 space-y-2">
+                  <li>• Data breach response procedures</li>
+                  <li>• Regular backup and recovery testing</li>
+                  <li>• Staff security training</li>
+                  <li>• Incident response plan</li>
+                </ul>
+              </div>
+            </div>
+          </section>
 
-        {/* Back to Top Button */}
-        <div className="text-center mt-8 mb-12">
-          <Link 
-            to="/" 
-            className="inline-flex items-center px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors duration-200 font-medium"
-          >
-            <Home className="w-5 h-5 mr-2" />
-            Return to CRS Converter
-          </Link>
+          {/* Cookies */}
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">10. Cookies and Tracking</h2>
+            <div className="bg-white/5 rounded-lg p-4">
+              <p className="text-gray-300 mb-3">We use the following types of cookies:</p>
+              <ul className="text-gray-300 space-y-2">
+                <li>• <strong>Essential Cookies:</strong> Required for basic site functionality (no consent required)</li>
+                <li>• <strong>Analytics Cookies:</strong> Anonymous usage statistics (consent required)</li>
+                <li>• <strong>Preference Cookies:</strong> Remember your settings (consent required)</li>
+              </ul>
+              <p className="text-gray-300 text-sm mt-3">
+                You can manage cookie preferences in our <Link to="/cookie-settings" className="text-emerald-400 underline">Cookie Settings</Link>.
+              </p>
+            </div>
+          </section>
+
+          {/* Contact and Complaints */}
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">11. Contact Us and Complaints</h2>
+            <div className="bg-white/5 rounded-lg p-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-white font-medium mb-2">Privacy Inquiries:</h3>
+                  <p className="text-gray-300 text-sm mb-1">Email: privacy@iafrica.solutions</p>
+                  <p className="text-gray-300 text-sm">Response time: Within 72 hours</p>
+                </div>
+                <div>
+                  <h3 className="text-white font-medium mb-2">Supervisory Authority:</h3>
+                  <p className="text-gray-300 text-sm mb-1">You have the right to lodge a complaint with your local data protection authority.</p>
+                  <p className="text-gray-300 text-sm">EU: Find your local DPA at <span className="text-emerald-400">edpb.europa.eu</span></p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Changes */}
+          <section>
+            <h2 className="text-2xl font-bold text-white mb-4">12. Changes to This Policy</h2>
+            <div className="bg-white/5 rounded-lg p-4">
+              <p className="text-gray-300 mb-3">
+                We may update this Privacy Policy from time to time. We will notify you of any material changes by:
+              </p>
+              <ul className="text-gray-300 space-y-1">
+                <li>• Email notification to registered users</li>
+                <li>• Prominent notice on our website</li>
+                <li>• In-app notifications</li>
+              </ul>
+              <p className="text-gray-300 text-sm mt-3">
+                Continued use of our services after changes indicates acceptance of the updated policy.
+              </p>
+            </div>
+          </section>
         </div>
 
         {/* Footer */}
-        <div className="text-center">
-          <p className="text-gray-400">
-            © 2024 iAfrica Compliance. All rights reserved.
+        <div className="text-center mt-12">
+          <div className="flex flex-wrap justify-center gap-4 mb-6">
+            <Link 
+              to="/data-request"
+              className="inline-flex items-center px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Request Your Data
+            </Link>
+            <Link 
+              to="/cookie-settings"
+              className="inline-flex items-center px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+            >
+              <Lock className="w-4 h-4 mr-2" />
+              Cookie Settings
+            </Link>
+          </div>
+          <p className="text-gray-400 text-sm">
+            This Privacy Policy is effective as of August 26, 2025
           </p>
         </div>
       </div>
