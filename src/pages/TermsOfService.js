@@ -84,33 +84,36 @@ const TermsOfService = () => {
             <div className="space-y-6 text-gray-300">
               
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Free Trial Plan</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">Free Plan - $0</h3>
                 <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>3 free file conversions</li>
-                  <li>Standard processing speed</li>
+                  <li>6 total conversions (3 anonymous + 3 after registration)</li>
+                  <li>Basic XML generation</li>
                   <li>Email support</li>
-                  <li>No subscription required</li>
+                  <li>Standard processing</li>
+                  <li>GDPR compliant</li>
                 </ul>
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Professional Plan - $29/month</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">Professional Plan - $79/month</h3>
                 <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>100 file conversions per month</li>
-                  <li>Priority processing</li>
-                  <li>Email support</li>
-                  <li>Advanced features</li>
+                  <li>100 conversions per month</li>
+                  <li>Priority email support</li>
+                  <li>Usage analytics dashboard</li>
+                  <li>Standard templates</li>
+                  <li>GIIN validation database</li>
+                  <li>Conversion history</li>
                 </ul>
               </div>
 
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2">Enterprise Plan - $99/month</h3>
+                <h3 className="text-lg font-semibold text-white mb-2">Enterprise Plan - $299/month</h3>
                 <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>1,000 file conversions per month</li>
-                  <li>Fastest processing</li>
+                  <li>1,000 conversions per month</li>
                   <li>Priority support</li>
                   <li>All features included</li>
                   <li>Dedicated account management</li>
+                  <li>Custom integrations</li>
                 </ul>
               </div>
 
