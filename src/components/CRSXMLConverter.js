@@ -1257,10 +1257,73 @@ const HeroSection = () => {
 // CRS XML GENERATION
 // ==========================================
 
-const generateCRSXML = (data, settings) => {
+// ==========================================
+// DATA MAPPING FUNCTION
+// ==========================================
+
+const mapDataToCRS = (rowData, columnMappings) => {
+  const holderType = rowData[columnMappings.holder_type]?.toLowerCase();
+  
+  return {
+    // Account details
+    accountNumber: rowData[columnMappings.account_number] || '',
+    accountBalance: parseFloat(rowData[columnMappings.account_balance]) || 0,
+    currencyCode: rowData[columnMappings.currency_code] || 'USD',
+    
+    // Holder type determines structure
+    isIndividual: holderType === 'individual',
+    isOrganization: ['organization', 'organisation'].includes(holderType),
+    
+    // Individual data
+    individual: holderType === 'individual' ? {
+      firstName: rowData[columnMappings.first_name] || '',
+      lastName: rowData[columnMappings.last_name] || '',
+      birthDate: rowData[columnMappings.birth_date] || '',
+      birthCity: rowData[columnMappings.birth_city] || '',
+      birthCountry: rowData[columnMappings.birth_country] || '',
+      tin: rowData[columnMappings.tin] || '',
+      resCountryCode: rowData[columnMappings.residence_country] || '',
+      addressCountryCode: rowData[columnMappings.address_country] || '',
+      city: rowData[columnMappings.city] || '',
+      address: rowData[columnMappings.address] || ''
+    } : null,
+    
+    // Organization data
+    organization: ['organization', 'organisation'].includes(holderType) ? {
+      name: rowData[columnMappings.organization_name] || '',
+      tin: rowData[columnMappings.organization_tin] || '',
+      resCountryCode: rowData[columnMappings.residence_country] || '',
+      addressCountryCode: rowData[columnMappings.address_country] || '',
+      city: rowData[columnMappings.city] || '',
+      address: rowData[columnMappings.address] || ''
+    } : null,
+    
+    // Controlling person (required for organizations)
+    controllingPerson: ['organization', 'organisation'].includes(holderType) ? {
+      firstName: rowData[columnMappings.controlling_person_first_name] || '',
+      lastName: rowData[columnMappings.controlling_person_last_name] || '',
+      birthDate: rowData[columnMappings.controlling_person_birth_date] || '',
+      birthCountry: rowData[columnMappings.controlling_person_birth_country] || '',
+      resCountryCode: rowData[columnMappings.controlling_person_residence_country] || '',
+      addressCountryCode: rowData[columnMappings.controlling_person_address_country] || '',
+      city: rowData[columnMappings.controlling_person_city] || '',
+      tin: rowData[columnMappings.controlling_person_tin] || ''
+    } : null,
+    
+    // Payment data
+    payment: {
+      type: rowData[columnMappings.payment_type] || 'CRS501',
+      amount: parseFloat(rowData[columnMappings.payment_amount]) || 0,
+      currency: rowData[columnMappings.currency_code] || 'USD'
+    }
+  };
+};
+const generateCRSXML = (data, settings, validationResults) => {
   const { reportingFI, messageRefId, taxYear } = settings;
+  const { columnMappings } = validationResults;
   
   const formatDate = (date) => {
+    if (!date) return '';
     return new Date(date).toISOString().split('T')[0];
   };
 
@@ -1268,45 +1331,102 @@ const generateCRSXML = (data, settings) => {
     return parseFloat(amount || 0).toFixed(2);
   };
 
-  const generateAccountReport = (account) => {
+  const generateAccountReport = (mappedAccount) => {
+    // Generate account holder section based on type
+    const generateAccountHolder = () => {
+      if (mappedAccount.isIndividual) {
+        return `
+        <crs:Individual>
+          <crs:ResCountryCode>${mappedAccount.individual.resCountryCode}</crs:ResCountryCode>
+          <crs:TIN issuedBy="${mappedAccount.individual.resCountryCode}">${mappedAccount.individual.tin}</crs:TIN>
+          <crs:Name>
+            <crs:FirstName>${mappedAccount.individual.firstName}</crs:FirstName>
+            <crs:LastName>${mappedAccount.individual.lastName}</crs:LastName>
+          </crs:Name>
+          <crs:Address>
+            <crs:CountryCode>${mappedAccount.individual.addressCountryCode}</crs:CountryCode>
+            <crs:AddressFree>${mappedAccount.individual.address}</crs:AddressFree>
+          </crs:Address>
+          <crs:BirthInfo>
+            <crs:BirthDate>${formatDate(mappedAccount.individual.birthDate)}</crs:BirthDate>
+            <crs:City>${mappedAccount.individual.birthCity}</crs:City>
+            <crs:CountryInfo>
+              <crs:CountryCode>${mappedAccount.individual.birthCountry}</crs:CountryCode>
+            </crs:CountryInfo>
+          </crs:BirthInfo>
+        </crs:Individual>`;
+      } else if (mappedAccount.isOrganization) {
+        return `
+        <crs:Organisation>
+          <crs:ResCountryCode>${mappedAccount.organization.resCountryCode}</crs:ResCountryCode>
+          <crs:TIN issuedBy="${mappedAccount.organization.resCountryCode}">${mappedAccount.organization.tin}</crs:TIN>
+          <crs:Name>
+            <crs:OrganisationName>${mappedAccount.organization.name}</crs:OrganisationName>
+          </crs:Name>
+          <crs:Address>
+            <crs:CountryCode>${mappedAccount.organization.addressCountryCode}</crs:CountryCode>
+            <crs:AddressFree>${mappedAccount.organization.address}</crs:AddressFree>
+          </crs:Address>
+        </crs:Organisation>`;
+      }
+      return '';
+    };
+
+    // Generate controlling person section (only for organizations)
+    const generateControllingPerson = () => {
+      if (!mappedAccount.isOrganization || !mappedAccount.controllingPerson) {
+        return '';
+      }
+      
+      return `
+        <crs:ControllingPerson>
+          <crs:Individual>
+            <crs:ResCountryCode>${mappedAccount.controllingPerson.resCountryCode}</crs:ResCountryCode>
+            <crs:TIN issuedBy="${mappedAccount.controllingPerson.resCountryCode}">${mappedAccount.controllingPerson.tin}</crs:TIN>
+            <crs:Name>
+              <crs:FirstName>${mappedAccount.controllingPerson.firstName}</crs:FirstName>
+              <crs:LastName>${mappedAccount.controllingPerson.lastName}</crs:LastName>
+            </crs:Name>
+            <crs:Address>
+              <crs:CountryCode>${mappedAccount.controllingPerson.addressCountryCode}</crs:CountryCode>
+              <crs:AddressFree>${mappedAccount.controllingPerson.address || ''}</crs:AddressFree>
+            </crs:Address>
+            <crs:BirthInfo>
+              <crs:BirthDate>${formatDate(mappedAccount.controllingPerson.birthDate)}</crs:BirthDate>
+              <crs:CountryInfo>
+                <crs:CountryCode>${mappedAccount.controllingPerson.birthCountry}</crs:CountryCode>
+              </crs:CountryInfo>
+            </crs:BirthInfo>
+          </crs:Individual>
+          <crs:CtrlgPersonType>CRS801</crs:CtrlgPersonType>
+        </crs:ControllingPerson>`;
+    };
+
     return `
       <crs:AccountReport>
         <crs:DocSpec>
           <stf:DocTypeIndic>OECD1</stf:DocTypeIndic>
-          <stf:DocRefId>${account.AccountNumber || 'UNKNOWN'}</stf:DocRefId>
+          <stf:DocRefId>${mappedAccount.accountNumber}_${Date.now()}</stf:DocRefId>
           <stf:CorrDocRefId></stf:CorrDocRefId>
         </crs:DocSpec>
-        <crs:AccountNumber>${account.AccountNumber || ''}</crs:AccountNumber>
+        <crs:AccountNumber>${mappedAccount.accountNumber}</crs:AccountNumber>
         <crs:AccountHolder>
-          <crs:Individual>
-            <crs:ResCountryCode>${account.ResCountryCode || 'XX'}</crs:ResCountryCode>
-            <crs:TIN issuedBy="${account.ResCountryCode || 'XX'}">${account.TIN || ''}</crs:TIN>
-            <crs:Name>
-              <crs:FirstName>${account.FirstName || ''}</crs:FirstName>
-              <crs:LastName>${account.LastName || ''}</crs:LastName>
-            </crs:Name>
-            <crs:Address>
-              <crs:CountryCode>${account.AddressCountryCode || account.ResCountryCode || 'XX'}</crs:CountryCode>
-              <crs:AddressFree>${account.Address || ''}</crs:AddressFree>
-            </crs:Address>
-            <crs:BirthInfo>
-              <crs:BirthDate>${account.BirthDate ? formatDate(account.BirthDate) : ''}</crs:BirthDate>
-              <crs:City>${account.BirthCity || ''}</crs:City>
-              <crs:CountryInfo>
-                <crs:CountryCode>${account.BirthCountryCode || 'XX'}</crs:CountryCode>
-              </crs:CountryInfo>
-            </crs:BirthInfo>
-          </crs:Individual>
+          ${generateAccountHolder()}
         </crs:AccountHolder>
-        <crs:AccountBalance currCode="${account.CurrCode || 'USD'}">${formatCurrency(account.AccountBalance)}</crs:AccountBalance>
+        ${generateControllingPerson()}
+        <crs:AccountBalance currCode="${mappedAccount.currencyCode}">${formatCurrency(mappedAccount.accountBalance)}</crs:AccountBalance>
         <crs:Payment>
-          <crs:Type>CRS501</crs:Type>
-          <crs:PaymentAmnt currCode="${account.CurrCode || 'USD'}">${formatCurrency(account.PaymentAmount)}</crs:PaymentAmnt>
+          <crs:Type>${mappedAccount.payment.type}</crs:Type>
+          <crs:PaymentAmnt currCode="${mappedAccount.payment.currency}">${formatCurrency(mappedAccount.payment.amount)}</crs:PaymentAmnt>
         </crs:Payment>
       </crs:AccountReport>`;
   };
-
-  const accountReports = data.map(generateAccountReport).join('');
+  
+  // Map each row to CRS structure
+  const mappedAccounts = data.map(row => mapDataToCRS(row, columnMappings));
+  
+  // Generate account reports
+  const accountReports = mappedAccounts.map(generateAccountReport).join('');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <crs:CRS_OECD xmlns:crs="urn:oecd:ties:crs:v1" xmlns:stf="urn:oecd:ties:stf:v4" version="1.0">
@@ -1516,7 +1636,7 @@ const CRSConverter = () => {
     setError(null);
 
     try {
-      const xml = generateCRSXML(data, settings);
+      const xml = generateCRSXML(data, settings, validationResults);
       
       if (user && userDoc) {
         await updateUserUsage();
