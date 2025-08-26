@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Book, FileText, Upload, Download, CheckCircle, AlertTriangle, Info, ArrowLeft, Home, Play, FileSpreadsheet, Settings, HelpCircle } from 'lucide-react';
+import { Book, FileText, Upload, Download, CheckCircle, AlertTriangle, Info, ArrowLeft, Home, Play, FileSpreadsheet, Settings, HelpCircle, Mail } from 'lucide-react';
 
 const Documentation = () => {
   const [activeSection, setActiveSection] = useState('getting-started');
