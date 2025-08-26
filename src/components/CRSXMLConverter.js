@@ -50,13 +50,13 @@ import * as XLSX from 'xlsx';
 // ==========================================
 
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+  apiKey: "YOUR_API_KEY_HERE",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef123456",
+  measurementId: "G-ABCD123456"
 };
 
 // Initialize Firebase
@@ -86,6 +86,7 @@ const PRICING_PLANS = {
     name: 'Free Plan',
     price: 0,
     conversions: 3,
+    paypalPlanId: null,
     features: [
       '3 conversions after registration',
       'Basic XML generation',
@@ -101,6 +102,7 @@ const PRICING_PLANS = {
     name: 'Professional',
     price: 79,
     conversions: 100,
+    paypalPlanId: 'P-REPLACE_WITH_REAL_PLAN_ID',
     features: [
       '100 conversions/month',
       'Priority email support',
@@ -109,7 +111,7 @@ const PRICING_PLANS = {
       'GIIN validation database',
       'Conversion history'
     ],
-    buttonText: 'Upgrade to Pro',
+    buttonText: 'Subscribe Now',
     popular: true,
     color: 'blue'
   },
@@ -117,6 +119,7 @@ const PRICING_PLANS = {
     name: 'Enterprise',
     price: 299,
     conversions: 1000,
+    paypalPlanId: 'P-REPLACE_WITH_REAL_PLAN_ID_2',
     features: [
       '1,000 conversions/month',
       'Priority phone + email support',
@@ -126,7 +129,7 @@ const PRICING_PLANS = {
       'Compliance consultation',
       'Priority processing queue'
     ],
-    buttonText: 'Contact Sales',
+    buttonText: 'Subscribe Now',
     popular: false,
     color: 'purple'
   }
@@ -1604,23 +1607,45 @@ const PricingSection = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('register');
 
-  const handlePlanSelect = (planKey) => {
-    if (!user) {
-      setAuthMode('register');
-      setShowAuthModal(true);
-      return;
-    }
-    
-    if (planKey === 'enterprise') {
-      // For enterprise, redirect to contact
-      window.open(`mailto:${SUPPORT_EMAIL}?subject=Enterprise Plan Inquiry`, '_blank');
-      return;
-    }
-    
-    // For demo purposes - PayPal integration would go here
-    alert(`Upgrade to ${PRICING_PLANS[planKey].name} - Payment integration required`);
-  };
-
+const handlePlanSelect = (planKey) => {
+  if (!user) {
+    setAuthMode('register');
+    setShowAuthModal(true);
+    return;
+  }
+  
+  if (planKey === 'free') {
+    return; // Already on free plan
+  }
+  
+  const plan = PRICING_PLANS[planKey];
+  if (plan.paypalPlanId && window.paypal) {
+    window.paypal.Buttons({
+      createSubscription: (data, actions) => {
+        return actions.subscription.create({
+          plan_id: plan.paypalPlanId
+        });
+      },
+      onApprove: async (data, actions) => {
+        try {
+          await updateDoc(doc(db, 'users', user.uid), {
+            plan: planKey,
+            subscriptionId: data.subscriptionID,
+            conversionsLimit: plan.conversions,
+            subscriptionStatus: 'active',
+            lastBillingDate: serverTimestamp()
+          });
+          alert(`Successfully subscribed to ${plan.name}!`);
+          window.location.reload();
+        } catch (error) {
+          alert('Subscription update failed: ' + error.message);
+        }
+      },
+      onError: (err) => alert('PayPal error: ' + err.message),
+      onCancel: () => console.log('Payment cancelled')
+    }).render('#paypal-button-' + planKey);
+  }
+};
   const currentPlan = userDoc?.plan || 'free';
 
   return (
