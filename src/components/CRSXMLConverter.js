@@ -1024,20 +1024,20 @@ const HeroSection = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">3 + 3</div>
-              <div className="text-gray-600">Free Conversions</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">2024</div>
-              <div className="text-gray-600">Latest Standards</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600">5 Min</div>
-              <div className="text-gray-600">Average Processing</div>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="text-center">
+            <div className="text-3xl font-bold text-blue-600">6 Total</div>
+            <div className="text-gray-600">Free Conversions</div>
           </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-green-600">2025</div>
+            <div className="text-gray-600">Latest Standards</div>
+          </div>
+          <div className="text-center">
+            <div className="text-3xl font-bold text-purple-600">< 5 Min</div>
+            <div className="text-gray-600">Average Processing</div>
+          </div>
+        </div>           
         </div>
       </div>
     </div>
