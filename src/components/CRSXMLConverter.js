@@ -1882,7 +1882,7 @@ const Footer = () => {
             <h4 className="font-semibold mb-4">Support</h4>
             <ul className="space-y-2 text-sm text-gray-400">
               <li><a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-white">Contact Support</a></li>
-              <li><a href="#" className="hover:text-white">Documentation</a></li>
+              <li><Link to="/documentation" className="hover:text-white">Documentation</Link></li>
               <li><a href="#" className="hover:text-white">API Reference</a></li>
             </ul>
           </div>
