@@ -1898,7 +1898,7 @@ const Footer = () => {
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center">
           <p className="text-gray-400 text-sm">
-            Secure, compliant, and trusted by financial institutions worldwide.
+            Simplifying CRS OECD reporting with secure, automated tools.
           </p>
         </div>
       </div>
