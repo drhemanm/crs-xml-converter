@@ -50,13 +50,13 @@ import * as XLSX from 'xlsx';
 // ==========================================
 
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
-  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
+  apiKey: "YOUR_API_KEY_HERE",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef123456",
+  measurementId: "G-ABCD123456"
 };
 
 // Initialize Firebase
@@ -1024,20 +1024,20 @@ const HeroSection = () => {
             </div>
           )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">6 Total</div>
-            <div className="text-gray-600">Free Conversions</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-blue-600">6</div>
+              <div className="text-gray-600">Free Conversions</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-green-600">2025</div>
+              <div className="text-gray-600">Latest Standards</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-purple-600">5 Min</div>
+              <div className="text-gray-600">Average Processing</div>
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">2025</div>
-            <div className="text-gray-600">Latest Standards</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-purple-600">< 5 Min</div>
-            <div className="text-gray-600">Average Processing</div>
-          </div>
-        </div>           
         </div>
       </div>
     </div>
@@ -1837,7 +1837,7 @@ const Footer = () => {
               Professional compliance solutions for financial institutions worldwide.
             </p>
             <p className="text-sm text-gray-500">
-              © 2024 {COMPANY_NAME}. All rights reserved.
+              © 2025 {COMPANY_NAME}. All rights reserved.
             </p>
           </div>
 
