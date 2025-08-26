@@ -34,7 +34,7 @@ import { getAnalytics, logEvent } from 'firebase/analytics';
 
 // Icons
 import { 
-  Upload, Download, FileText, AlertCircle, CheckCircle2, Settings, 
+  Upload, Download, FileText, AlertCircle, CheckCircle, CheckCircle2, Settings, 
   Shield, X, HelpCircle, Clock, Zap, Lock, Globe, ChevronRight,
   User, Building2, Menu, LogOut, CreditCard, BarChart3,
   Star, Crown, Sparkles, ArrowRight, Check, Users, Calendar,
@@ -263,6 +263,210 @@ const validateFIName = (name) => {
   }
   
   return { valid: true };
+};
+// ==========================================
+// COMPREHENSIVE CRS VALIDATION FUNCTION
+// ==========================================
+
+const validateCRSData = (data) => {
+  if (!data || data.length === 0) {
+    return {
+      isValid: false,
+      errors: ['No data found in spreadsheet'],
+      warnings: [],
+      missingColumns: [],
+      dataIssues: [],
+      summary: { totalRows: 0, validRows: 0, invalidRows: 0 }
+    };
+  }
+
+  const headers = Object.keys(data[0]).map(h => h.toLowerCase().trim());
+  const requiredFields = {
+    // Account Information
+    'account_number': ['account_number', 'accountnumber', 'account_no', 'acct_no'],
+    'account_balance': ['account_balance', 'balance', 'accountbalance'],
+    'currency_code': ['currency_code', 'currency', 'currencycode', 'curr_code'],
+    
+    // Account Holder Information
+    'holder_type': ['holder_type', 'holdertype', 'type', 'account_holder_type'],
+    'residence_country': ['residence_country', 'res_country', 'residence_country_code'],
+    'address_country': ['address_country', 'addr_country', 'address_country_code'],
+    'city': ['city', 'address_city'],
+    
+    // Individual Fields
+    'first_name': ['first_name', 'firstname', 'fname', 'given_name'],
+    'last_name': ['last_name', 'lastname', 'lname', 'surname'],
+    'birth_date': ['birth_date', 'birthdate', 'dob', 'date_of_birth'],
+    'birth_city': ['birth_city', 'birthcity', 'place_of_birth'],
+    'birth_country': ['birth_country', 'birth_country_code', 'birthcountry'],
+    'tin': ['tin', 'tax_id', 'taxpayer_id'],
+    
+    // Organization Fields
+    'organization_name': ['organization_name', 'org_name', 'company_name', 'entity_name'],
+    'organization_tin': ['organization_tin', 'org_tin', 'company_tin'],
+    
+    // Controlling Person Fields (for organizations)
+    'controlling_person_first_name': ['controlling_person_first_name', 'cp_first_name', 'cp_fname'],
+    'controlling_person_last_name': ['controlling_person_last_name', 'cp_last_name', 'cp_lname'],
+    'controlling_person_birth_date': ['controlling_person_birth_date', 'cp_birth_date', 'cp_dob'],
+    'controlling_person_birth_country': ['controlling_person_birth_country', 'cp_birth_country'],
+    'controlling_person_residence_country': ['controlling_person_residence_country', 'cp_residence_country'],
+    'controlling_person_address_country': ['controlling_person_address_country', 'cp_address_country'],
+    'controlling_person_city': ['controlling_person_city', 'cp_city'],
+    'controlling_person_tin': ['controlling_person_tin', 'cp_tin'],
+    
+    // Payment Information
+    'payment_type': ['payment_type', 'paymenttype', 'payment_code'],
+    'payment_amount': ['payment_amount', 'paymentamount', 'payment']
+  };
+
+  // Find column mappings
+  const columnMappings = {};
+  const missingColumns = [];
+
+  Object.entries(requiredFields).forEach(([field, alternatives]) => {
+    let found = false;
+    for (const alt of alternatives) {
+      if (headers.includes(alt.toLowerCase())) {
+        columnMappings[field] = Object.keys(data[0]).find(h => 
+          h.toLowerCase().trim() === alt.toLowerCase()
+        );
+        found = true;
+        break;
+      }
+    }
+    if (!found && ['account_number', 'account_balance', 'currency_code', 'holder_type', 'residence_country', 'address_country', 'city'].includes(field)) {
+      missingColumns.push({
+        field,
+        alternatives,
+        description: getFieldDescription(field)
+      });
+    }
+  });
+
+  // Validate each row
+  const dataIssues = [];
+  let validRows = 0;
+  let invalidRows = 0;
+
+  data.forEach((row, index) => {
+    const rowErrors = [];
+    const holderType = row[columnMappings.holder_type]?.toLowerCase();
+
+    // Required field validations
+    if (!row[columnMappings.account_number]?.trim()) {
+      rowErrors.push('Account number is required');
+    }
+
+    const balance = parseFloat(row[columnMappings.account_balance]);
+    if (isNaN(balance) || balance < 0) {
+      rowErrors.push('Valid account balance is required');
+    }
+
+    if (!row[columnMappings.currency_code]?.match(/^[A-Z]{3}$/)) {
+      rowErrors.push('Valid 3-letter currency code is required (e.g., USD, EUR)');
+    }
+
+    if (!['individual', 'organization', 'organisation'].includes(holderType)) {
+      rowErrors.push('Holder type must be "Individual" or "Organization"');
+    }
+
+    if (!row[columnMappings.residence_country]?.match(/^[A-Z]{2}$/)) {
+      rowErrors.push('Valid 2-letter residence country code is required');
+    }
+
+    if (!row[columnMappings.address_country]?.match(/^[A-Z]{2}$/)) {
+      rowErrors.push('Valid 2-letter address country code is required');
+    }
+
+    if (!row[columnMappings.city]?.trim()) {
+      rowErrors.push('City is required');
+    }
+
+    // Individual-specific validations
+    if (holderType === 'individual') {
+      if (!row[columnMappings.first_name]?.trim() || !row[columnMappings.last_name]?.trim()) {
+        rowErrors.push('First name and last name are required for individuals');
+      }
+
+      const birthDate = row[columnMappings.birth_date];
+      if (birthDate && !birthDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        rowErrors.push('Birth date must be in YYYY-MM-DD format');
+      }
+    }
+
+    // Organization-specific validations
+    if (['organization', 'organisation'].includes(holderType)) {
+      if (!row[columnMappings.organization_name]?.trim()) {
+        rowErrors.push('Organization name is required for organizations');
+      }
+
+      // Controlling person validations (required for organizations)
+      if (!row[columnMappings.controlling_person_first_name]?.trim() || 
+          !row[columnMappings.controlling_person_last_name]?.trim()) {
+        rowErrors.push('Controlling person first and last name are required for organizations');
+      }
+
+      if (!row[columnMappings.controlling_person_residence_country]?.match(/^[A-Z]{2}$/)) {
+        rowErrors.push('Valid controlling person residence country is required');
+      }
+    }
+
+    // Payment validations
+    const paymentAmount = parseFloat(row[columnMappings.payment_amount]);
+    if (isNaN(paymentAmount) || paymentAmount < 0) {
+      rowErrors.push('Valid payment amount is required');
+    }
+
+    const paymentType = row[columnMappings.payment_type];
+    if (paymentType && !['CRS501', 'CRS502', 'CRS503', 'CRS504'].includes(paymentType)) {
+      rowErrors.push('Payment type must be CRS501, CRS502, CRS503, or CRS504');
+    }
+
+    if (rowErrors.length > 0) {
+      dataIssues.push({
+        row: index + 1,
+        errors: rowErrors
+      });
+      invalidRows++;
+    } else {
+      validRows++;
+    }
+  });
+
+  const isValid = missingColumns.length === 0 && dataIssues.length === 0;
+
+  return {
+    isValid,
+    errors: missingColumns.length > 0 ? ['Missing required columns'] : [],
+    warnings: [],
+    missingColumns,
+    columnMappings,
+    dataIssues,
+    summary: {
+      totalRows: data.length,
+      validRows,
+      invalidRows
+    }
+  };
+};
+
+const getFieldDescription = (field) => {
+  const descriptions = {
+    'account_number': 'Account Number',
+    'account_balance': 'Account Balance',
+    'currency_code': 'Currency Code (USD, EUR, etc.)',
+    'holder_type': 'Account Holder Type (Individual/Organization)',
+    'residence_country': 'Residence Country Code (2 letters)',
+    'address_country': 'Address Country Code (2 letters)',
+    'city': 'City',
+    'first_name': 'First Name',
+    'last_name': 'Last Name',
+    'organization_name': 'Organization Name',
+    'payment_amount': 'Payment Amount',
+    'payment_type': 'Payment Type (CRS501-CRS504)'
+  };
+  return descriptions[field] || field;
 };
 
 // ==========================================
@@ -860,6 +1064,7 @@ const Navigation = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
 
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -1130,6 +1335,62 @@ const generateCRSXML = (data, settings) => {
   </crs:CrsBody>
 </crs:CRS_OECD>`;
 };
+const ValidationResultsDisplay = ({ validation }) => {
+  if (!validation || Object.keys(validation).length === 0) return null;
+
+  return (
+    <div className="mt-4 p-4 border rounded-lg bg-white">
+      <h4 className="font-medium mb-3 text-gray-900">Validation Results</h4>
+      
+      {validation.isValid ? (
+        <div className="flex items-center text-green-600 text-sm">
+          <CheckCircle2 className="w-4 h-4 mr-2" />
+          All validations passed - ready for conversion!
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {validation.missingColumns && validation.missingColumns.length > 0 && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded">
+              <p className="font-medium text-red-800 mb-2">Missing Required Columns:</p>
+              <ul className="text-sm text-red-700 space-y-1">
+                {validation.missingColumns.map((col, index) => (
+                  <li key={index}>• {col.description} (looking for: {col.alternatives.join(', ')})</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {validation.dataIssues && validation.dataIssues.length > 0 && (
+            <div className="p-3 bg-orange-50 border border-orange-200 rounded">
+              <p className="font-medium text-orange-800 mb-2">
+                Data Issues Found ({validation.dataIssues.length} rows):
+              </p>
+              <div className="max-h-32 overflow-y-auto">
+                {validation.dataIssues.slice(0, 5).map((issue, index) => (
+                  <div key={index} className="text-sm text-orange-700 mb-1">
+                    <strong>Row {issue.row}:</strong> {issue.errors.join(', ')}
+                  </div>
+                ))}
+                {validation.dataIssues.length > 5 && (
+                  <p className="text-sm text-orange-600 font-medium">
+                    ...and {validation.dataIssues.length - 5} more issues
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <div className="text-sm text-gray-600">
+            Summary: {validation.summary.validRows} valid, {validation.summary.invalidRows} with issues
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+
 // ==========================================
 // MAIN CONVERTER COMPONENT
 // ==========================================
@@ -1137,7 +1398,7 @@ const generateCRSXML = (data, settings) => {
 const CRSConverter = () => {
   const { user, userDoc, updateUserUsage } = useAuth();
   const fileInputRef = useRef(null);
-  
+  const [validationResults, setValidationResults] = useState({});
   const [file, setFile] = useState(null);
   const [data, setData] = useState([]);
   const [processing, setProcessing] = useState(false);
@@ -1146,6 +1407,7 @@ const CRSConverter = () => {
   const [showRegistrationPrompt, setShowRegistrationPrompt] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
+  const [settingsValidation, setSettingsValidation] = useState({});
 
   const [settings, setSettings] = useState({
     reportingFI: {
@@ -1157,8 +1419,6 @@ const CRSConverter = () => {
     taxYear: new Date().getFullYear() - 1,
     messageRefId: `CRS_${Date.now()}`
   });
-
-  const [validationResults, setValidationResults] = useState({});
 
   const usageStatus = getUserConversionStatus(user, userDoc);
 
@@ -1174,38 +1434,49 @@ const CRSConverter = () => {
   };
 
   const processFile = async (file) => {
-    setProcessing(true);
-    setError(null);
+  setProcessing(true);
+  setError(null);
 
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer);
-      const sheetName = workbook.SheetNames[0];
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer);
+    
+    let jsonData = [];
+    for (const sheetName of workbook.SheetNames) {
       const worksheet = workbook.Sheets[sheetName];
-      
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+      const sheetData = XLSX.utils.sheet_to_json(worksheet, {
         defval: '',
         raw: false
       });
-
-      if (jsonData.length === 0) {
-        throw new Error('No data found in the file');
+      
+      if (sheetData.length > 0) {
+        jsonData = sheetData;
+        break;
       }
-
-      setData(jsonData);
-      trackEvent('file_processed', {
-        file_type: file.type,
-        record_count: jsonData.length,
-        user_type: user ? 'registered' : 'anonymous'
-      });
-
-    } catch (err) {
-      console.error('File processing error:', err);
-      setError(`Failed to process file: ${err.message}`);
-    } finally {
-      setProcessing(false);
     }
-  };
+
+    if (jsonData.length === 0) {
+      throw new Error('No data found in any sheet');
+    }
+
+    const validation = validateCRSData(jsonData);
+    setValidationResults(validation);
+
+    setData(jsonData);
+    trackEvent('file_processed', {
+      file_type: file.type,
+      record_count: jsonData.length,
+      is_valid: validation.isValid,
+      user_type: user ? 'registered' : 'anonymous'
+    });
+
+  } catch (err) {
+    console.error('File processing error:', err);
+    setError(`Failed to process file: ${err.message}`);
+  } finally {
+    setProcessing(false);
+  }
+};
 
   const validateSettings = () => {
     const results = {};
@@ -1213,9 +1484,9 @@ const CRSConverter = () => {
     results.giin = validateGIIN(settings.reportingFI.giin);
     results.taxYear = validateTaxYear(settings.taxYear);
     results.fiName = validateFIName(settings.reportingFI.name);
-    
-    setValidationResults(results);
-    
+	
+	setSettingsValidation(results);
+       
     const hasErrors = Object.values(results).some(result => !result.valid);
     return !hasErrors;
   };
@@ -1390,14 +1661,17 @@ const CRSConverter = () => {
               )}
 
               {data.length > 0 && (
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center space-x-2 text-green-800">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span className="font-medium">
-                      File processed successfully! Found {data.length} records.
-                    </span>
+                <div className="mt-4">
+				  <div className = "p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center space-x-2 text-green-800">
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span className="font-medium">
+                        File processed successfully! Found {data.length} records.
+                      </span>
+                    </div>
                   </div>
-                </div>
+				  <ValidationResultsDisplay validation={validationResults} />
+				</div>
               )}
             </div>
 
@@ -1419,8 +1693,8 @@ const CRSConverter = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Your Financial Institution Name"
                   />
-                  {validationResults.fiName && !validationResults.fiName.valid && (
-                    <p className="mt-1 text-sm text-red-600">{validationResults.fiName.message}</p>
+                  {settingsValidation.fiName && !settingsValidation.fiName.valid && (
+                    <p className="mt-1 text-sm text-red-600">{settingsValidation.fiName.message}</p>
                   )}
                 </div>
 
@@ -1435,8 +1709,8 @@ const CRSConverter = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="XXXXXX.XXXXX.XX.XXX"
                   />
-                  {validationResults.giin && !validationResults.giin.valid && (
-                    <p className="mt-1 text-sm text-red-600">{validationResults.giin.message}</p>
+                  {settingsValidation.giin && !settingsValidation.giin.valid && (
+                    <p className="mt-1 text-sm text-red-600">{settingsValidation.giin.message}</p>
                   )}
                 </div>
 
@@ -1477,8 +1751,8 @@ const CRSConverter = () => {
                       );
                     })}
                   </select>
-                  {validationResults.taxYear && !validationResults.taxYear.valid && (
-                    <p className="mt-1 text-sm text-red-600">{validationResults.taxYear.message}</p>
+                  {settingsValidation.taxYear && !settingsValidation.taxYear.valid && (
+                    <p className="mt-1 text-sm text-red-600">{settingsValidation.taxYear.message}</p>
                   )}
                 </div>
 
