@@ -291,7 +291,55 @@ const getFieldDescription = (field) => {
 };
 
 // ==========================================
-// TIERED CRS VALIDATION FUNCTION
+// UPDATED FIELD MAPPINGS (Replace around line 300-400)
+// ==========================================
+
+const ENHANCED_FIELD_MAPPINGS = {
+  // Core required fields
+  'account_number': ['account_number', 'accountnumber', 'account_no', 'acct_no', 'account'],
+  'account_balance': ['account_balance', 'balance', 'accountbalance', 'amount'],
+  'currency_code': ['currency_code', 'currency', 'currencycode', 'curr_code', 'ccy'],
+  'holder_type': ['holder_type', 'holdertype', 'type', 'account_holder_type', 'accountholdertype'],
+  
+  // Address and location
+  'residence_country': ['residence_country', 'res_country', 'residence_country_code', 'country_of_residence'],
+  'address_country': ['address_country', 'addr_country', 'address_country_code', 'country'],
+  'city': ['city', 'address_city', 'town'],
+  'address': ['address', 'street', 'address_line_1', 'street_address'],
+  
+  // Individual fields
+  'first_name': ['first_name', 'firstname', 'fname', 'given_name'],
+  'last_name': ['last_name', 'lastname', 'lname', 'surname'],
+  'tin': ['tin', 'tax_id', 'taxpayer_id', 'tax_identification_number'],
+  'birth_date': ['birth_date', 'birthdate', 'dob', 'date_of_birth'],
+  'birth_city': ['birth_city', 'birthcity', 'place_of_birth'],
+  'birth_country': ['birth_country', 'birth_country_code', 'birthcountry', 'country_of_birth'],
+  
+  // Organization fields
+  'organization_name': ['organization_name', 'org_name', 'company_name', 'entity_name'],
+  'organization_tin': ['organization_tin', 'org_tin', 'company_tin', 'entity_tin'],
+  
+  // Controlling person fields
+  'controlling_person_first_name': ['controlling_person_first_name', 'cp_first_name', 'cp_fname'],
+  'controlling_person_last_name': ['controlling_person_last_name', 'cp_last_name', 'cp_lname'],
+  'controlling_person_birth_date': ['controlling_person_birth_date', 'cp_birth_date', 'cp_dob'],
+  'controlling_person_birth_city': ['controlling_person_birth_city', 'cp_birth_city'],
+  'controlling_person_birth_country': ['controlling_person_birth_country', 'cp_birth_country'],
+  'controlling_person_residence_country': ['controlling_person_residence_country', 'cp_residence_country'],
+  'controlling_person_address_country': ['controlling_person_address_country', 'cp_address_country'],
+  'controlling_person_city': ['controlling_person_city', 'cp_city'],
+  'controlling_person_address': ['controlling_person_address', 'cp_address'],
+  'controlling_person_tin': ['controlling_person_tin', 'cp_tin'],
+  
+  // Payment fields
+  'payment_type': ['payment_type', 'paymenttype', 'payment_code', 'income_type'],
+  'payment_amount': ['payment_amount', 'paymentamount', 'payment', 'income_amount'],
+  'interest_amount': ['interest_amount', 'interest', 'interest_income'],
+  'dividend_amount': ['dividend_amount', 'dividend', 'dividend_income']
+};
+
+// ==========================================
+// UPDATE THE VALIDATION FUNCTION (Replace around line 400-600)
 // ==========================================
 
 const validateCRSData = (data) => {
@@ -308,38 +356,7 @@ const validateCRSData = (data) => {
   }
 
   const headers = Object.keys(data[0]).map(h => h.toLowerCase().trim());
-  const requiredFields = {
-    // Critical - Always required
-    'account_number': ['account_number', 'accountnumber', 'account_no', 'acct_no'],
-    'account_balance': ['account_balance', 'balance', 'accountbalance'],
-    'currency_code': ['currency_code', 'currency', 'currencycode', 'curr_code'],
-    'holder_type': ['holder_type', 'holdertype', 'type', 'account_holder_type'],
-    
-    // Warning - Usually required but may be optional
-    'residence_country': ['residence_country', 'res_country', 'residence_country_code'],
-    'address_country': ['address_country', 'addr_country', 'address_country_code'],
-    'city': ['city', 'address_city'],
-    
-    // Recommendations - Best practice
-    'first_name': ['first_name', 'firstname', 'fname', 'given_name'],
-    'last_name': ['last_name', 'lastname', 'lname', 'surname'],
-    'tin': ['tin', 'tax_id', 'taxpayer_id'],
-    'birth_date': ['birth_date', 'birthdate', 'dob', 'date_of_birth'],
-    'birth_city': ['birth_city', 'birthcity', 'place_of_birth'],
-    'birth_country': ['birth_country', 'birth_country_code', 'birthcountry'],
-    'organization_name': ['organization_name', 'org_name', 'company_name', 'entity_name'],
-    'organization_tin': ['organization_tin', 'org_tin', 'company_tin'],
-    'controlling_person_first_name': ['controlling_person_first_name', 'cp_first_name', 'cp_fname'],
-    'controlling_person_last_name': ['controlling_person_last_name', 'cp_last_name', 'cp_lname'],
-    'controlling_person_birth_date': ['controlling_person_birth_date', 'cp_birth_date', 'cp_dob'],
-    'controlling_person_birth_country': ['controlling_person_birth_country', 'cp_birth_country'],
-    'controlling_person_residence_country': ['controlling_person_residence_country', 'cp_residence_country'],
-    'controlling_person_address_country': ['controlling_person_address_country', 'cp_address_country'],
-    'controlling_person_city': ['controlling_person_city', 'cp_city'],
-    'controlling_person_tin': ['controlling_person_tin', 'cp_tin'],
-    'payment_type': ['payment_type', 'paymenttype', 'payment_code'],
-    'payment_amount': ['payment_amount', 'paymentamount', 'payment']
-  };
+  const requiredFields = ENHANCED_FIELD_MAPPINGS; // Use the new mappings
 
   // Field classification
   const criticalFields = ['account_number', 'account_balance', 'currency_code', 'holder_type'];
@@ -455,6 +472,289 @@ const validateCRSData = (data) => {
     dataIssues,
     summary: { totalRows: data.length, validRows, invalidRows }
   };
+};
+
+// ==========================================
+// REPLACE THE mapDataToCRS FUNCTION (around line 800-850)
+// ==========================================
+
+const mapDataToCRS = (rowData, columnMappings) => {
+  const holderType = rowData[columnMappings.holder_type]?.toLowerCase();
+  
+  return {
+    // Account details
+    accountNumber: rowData[columnMappings.account_number] || '',
+    accountBalance: parseFloat(rowData[columnMappings.account_balance]) || 0,
+    currencyCode: (rowData[columnMappings.currency_code] || 'USD').toUpperCase(),
+    
+    // Holder type determines structure
+    isIndividual: holderType === 'individual',
+    isOrganization: ['organization', 'organisation'].includes(holderType),
+    
+    // Individual data
+    individual: holderType === 'individual' ? {
+      firstName: rowData[columnMappings.first_name] || '',
+      lastName: rowData[columnMappings.last_name] || '',
+      birthDate: rowData[columnMappings.birth_date] || '',
+      birthCity: rowData[columnMappings.birth_city] || '',
+      birthCountry: rowData[columnMappings.birth_country] || '',
+      tin: rowData[columnMappings.tin] || '',
+      resCountryCode: (rowData[columnMappings.residence_country] || 'XX').toUpperCase(),
+      addressCountryCode: (rowData[columnMappings.address_country] || rowData[columnMappings.residence_country] || 'XX').toUpperCase(),
+      city: rowData[columnMappings.city] || '',
+      address: rowData[columnMappings.address] || ''
+    } : null,
+    
+    // Organization data
+    organization: ['organization', 'organisation'].includes(holderType) ? {
+      name: rowData[columnMappings.organization_name] || '',
+      tin: rowData[columnMappings.organization_tin] || '',
+      resCountryCode: (rowData[columnMappings.residence_country] || 'XX').toUpperCase(),
+      addressCountryCode: (rowData[columnMappings.address_country] || rowData[columnMappings.residence_country] || 'XX').toUpperCase(),
+      city: rowData[columnMappings.city] || '',
+      address: rowData[columnMappings.address] || ''
+    } : null,
+    
+    // Controlling person (required for organizations)
+    controllingPerson: ['organization', 'organisation'].includes(holderType) ? {
+      firstName: rowData[columnMappings.controlling_person_first_name] || '',
+      lastName: rowData[columnMappings.controlling_person_last_name] || '',
+      birthDate: rowData[columnMappings.controlling_person_birth_date] || '',
+      birthCity: rowData[columnMappings.controlling_person_birth_city] || '',
+      birthCountry: rowData[columnMappings.controlling_person_birth_country] || '',
+      resCountryCode: (rowData[columnMappings.controlling_person_residence_country] || 'XX').toUpperCase(),
+      addressCountryCode: (rowData[columnMappings.controlling_person_address_country] || rowData[columnMappings.controlling_person_residence_country] || 'XX').toUpperCase(),
+      city: rowData[columnMappings.controlling_person_city] || '',
+      address: rowData[columnMappings.controlling_person_address] || '',
+      tin: rowData[columnMappings.controlling_person_tin] || ''
+    } : null,
+    
+    // Enhanced payment data
+    payment: {
+      type: rowData[columnMappings.payment_type] || 'CRS503',
+      amount: parseFloat(rowData[columnMappings.payment_amount]) || parseFloat(rowData[columnMappings.account_balance]) || 0,
+      interestAmount: parseFloat(rowData[columnMappings.interest_amount]) || 0,
+      dividendAmount: parseFloat(rowData[columnMappings.dividend_amount]) || 0,
+      currency: (rowData[columnMappings.currency_code] || 'USD').toUpperCase()
+    }
+  };
+};
+
+// ==========================================
+// REPLACE THE generateCRSXML FUNCTION (around line 900-1000)
+// ==========================================
+
+const generateCRSXML = (data, settings, validationResults) => {
+  const { reportingFI, messageRefId, taxYear } = settings;
+  const { columnMappings } = validationResults;
+  
+  const formatDate = (date) => {
+    if (!date) return '';
+    // Ensure proper date format YYYY-MM-DD
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().split('T')[0];
+  };
+
+  const formatCurrency = (amount) => {
+    return parseFloat(amount || 0).toFixed(2);
+  };
+
+  const generateUniqueRefId = (prefix = 'MU2024MU') => {
+    const chars = '0123456789abcdef';
+    let result = '';
+    for (let i = 0; i < 32; i++) {
+      result += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return prefix + result;
+  };
+
+  const generateDocRefId = () => {
+    return generateUniqueRefId('MU2024MU');
+  };
+
+  const generateAccountReport = (mappedAccount, index) => {
+    const docRefId = generateDocRefId();
+    
+    // Generate account holder section based on type
+    const generateAccountHolder = () => {
+      if (mappedAccount.isIndividual) {
+        return `
+        <AccountHolder>
+          <Individual>
+            <ResCountryCode>${mappedAccount.individual.resCountryCode || 'XX'}</ResCountryCode>
+            <TIN issuedBy="${mappedAccount.individual.resCountryCode || 'XX'}">${mappedAccount.individual.tin || 'N/A'}</TIN>
+            <Name nameType="OECD202">
+              <FirstName>${mappedAccount.individual.firstName || ''}</FirstName>
+              <LastName>${mappedAccount.individual.lastName || ''}</LastName>
+            </Name>
+            <Address legalAddressType="OECD302">
+              <cfc:CountryCode>${mappedAccount.individual.addressCountryCode || mappedAccount.individual.resCountryCode || 'XX'}</cfc:CountryCode>
+              <cfc:AddressFix>
+                <cfc:Street>${mappedAccount.individual.address || ''}</cfc:Street>
+                <cfc:City>${mappedAccount.individual.city || ''}</cfc:City>
+              </cfc:AddressFix>
+            </Address>
+            ${mappedAccount.individual.birthDate ? `
+            <BirthInfo>
+              <BirthDate>${formatDate(mappedAccount.individual.birthDate)}</BirthDate>
+              <City>${mappedAccount.individual.birthCity || ''}</City>
+              <CountryInfo>
+                <CountryCode>${mappedAccount.individual.birthCountry || mappedAccount.individual.resCountryCode || 'XX'}</CountryCode>
+              </CountryInfo>
+            </BirthInfo>` : ''}
+          </Individual>
+          <AcctHolderType>CRS101</AcctHolderType>
+        </AccountHolder>`;
+      } else if (mappedAccount.isOrganization) {
+        return `
+        <AccountHolder>
+          <Organisation>
+            <ResCountryCode>${mappedAccount.organization.resCountryCode || 'XX'}</ResCountryCode>
+            <IN issuedBy="${mappedAccount.organization.resCountryCode || 'XX'}">${mappedAccount.organization.tin || 'N/A'}</IN>
+            <Name>${mappedAccount.organization.name || ''}</Name>
+            <Address>
+              <cfc:CountryCode>${mappedAccount.organization.addressCountryCode || mappedAccount.organization.resCountryCode || 'XX'}</cfc:CountryCode>
+              <cfc:AddressFix>
+                <cfc:Street>${mappedAccount.organization.address || ''}</cfc:Street>
+                <cfc:City>${mappedAccount.organization.city || ''}</cfc:City>
+              </cfc:AddressFix>
+            </Address>
+          </Organisation>
+          <AcctHolderType>CRS101</AcctHolderType>
+        </AccountHolder>`;
+      }
+      return '';
+    };
+
+    // Generate controlling person section (only for organizations)
+    const generateControllingPerson = () => {
+      if (!mappedAccount.isOrganization || !mappedAccount.controllingPerson) {
+        return '';
+      }
+      
+      return `
+        <ControllingPerson>
+          <Individual>
+            <ResCountryCode>${mappedAccount.controllingPerson.resCountryCode || 'XX'}</ResCountryCode>
+            <TIN issuedBy="${mappedAccount.controllingPerson.resCountryCode || 'XX'}">${mappedAccount.controllingPerson.tin || 'N/A'}</TIN>
+            <Name nameType="OECD202">
+              <FirstName>${mappedAccount.controllingPerson.firstName || ''}</FirstName>
+              <LastName>${mappedAccount.controllingPerson.lastName || ''}</LastName>
+            </Name>
+            <Address legalAddressType="OECD302">
+              <cfc:CountryCode>${mappedAccount.controllingPerson.addressCountryCode || mappedAccount.controllingPerson.resCountryCode || 'XX'}</cfc:CountryCode>
+              <cfc:AddressFix>
+                <cfc:Street>${mappedAccount.controllingPerson.address || ''}</cfc:Street>
+                <cfc:City>${mappedAccount.controllingPerson.city || ''}</cfc:City>
+              </cfc:AddressFix>
+            </Address>
+            ${mappedAccount.controllingPerson.birthDate ? `
+            <BirthInfo>
+              <BirthDate>${formatDate(mappedAccount.controllingPerson.birthDate)}</BirthDate>
+              <City>${mappedAccount.controllingPerson.birthCity || ''}</City>
+              <CountryInfo>
+                <CountryCode>${mappedAccount.controllingPerson.birthCountry || mappedAccount.controllingPerson.resCountryCode || 'XX'}</CountryCode>
+              </CountryInfo>
+            </BirthInfo>` : ''}
+          </Individual>
+          <CtrlgPersonType>CRS801</CtrlgPersonType>
+        </ControllingPerson>`;
+    };
+
+    // Generate payment sections - handle multiple payments
+    const generatePayments = () => {
+      const payments = [];
+      
+      // Interest payment (CRS501)
+      if (mappedAccount.payment.interestAmount && mappedAccount.payment.interestAmount > 0) {
+        payments.push(`
+        <Payment>
+          <Type>CRS501</Type>
+          <PaymentAmnt currCode="${mappedAccount.payment.currency}">${formatCurrency(mappedAccount.payment.interestAmount)}</PaymentAmnt>
+        </Payment>`);
+      }
+      
+      // Other income payment (CRS503) - typically account balance
+      if (mappedAccount.payment.amount && mappedAccount.payment.amount > 0) {
+        payments.push(`
+        <Payment>
+          <Type>CRS503</Type>
+          <PaymentAmnt currCode="${mappedAccount.payment.currency}">${formatCurrency(mappedAccount.payment.amount)}</PaymentAmnt>
+        </Payment>`);
+      }
+      
+      // If no specific payments, create a default CRS503 payment with account balance
+      if (payments.length === 0 && mappedAccount.accountBalance > 0) {
+        payments.push(`
+        <Payment>
+          <Type>CRS503</Type>
+          <PaymentAmnt currCode="${mappedAccount.currencyCode}">${formatCurrency(mappedAccount.accountBalance)}</PaymentAmnt>
+        </Payment>`);
+      }
+      
+      return payments.join('');
+    };
+
+    return `
+      <AccountReport>
+        <DocSpec>
+          <stf:DocTypeIndic>OECD1</stf:DocTypeIndic>
+          <stf:DocRefId>${docRefId}</stf:DocRefId>
+        </DocSpec>
+        <AccountNumber UndocumentedAccount="true" AcctNumberType="OECD605">${mappedAccount.accountNumber}</AccountNumber>
+        ${generateAccountHolder()}
+        ${generateControllingPerson()}
+        <AccountBalance currCode="${mappedAccount.currencyCode}">${formatCurrency(mappedAccount.accountBalance)}</AccountBalance>
+        ${generatePayments()}
+      </AccountReport>`;
+  };
+  
+  // Map each row to CRS structure
+  const mappedAccounts = data.map(row => mapDataToCRS(row, columnMappings));
+  
+  // Generate account reports
+  const accountReports = mappedAccounts.map((account, index) => generateAccountReport(account, index)).join('');
+
+  // Generate message reference ID with proper format
+  const messageRef = messageRefId || generateUniqueRefId('MU2024MU');
+  const reportingPeriod = `${taxYear}-12-31`;
+  const timestamp = new Date().toISOString();
+
+  return `<?xml version="1.0" encoding="utf-8"?>
+<CRS_OECD xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:crs="urn:oecd:ties:crs:v2" xmlns:cfc="urn:oecd:ties:commontypesfatcacrs:v2" xmlns:stf="urn:oecd:ties:crsstf:v5" version="2.0" xmlns="urn:oecd:ties:crs:v2">
+  <MessageSpec>
+    <SendingCompanyIN>${reportingFI.giin || ''}</SendingCompanyIN>
+    <TransmittingCountry>${reportingFI.country || 'MU'}</TransmittingCountry>
+    <ReceivingCountry>${reportingFI.country || 'MU'}</ReceivingCountry>
+    <MessageType>CRS</MessageType>
+    <MessageRefId>${messageRef}</MessageRefId>
+    <MessageTypeIndic>CRS701</MessageTypeIndic>
+    <ReportingPeriod>${reportingPeriod}</ReportingPeriod>
+    <Timestamp>${timestamp}</Timestamp>
+  </MessageSpec>
+  <CrsBody>
+    <ReportingFI>
+      <ResCountryCode>${reportingFI.country || 'MU'}</ResCountryCode>
+      <IN issuedBy="${reportingFI.country || 'MU'}" INType="TIN">${reportingFI.giin || ''}</IN>
+      <Name>${reportingFI.name || ''}</Name>
+      <Address>
+        <cfc:CountryCode>${reportingFI.country || 'MU'}</cfc:CountryCode>
+        <cfc:AddressFix>
+          <cfc:Street>${reportingFI.address || ''}</cfc:Street>
+          <cfc:City>${reportingFI.city || ''}</cfc:City>
+        </cfc:AddressFix>
+      </Address>
+      <DocSpec>
+        <stf:DocTypeIndic>OECD1</stf:DocTypeIndic>
+        <stf:DocRefId>${generateDocRefId()}</stf:DocRefId>
+      </DocSpec>
+    </ReportingFI>
+    <ReportingGroup>
+      ${accountReports}
+    </ReportingGroup>
+  </CrsBody>
+</CRS_OECD>`;
 };
 // ==========================================
 // AUDIT TRAIL FUNCTIONS
