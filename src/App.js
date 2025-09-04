@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import MainApp from './components/CRSXMLConverter';
+import { CRSXMLConverter } from './components/CRSXMLConverter';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 import Documentation from './pages/Documentation';
