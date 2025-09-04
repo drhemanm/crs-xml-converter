@@ -143,6 +143,54 @@ const PRICING_PLANS = {
     color: 'purple'
   }
 };
+
+// ==========================================
+// ENHANCED FIELD MAPPINGS
+// ==========================================
+
+const ENHANCED_FIELD_MAPPINGS = {
+  // Core required fields
+  'account_number': ['account_number', 'accountnumber', 'account_no', 'acct_no', 'account'],
+  'account_balance': ['account_balance', 'balance', 'accountbalance', 'amount'],
+  'currency_code': ['currency_code', 'currency', 'currencycode', 'curr_code', 'ccy'],
+  'holder_type': ['holder_type', 'holdertype', 'type', 'account_holder_type', 'accountholdertype'],
+  
+  // Address and location
+  'residence_country': ['residence_country', 'res_country', 'residence_country_code', 'country_of_residence'],
+  'address_country': ['address_country', 'addr_country', 'address_country_code', 'country'],
+  'city': ['city', 'address_city', 'town'],
+  'address': ['address', 'street', 'address_line_1', 'street_address'],
+  
+  // Individual fields
+  'first_name': ['first_name', 'firstname', 'fname', 'given_name'],
+  'last_name': ['last_name', 'lastname', 'lname', 'surname'],
+  'tin': ['tin', 'tax_id', 'taxpayer_id', 'tax_identification_number'],
+  'birth_date': ['birth_date', 'birthdate', 'dob', 'date_of_birth'],
+  'birth_city': ['birth_city', 'birthcity', 'place_of_birth'],
+  'birth_country': ['birth_country', 'birth_country_code', 'birthcountry', 'country_of_birth'],
+  
+  // Organization fields
+  'organization_name': ['organization_name', 'org_name', 'company_name', 'entity_name'],
+  'organization_tin': ['organization_tin', 'org_tin', 'company_tin', 'entity_tin'],
+  
+  // Controlling person fields
+  'controlling_person_first_name': ['controlling_person_first_name', 'cp_first_name', 'cp_fname'],
+  'controlling_person_last_name': ['controlling_person_last_name', 'cp_last_name', 'cp_lname'],
+  'controlling_person_birth_date': ['controlling_person_birth_date', 'cp_birth_date', 'cp_dob'],
+  'controlling_person_birth_city': ['controlling_person_birth_city', 'cp_birth_city'],
+  'controlling_person_birth_country': ['controlling_person_birth_country', 'cp_birth_country'],
+  'controlling_person_residence_country': ['controlling_person_residence_country', 'cp_residence_country'],
+  'controlling_person_address_country': ['controlling_person_address_country', 'cp_address_country'],
+  'controlling_person_city': ['controlling_person_city', 'cp_city'],
+  'controlling_person_address': ['controlling_person_address', 'cp_address'],
+  'controlling_person_tin': ['controlling_person_tin', 'cp_tin'],
+  
+  // Payment fields
+  'payment_type': ['payment_type', 'paymenttype', 'payment_code', 'income_type'],
+  'payment_amount': ['payment_amount', 'paymentamount', 'payment', 'income_amount'],
+  'interest_amount': ['interest_amount', 'interest', 'interest_income'],
+  'dividend_amount': ['dividend_amount', 'dividend', 'dividend_income']
+};
 // ==========================================
 // ANONYMOUS USAGE TRACKING
 // ==========================================
@@ -291,55 +339,7 @@ const getFieldDescription = (field) => {
 };
 
 // ==========================================
-// UPDATED FIELD MAPPINGS (Replace around line 300-400)
-// ==========================================
-
-const ENHANCED_FIELD_MAPPINGS = {
-  // Core required fields
-  'account_number': ['account_number', 'accountnumber', 'account_no', 'acct_no', 'account'],
-  'account_balance': ['account_balance', 'balance', 'accountbalance', 'amount'],
-  'currency_code': ['currency_code', 'currency', 'currencycode', 'curr_code', 'ccy'],
-  'holder_type': ['holder_type', 'holdertype', 'type', 'account_holder_type', 'accountholdertype'],
-  
-  // Address and location
-  'residence_country': ['residence_country', 'res_country', 'residence_country_code', 'country_of_residence'],
-  'address_country': ['address_country', 'addr_country', 'address_country_code', 'country'],
-  'city': ['city', 'address_city', 'town'],
-  'address': ['address', 'street', 'address_line_1', 'street_address'],
-  
-  // Individual fields
-  'first_name': ['first_name', 'firstname', 'fname', 'given_name'],
-  'last_name': ['last_name', 'lastname', 'lname', 'surname'],
-  'tin': ['tin', 'tax_id', 'taxpayer_id', 'tax_identification_number'],
-  'birth_date': ['birth_date', 'birthdate', 'dob', 'date_of_birth'],
-  'birth_city': ['birth_city', 'birthcity', 'place_of_birth'],
-  'birth_country': ['birth_country', 'birth_country_code', 'birthcountry', 'country_of_birth'],
-  
-  // Organization fields
-  'organization_name': ['organization_name', 'org_name', 'company_name', 'entity_name'],
-  'organization_tin': ['organization_tin', 'org_tin', 'company_tin', 'entity_tin'],
-  
-  // Controlling person fields
-  'controlling_person_first_name': ['controlling_person_first_name', 'cp_first_name', 'cp_fname'],
-  'controlling_person_last_name': ['controlling_person_last_name', 'cp_last_name', 'cp_lname'],
-  'controlling_person_birth_date': ['controlling_person_birth_date', 'cp_birth_date', 'cp_dob'],
-  'controlling_person_birth_city': ['controlling_person_birth_city', 'cp_birth_city'],
-  'controlling_person_birth_country': ['controlling_person_birth_country', 'cp_birth_country'],
-  'controlling_person_residence_country': ['controlling_person_residence_country', 'cp_residence_country'],
-  'controlling_person_address_country': ['controlling_person_address_country', 'cp_address_country'],
-  'controlling_person_city': ['controlling_person_city', 'cp_city'],
-  'controlling_person_address': ['controlling_person_address', 'cp_address'],
-  'controlling_person_tin': ['controlling_person_tin', 'cp_tin'],
-  
-  // Payment fields
-  'payment_type': ['payment_type', 'paymenttype', 'payment_code', 'income_type'],
-  'payment_amount': ['payment_amount', 'paymentamount', 'payment', 'income_amount'],
-  'interest_amount': ['interest_amount', 'interest', 'interest_income'],
-  'dividend_amount': ['dividend_amount', 'dividend', 'dividend_income']
-};
-
-// ==========================================
-// UPDATE THE VALIDATION FUNCTION (Replace around line 400-600)
+// UPDATED VALIDATION FUNCTION
 // ==========================================
 
 const validateCRSData = (data) => {
@@ -473,9 +473,8 @@ const validateCRSData = (data) => {
     summary: { totalRows: data.length, validRows, invalidRows }
   };
 };
-
 // ==========================================
-// REPLACE THE mapDataToCRS FUNCTION (around line 800-850)
+// CORRECTED DATA MAPPING FUNCTION
 // ==========================================
 
 const mapDataToCRS = (rowData, columnMappings) => {
@@ -541,7 +540,7 @@ const mapDataToCRS = (rowData, columnMappings) => {
 };
 
 // ==========================================
-// REPLACE THE generateCRSXML FUNCTION (around line 900-1000)
+// CORRECTED CRS XML GENERATION FUNCTION
 // ==========================================
 
 const generateCRSXML = (data, settings, validationResults) => {
@@ -847,7 +846,7 @@ const logXMLGeneration = async (conversionData, settingsUsed, user = null) => {
         institutionCountry: settingsUsed.reportingFI.country
       },
       complianceMetadata: {
-        crsStandard: 'OECD_CRS_v1.0',
+        crsStandard: 'OECD_CRS_v2.0',
         xmlValidation: 'PASSED',
         dataMinimization: true,
         purposeLimitation: 'CRS_REGULATORY_REPORTING'
@@ -1634,7 +1633,7 @@ const HeroSection = () => {
               <div className="text-gray-600">Latest Standards</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-purple-600"> Less than 5 Min</div>
+              <div className="text-3xl font-bold text-purple-600">Less than 5 Min</div>
               <div className="text-gray-600">Average Processing</div>
             </div>
           </div>
@@ -1644,204 +1643,8 @@ const HeroSection = () => {
   );
 };
 // ==========================================
-// CRS XML GENERATION
+// VALIDATION RESULTS DISPLAY COMPONENT
 // ==========================================
-
-const mapDataToCRS = (rowData, columnMappings) => {
-  const holderType = rowData[columnMappings.holder_type]?.toLowerCase();
-  
-  return {
-    // Account details
-    accountNumber: rowData[columnMappings.account_number] || '',
-    accountBalance: parseFloat(rowData[columnMappings.account_balance]) || 0,
-    currencyCode: rowData[columnMappings.currency_code] || 'USD',
-    
-    // Holder type determines structure
-    isIndividual: holderType === 'individual',
-    isOrganization: ['organization', 'organisation'].includes(holderType),
-    
-    // Individual data
-    individual: holderType === 'individual' ? {
-      firstName: rowData[columnMappings.first_name] || '',
-      lastName: rowData[columnMappings.last_name] || '',
-      birthDate: rowData[columnMappings.birth_date] || '',
-      birthCity: rowData[columnMappings.birth_city] || '',
-      birthCountry: rowData[columnMappings.birth_country] || '',
-      tin: rowData[columnMappings.tin] || '',
-      resCountryCode: rowData[columnMappings.residence_country] || '',
-      addressCountryCode: rowData[columnMappings.address_country] || '',
-      city: rowData[columnMappings.city] || '',
-      address: rowData[columnMappings.address] || ''
-    } : null,
-    
-    // Organization data
-    organization: ['organization', 'organisation'].includes(holderType) ? {
-      name: rowData[columnMappings.organization_name] || '',
-      tin: rowData[columnMappings.organization_tin] || '',
-      resCountryCode: rowData[columnMappings.residence_country] || '',
-      addressCountryCode: rowData[columnMappings.address_country] || '',
-      city: rowData[columnMappings.city] || '',
-      address: rowData[columnMappings.address] || ''
-    } : null,
-    
-    // Controlling person (required for organizations)
-    controllingPerson: ['organization', 'organisation'].includes(holderType) ? {
-      firstName: rowData[columnMappings.controlling_person_first_name] || '',
-      lastName: rowData[columnMappings.controlling_person_last_name] || '',
-      birthDate: rowData[columnMappings.controlling_person_birth_date] || '',
-      birthCountry: rowData[columnMappings.controlling_person_birth_country] || '',
-      resCountryCode: rowData[columnMappings.controlling_person_residence_country] || '',
-      addressCountryCode: rowData[columnMappings.controlling_person_address_country] || '',
-      city: rowData[columnMappings.controlling_person_city] || '',
-      tin: rowData[columnMappings.controlling_person_tin] || ''
-    } : null,
-    
-    // Payment data
-    payment: {
-      type: rowData[columnMappings.payment_type] || 'CRS501',
-      amount: parseFloat(rowData[columnMappings.payment_amount]) || 0,
-      currency: rowData[columnMappings.currency_code] || 'USD'
-    }
-  };
-};
-
-const generateCRSXML = (data, settings, validationResults) => {
-  const { reportingFI, messageRefId, taxYear } = settings;
-  const { columnMappings } = validationResults;
-  
-  const formatDate = (date) => {
-    if (!date) return '';
-    return new Date(date).toISOString().split('T')[0];
-  };
-
-  const formatCurrency = (amount) => {
-    return parseFloat(amount || 0).toFixed(2);
-  };
-
-  const generateAccountReport = (mappedAccount) => {
-    // Generate account holder section based on type
-    const generateAccountHolder = () => {
-      if (mappedAccount.isIndividual) {
-        return `
-        <crs:Individual>
-          <crs:ResCountryCode>${mappedAccount.individual.resCountryCode}</crs:ResCountryCode>
-          <crs:TIN issuedBy="${mappedAccount.individual.resCountryCode}">${mappedAccount.individual.tin}</crs:TIN>
-          <crs:Name>
-            <crs:FirstName>${mappedAccount.individual.firstName}</crs:FirstName>
-            <crs:LastName>${mappedAccount.individual.lastName}</crs:LastName>
-          </crs:Name>
-          <crs:Address>
-            <crs:CountryCode>${mappedAccount.individual.addressCountryCode}</crs:CountryCode>
-            <crs:AddressFree>${mappedAccount.individual.address}</crs:AddressFree>
-          </crs:Address>
-          <crs:BirthInfo>
-            <crs:BirthDate>${formatDate(mappedAccount.individual.birthDate)}</crs:BirthDate>
-            <crs:City>${mappedAccount.individual.birthCity}</crs:City>
-            <crs:CountryInfo>
-              <crs:CountryCode>${mappedAccount.individual.birthCountry}</crs:CountryCode>
-            </crs:CountryInfo>
-          </crs:BirthInfo>
-        </crs:Individual>`;
-      } else if (mappedAccount.isOrganization) {
-        return `
-        <crs:Organisation>
-          <crs:ResCountryCode>${mappedAccount.organization.resCountryCode}</crs:ResCountryCode>
-          <crs:TIN issuedBy="${mappedAccount.organization.resCountryCode}">${mappedAccount.organization.tin}</crs:TIN>
-          <crs:Name>
-            <crs:OrganisationName>${mappedAccount.organization.name}</crs:OrganisationName>
-          </crs:Name>
-          <crs:Address>
-            <crs:CountryCode>${mappedAccount.organization.addressCountryCode}</crs:CountryCode>
-            <crs:AddressFree>${mappedAccount.organization.address}</crs:AddressFree>
-          </crs:Address>
-        </crs:Organisation>`;
-      }
-      return '';
-    };
-
-    // Generate controlling person section (only for organizations)
-    const generateControllingPerson = () => {
-      if (!mappedAccount.isOrganization || !mappedAccount.controllingPerson) {
-        return '';
-      }
-      
-      return `
-        <crs:ControllingPerson>
-          <crs:Individual>
-            <crs:ResCountryCode>${mappedAccount.controllingPerson.resCountryCode}</crs:ResCountryCode>
-            <crs:TIN issuedBy="${mappedAccount.controllingPerson.resCountryCode}">${mappedAccount.controllingPerson.tin}</crs:TIN>
-            <crs:Name>
-              <crs:FirstName>${mappedAccount.controllingPerson.firstName}</crs:FirstName>
-              <crs:LastName>${mappedAccount.controllingPerson.lastName}</crs:LastName>
-            </crs:Name>
-            <crs:Address>
-              <crs:CountryCode>${mappedAccount.controllingPerson.addressCountryCode}</crs:CountryCode>
-              <crs:AddressFree>${mappedAccount.controllingPerson.address || ''}</crs:AddressFree>
-            </crs:Address>
-            <crs:BirthInfo>
-              <crs:BirthDate>${formatDate(mappedAccount.controllingPerson.birthDate)}</crs:BirthDate>
-              <crs:CountryInfo>
-                <crs:CountryCode>${mappedAccount.controllingPerson.birthCountry}</crs:CountryCode>
-              </crs:CountryInfo>
-            </crs:BirthInfo>
-          </crs:Individual>
-          <crs:CtrlgPersonType>CRS801</crs:CtrlgPersonType>
-        </crs:ControllingPerson>`;
-    };
-
-    return `
-      <crs:AccountReport>
-        <crs:DocSpec>
-          <stf:DocTypeIndic>OECD1</stf:DocTypeIndic>
-          <stf:DocRefId>${mappedAccount.accountNumber}_${Date.now()}</stf:DocRefId>
-          <stf:CorrDocRefId></stf:CorrDocRefId>
-        </crs:DocSpec>
-        <crs:AccountNumber>${mappedAccount.accountNumber}</crs:AccountNumber>
-        <crs:AccountHolder>
-          ${generateAccountHolder()}
-        </crs:AccountHolder>
-        ${generateControllingPerson()}
-        <crs:AccountBalance currCode="${mappedAccount.currencyCode}">${formatCurrency(mappedAccount.accountBalance)}</crs:AccountBalance>
-        <crs:Payment>
-          <crs:Type>${mappedAccount.payment.type}</crs:Type>
-          <crs:PaymentAmnt currCode="${mappedAccount.payment.currency}">${formatCurrency(mappedAccount.payment.amount)}</crs:PaymentAmnt>
-        </crs:Payment>
-      </crs:AccountReport>`;
-  };
-  
-  // Map each row to CRS structure
-  const mappedAccounts = data.map(row => mapDataToCRS(row, columnMappings));
-  
-  // Generate account reports
-  const accountReports = mappedAccounts.map(generateAccountReport).join('');
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<crs:CRS_OECD xmlns:crs="urn:oecd:ties:crs:v1" xmlns:stf="urn:oecd:ties:stf:v4" version="1.0">
-  <crs:MessageSpec>
-    <stf:SendingCompanyIN>${reportingFI.giin || ''}</stf:SendingCompanyIN>
-    <stf:TransmittingCountry>${reportingFI.country || 'MU'}</stf:TransmittingCountry>
-    <stf:ReceivingCountry>XX</stf:ReceivingCountry>
-    <stf:MessageType>CRS</stf:MessageType>
-    <stf:Warning>Generated by iAfrica CRS XML Converter</stf:Warning>
-    <stf:Contact>${SUPPORT_EMAIL}</stf:Contact>
-    <stf:MessageRefId>${messageRefId}</stf:MessageRefId>
-    <stf:MessageTypeIndic>CRS701</stf:MessageTypeIndic>
-    <stf:ReportingPeriod>${taxYear}</stf:ReportingPeriod>
-    <stf:Timestamp>${new Date().toISOString()}</stf:Timestamp>
-  </crs:MessageSpec>
-  <crs:CrsBody>
-    <crs:ReportingFI>
-      <crs:ReportingFI_IN>${reportingFI.giin || ''}</crs:ReportingFI_IN>
-      <crs:Name>${reportingFI.name || ''}</crs:Name>
-      <crs:Address>
-        <crs:CountryCode>${reportingFI.country || 'MU'}</crs:CountryCode>
-        <crs:AddressFree>${reportingFI.address || ''}</crs:AddressFree>
-      </crs:Address>
-    </crs:ReportingFI>
-    ${accountReports}
-  </crs:CrsBody>
-</crs:CRS_OECD>`;
-};
 
 const ValidationResultsDisplay = ({ validation }) => {
   if (!validation || Object.keys(validation).length === 0) return null;
@@ -1945,7 +1748,6 @@ const CRSConverter = () => {
       setResult(null);
       setError(null);
       
-      // Log file upload audit event
       logAuditEvent('file_upload', {
         filename: selectedFile.name,
         fileSize: selectedFile.size,
@@ -1983,7 +1785,6 @@ const CRSConverter = () => {
 
       const validation = validateCRSData(jsonData);
       setValidationResults(validation);
-      // Add this line after the validation results are set
       await logFileProcessing(file, validation, user);
 
       setData(jsonData);
@@ -1997,7 +1798,6 @@ const CRSConverter = () => {
     } catch (err) {
       console.error('File processing error:', err);
       
-      // Log processing error
       await logAuditEvent('file_processing_error', {
         filename: file.name,
         error: err.message
@@ -2052,7 +1852,6 @@ const CRSConverter = () => {
     setError(null);
 
     try {
-      // Log conversion start
       await logAuditEvent('xml_conversion_started', {
         recordCount: data.length,
         taxYear: settings.taxYear
@@ -2071,7 +1870,6 @@ const CRSConverter = () => {
         });
       }
       
-      // Log successful XML generation
       await logXMLGeneration({
         recordCount: data.length,
         xml: xml
@@ -2092,7 +1890,6 @@ const CRSConverter = () => {
     } catch (err) {
       console.error('Conversion error:', err);
       
-      // Log conversion error
       await logAuditEvent('xml_conversion_error', {
         error: err.message,
         recordCount: data.length
@@ -2111,7 +1908,6 @@ const CRSConverter = () => {
   const handleDownload = () => {
     if (!result) return;
     
-    // Log file download audit event
     logAuditEvent('xml_download', {
       filename: result.filename,
       recordCount: result.recordCount,
@@ -2436,249 +2232,20 @@ const CRSConverter = () => {
 };
 
 // ==========================================
-// PRICING SECTION
-// ==========================================
-
-const PricingSection = () => {
-  const { user, userDoc } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('register');
-
-  const handlePlanSelect = (planKey) => {
-    if (!user) {
-      setAuthMode('register');
-      setShowAuthModal(true);
-      return;
-    }
-    
-    if (planKey === 'free') {
-      return; // Already on free plan
-    }
-    
-    const plan = PRICING_PLANS[planKey];
-    if (plan.paypalPlanId && window.paypal) {
-      window.paypal.Buttons({
-        createSubscription: (data, actions) => {
-          return actions.subscription.create({
-            plan_id: plan.paypalPlanId
-          });
-        },
-        onApprove: async (data, actions) => {
-          try {
-            await updateDoc(doc(db, 'users', user.uid), {
-              plan: planKey,
-              subscriptionId: data.subscriptionID,
-              conversionsLimit: plan.conversions,
-              subscriptionStatus: 'active',
-              lastBillingDate: serverTimestamp()
-            });
-            alert(`Successfully subscribed to ${plan.name}!`);
-            window.location.reload();
-          } catch (error) {
-            alert('Subscription update failed: ' + error.message);
-          }
-        },
-        onError: (err) => alert('PayPal error: ' + err.message),
-        onCancel: () => console.log('Payment cancelled')
-      }).render('#paypal-button-' + planKey);
-    }
-  };
-  
-  const currentPlan = userDoc?.plan || 'free';
-
-  return (
-    <>
-      <div id="pricing" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-6">
-              Simple, Transparent Pricing
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Choose the plan that fits your compliance reporting needs. All plans include our core features and GDPR compliance.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {Object.entries(PRICING_PLANS).map(([planKey, plan]) => {
-              const isCurrentPlan = currentPlan === planKey;
-
-              return (
-                <div
-                  key={planKey}
-                  className={`relative bg-white rounded-2xl shadow-lg border-2 p-8 ${
-                    plan.popular ? 'border-blue-500 ring-4 ring-blue-100' : 'border-gray-200'
-                  }`}
-                >
-                  {plan.popular && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                      <span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-medium">
-                        Most Popular
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                      {plan.name}
-                    </h3>
-                    
-                    <div className="mb-6">
-                      <span className="text-5xl font-bold text-gray-900">
-                        ${plan.price}
-                      </span>
-                      {plan.price > 0 && (
-                        <span className="text-gray-500 ml-2">/month</span>
-                      )}
-                    </div>
-
-                    <div className="mb-8">
-                      <div className="text-lg font-semibold text-blue-600 mb-2">
-                        {plan.conversions} conversions/month
-                      </div>
-                      {planKey === 'free' && (
-                        <div className="text-sm text-gray-500">
-                          3 anonymous + 3 after registration
-                        </div>
-                      )}
-                    </div>
-
-                    <ul className="space-y-3 mb-8 text-left">
-                      {plan.features.map((feature, index) => (
-                        <li key={index} className="flex items-start space-x-3">
-                          <Check className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                          <span className="text-gray-600">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    
-                    <div id={`paypal-button-${planKey}`} className="mb-3"></div>
-
-                    <button
-                      onClick={() => handlePlanSelect(planKey)}
-                      disabled={isCurrentPlan}
-                      className={`w-full py-3 px-4 rounded-lg font-semibold transition-colors ${
-                        isCurrentPlan
-                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                          : plan.popular
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : 'bg-gray-900 hover:bg-gray-800 text-white'
-                      }`}
-                    >
-                      {isCurrentPlan ? 'Current Plan' : plan.buttonText}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-16 text-center">
-            <p className="text-gray-600 mb-6">
-              All plans include GDPR compliance, email support, and regulatory updates
-            </p>
-            <div className="flex items-center justify-center space-x-8 text-sm text-gray-500">
-              <div className="flex items-center space-x-2">
-                <Shield className="w-4 h-4" />
-                <span>GDPR Compliant</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Lock className="w-4 h-4" />
-                <span>Secure Processing</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Mail className="w-4 h-4" />
-                <span>Email Support</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)}
-        initialMode={authMode}
-      />
-    </>
-  );
-};
-
-// ==========================================
-// FEATURES SECTION
+// FEATURES SECTION (Simplified)
 // ==========================================
 
 const FeaturesSection = () => {
-  const features = [
-    {
-      icon: <Zap className="w-8 h-8 text-yellow-600" />,
-      title: "Try Before You Buy",
-      description: "3 free conversions with no registration required. Test our quality first!"
-    },
-    {
-      icon: <Shield className="w-8 h-8 text-green-600" />,
-      title: "GDPR Compliant",
-      description: "Client-side processing ensures your sensitive data never leaves your browser"
-    },
-    {
-      icon: <Globe className="w-8 h-8 text-blue-600" />,
-      title: "Regulatory Standards",
-      description: "Generate reports that meet all international regulatory requirements and standards"
-    },
-    {
-      icon: <Users className="w-8 h-8 text-purple-600" />,
-      title: "Multi-Entity Support",
-      description: "Handle both individual and entity accounts with controlling person data"
-    },
-    {
-      icon: <BarChart3 className="w-8 h-8 text-indigo-600" />,
-      title: "Usage Analytics",
-      description: "Track your conversion history and optimize your compliance workflows"
-    },
-    {
-      icon: <Headphones className="w-8 h-8 text-pink-600" />,
-      title: "Expert Support",
-      description: "Get help from our compliance experts via email and priority channels"
-    }
-  ];
-
   return (
     <div id="features" className="py-20 bg-gray-50">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-bold text-gray-900 mb-6">
-            Why Choose Our Compliance Platform?
+            OECD CRS v2.0 Compliant
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Built specifically for financial institutions requiring regulatory compliance reporting
+            Generate XML reports that meet the latest regulatory standards
           </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {features.map((feature, index) => (
-            <div key={index} className="p-6 bg-white rounded-xl hover:shadow-lg transition-shadow">
-              <div className="mb-4">{feature.icon}</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
-              <p className="text-gray-600">{feature.description}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-16 text-center">
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-8 max-w-2xl mx-auto">
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">
-              Ready to try our platform?
-            </h3>
-            <p className="text-gray-600 mb-6">
-              No commitment needed. Try 3 conversions completely free, then register for 3 more!
-            </p>
-            <button 
-              onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
-              className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold"
-            >
-              Start Converting Now
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -2686,57 +2253,22 @@ const FeaturesSection = () => {
 };
 
 // ==========================================
-// FOOTER COMPONENT
+// FOOTER COMPONENT (Simplified)
 // ==========================================
 
 const Footer = () => {
   return (
     <footer className="bg-gray-900 text-white py-12">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div>
-            <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-red-400 bg-clip-text text-transparent mb-4">
-              iAfrica
-            </div>
-            <p className="text-gray-400 mb-4">
-              Professional compliance solutions for financial institutions worldwide.
-            </p>
-            <p className="text-sm text-gray-500">
-              © 2025 {COMPANY_NAME}. All rights reserved.
-            </p>
+        <div className="text-center">
+          <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-red-400 bg-clip-text text-transparent mb-4">
+            iAfrica
           </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Product</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
-              <li><a href="#features" className="hover:text-white">Features</a></li>
-              <li><a href="#pricing" className="hover:text-white">Pricing</a></li>
-              <li><a href="#converter" className="hover:text-white">Try Free</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Support</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
-              <li><a href={`mailto:${SUPPORT_EMAIL}`} className="hover:text-white">Contact Support</a></li>
-              <li><Link to="/documentation" className="hover:text-white">Documentation</Link></li>
-              <li><a href="#" className="hover:text-white">API Reference</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-semibold mb-4">Legal</h4>
-            <ul className="space-y-2 text-sm text-gray-400">
-              <li><Link to="/privacy" className="hover:text-white">Privacy Policy</Link></li>
-              <li><Link to="/terms" className="hover:text-white">Terms of Service</Link></li>
-              <li><a href="#" className="hover:text-white">GDPR Compliance</a></li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-800 mt-8 pt-8 text-center">
-          <p className="text-gray-400 text-sm">
-            Simplifying CRS OECD reporting with secure, automated tools.
+          <p className="text-gray-400 mb-4">
+            Professional compliance solutions for financial institutions worldwide.
+          </p>
+          <p className="text-sm text-gray-500">
+            © 2025 {COMPANY_NAME}. All rights reserved.
           </p>
         </div>
       </div>
@@ -2756,7 +2288,6 @@ const App = () => {
         <HeroSection />
         <CRSConverter />
         <FeaturesSection />
-        <PricingSection />
         <Footer />
       </div>
     </AuthProvider>
