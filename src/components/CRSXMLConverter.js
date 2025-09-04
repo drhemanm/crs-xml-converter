@@ -2554,6 +2554,753 @@ const PricingSection = () => {
 };
 
 // ==========================================
+// NAVIGATION COMPONENT
+// ==========================================
+
+const Navigation = () => {
+  const { user, userDoc, logout } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
+
+  const handleSignIn = () => {
+    setAuthMode('login');
+    setShowAuthModal(true);
+  };
+
+  const handleSignUp = () => {
+    setAuthMode('register');
+    setShowAuthModal(true);
+  };
+
+  const usageStatus = getUserConversionStatus(user, userDoc);
+
+  return (
+    <>
+      <nav className="bg-white shadow-sm border-b sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-3">
+              <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-red-500 bg-clip-text text-transparent">
+                iAfrica
+              </div>
+              <div className="hidden md:block">
+                <span className="text-lg font-semibold text-gray-900">Compliance Platform</span>
+                <span className="text-sm text-gray-500 ml-2">by {COMPANY_NAME}</span>
+              </div>
+            </div>
+
+            <div className="hidden md:flex items-center space-x-6">
+              <button 
+                onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-gray-700 hover:text-blue-600 font-medium"
+              >
+                Convert
+              </button>
+              
+              {user ? (
+                <>
+                  <div className="flex items-center space-x-3 pl-6 border-l border-gray-200">
+                    <div className="text-sm">
+                      <div className="font-medium text-gray-900">
+                        {userDoc?.displayName || user.email?.split('@')[0]}
+                      </div>
+                      <div className="text-gray-500 capitalize">
+                        {userDoc?.plan || 'free'} Plan ({usageStatus.remaining}/{usageStatus.limit})
+                      </div>
+                    </div>
+                    <button 
+                      onClick={handleLogout}
+                      className="p-2 text-gray-500 hover:text-gray-700"
+                      title="Sign Out"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center space-x-3 text-sm">
+                    <div className="text-gray-600">
+                      Free Trial: {usageStatus.remaining}/{usageStatus.limit} remaining
+                    </div>
+                    <button 
+                      onClick={handleSignIn}
+                      className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50"
+                    >
+                      Sign In
+                    </button>
+                    <button 
+                      onClick={handleSignUp}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Register Free
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <button 
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="md:hidden p-2"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)}
+        initialMode={authMode}
+      />
+    </>
+  );
+};
+
+// ==========================================
+// HERO SECTION
+// ==========================================
+
+const HeroSection = () => {
+  const { user } = useAuth();
+  const usageStatus = getUserConversionStatus(user, null);
+  
+  if (user) return null;
+
+  return (
+    <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 py-20">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center">
+          <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium mb-6">
+            <Sparkles className="w-4 h-4 mr-2" />
+            Try 3 conversions FREE • No registration required
+          </div>
+          
+          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
+            Turn Your Financial Data Into
+            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Tax Authority Ready Reports</span> 
+            <span className="block">in Minutes</span>
+          </h1>
+          
+          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+            Transform your Excel/CSV financial data into compliant regulatory reports instantly. 
+            Try it now with <strong>{usageStatus.remaining} free conversions</strong> - no signup required!
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+            <button 
+              onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
+              className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center text-lg font-semibold"
+            >
+              Try Free Now ({usageStatus.remaining} conversions left)
+              <ArrowRight className="w-5 h-5 ml-2" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// VALIDATION RESULTS DISPLAY COMPONENT
+// ==========================================
+
+const ValidationResultsDisplay = ({ validation }) => {
+  if (!validation || Object.keys(validation).length === 0) return null;
+
+  return (
+    <div className="mt-4 p-4 border rounded-lg bg-white">
+      <h4 className="font-medium mb-3 text-gray-900">Validation Results</h4>
+      
+      {validation.canGenerate ? (
+        <div className="flex items-center text-green-600 text-sm mb-3">
+          <CheckCircle2 className="w-4 h-4 mr-2" />
+          Ready for XML conversion!
+        </div>
+      ) : (
+        <div className="flex items-center text-red-600 text-sm mb-3">
+          <AlertCircle className="w-4 h-4 mr-2" />
+          Critical errors must be fixed before conversion
+        </div>
+      )}
+
+      {/* Critical Errors */}
+      {validation.missingColumns?.critical?.length > 0 && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded mb-3">
+          <p className="font-medium text-red-800 mb-2">🚫 Critical Errors (Must Fix):</p>
+          <ul className="text-sm text-red-700 space-y-1">
+            {validation.missingColumns.critical.map((col, index) => (
+              <li key={index}>• {col.description}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Warnings */}
+      {validation.missingColumns?.warnings?.length > 0 && (
+        <div className="p-3 bg-orange-50 border border-orange-200 rounded mb-3">
+          <p className="font-medium text-orange-800 mb-2">⚠️ Warnings (Recommended):</p>
+          <ul className="text-sm text-orange-700 space-y-1">
+            {validation.missingColumns.warnings.map((col, index) => (
+              <li key={index}>• {col.description}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="text-sm text-gray-600 mt-3">
+        Summary: {validation.summary.validRows} rows ready, {validation.summary.invalidRows} with critical errors
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// MAIN CONVERTER COMPONENT  
+// ==========================================
+
+const CRSConverter = () => {
+  const { user, userDoc, updateUserUsage } = useAuth();
+  const fileInputRef = useRef(null);
+  const [validationResults, setValidationResults] = useState({});
+  const [file, setFile] = useState(null);
+  const [data, setData] = useState([]);
+  const [processing, setProcessing] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+  const [showRegistrationPrompt, setShowRegistrationPrompt] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login');
+  const [settingsValidation, setSettingsValidation] = useState({});
+
+  const [settings, setSettings] = useState({
+    reportingFI: {
+      name: '',
+      giin: '',
+      country: 'MU',
+      address: ''
+    },
+    taxYear: new Date().getFullYear() - 1,
+    messageRefId: `CRS_${Date.now()}`
+  });
+
+  const usageStatus = getUserConversionStatus(user, userDoc);
+
+  const handleFileSelect = (event) => {
+    const selectedFile = event.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setData([]);
+      setResult(null);
+      setError(null);
+      
+      logAuditEvent('file_upload', {
+        filename: selectedFile.name,
+        fileSize: selectedFile.size,
+        fileType: selectedFile.type
+      }, user);
+      processFile(selectedFile);
+    }
+  };
+
+  const processFile = async (file) => {
+    setProcessing(true);
+    setError(null);
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer);
+      
+      let jsonData = [];
+      for (const sheetName of workbook.SheetNames) {
+        const worksheet = workbook.Sheets[sheetName];
+        const sheetData = XLSX.utils.sheet_to_json(worksheet, {
+          defval: '',
+          raw: false
+        });
+        
+        if (sheetData.length > 0) {
+          jsonData = sheetData;
+          break;
+        }
+      }
+
+      if (jsonData.length === 0) {
+        throw new Error('No data found in any sheet');
+      }
+
+      const validation = validateCRSData(jsonData);
+      setValidationResults(validation);
+      await logFileProcessing(file, validation, user);
+
+      setData(jsonData);
+      trackEvent('file_processed', {
+        file_type: file.type,
+        record_count: jsonData.length,
+        is_valid: validation.canGenerate,
+        user_type: user ? 'registered' : 'anonymous'
+      });
+
+    } catch (err) {
+      console.error('File processing error:', err);
+      
+      await logAuditEvent('file_processing_error', {
+        filename: file.name,
+        error: err.message
+      }, user);  
+      
+      setError(`Failed to process file: ${err.message}`);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const validateSettings = () => {
+    const results = {};
+    
+    results.giin = validateGIIN(settings.reportingFI.giin);
+    results.taxYear = validateTaxYear(settings.taxYear);
+    results.fiName = validateFIName(settings.reportingFI.name);
+    
+    setSettingsValidation(results);
+           
+    const hasErrors = Object.values(results).some(result => !result.valid);
+    return !hasErrors;
+  };
+
+  const handleConvert = async () => {
+    if (!usageStatus.canConvert) {
+      if (usageStatus.userType === 'anonymous' && usageStatus.mustRegister) {
+        setShowRegistrationPrompt(true);
+        return;
+      }
+      
+      setError(usageStatus.reason || 'Conversion limit reached');
+      return;
+    }
+
+    if (!validateSettings()) {
+      setError('Please fix the validation errors before converting');
+      return;
+    }
+
+    if (!validationResults.canGenerate) {
+      setError('Please fix critical errors before converting');
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      setError('Please upload a file first');
+      return;
+    }
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      await logAuditEvent('xml_conversion_started', {
+        recordCount: data.length,
+        taxYear: settings.taxYear
+      }, user);	
+      
+      const xml = generateCRSXML(data, settings, validationResults);
+      
+      if (user && userDoc) {
+        await updateUserUsage();
+      } else {
+        updateAnonymousUsage();
+        trackEvent('anonymous_conversion', {
+          file_type: file?.type || 'unknown',
+          record_count: data.length,
+          conversion_number: getAnonymousUsage().count
+        });
+      }
+      
+      await logXMLGeneration({
+        recordCount: data.length,
+        xml: xml
+      }, settings, user);
+
+      setResult({
+        xml,
+        filename: `CRS_${settings.taxYear}_${Date.now()}.xml`,
+        recordCount: data.length,
+        timestamp: new Date().toISOString()
+      });
+
+      trackEvent('conversion_success', {
+        record_count: data.length,
+        user_type: user ? 'registered' : 'anonymous'
+      });
+
+    } catch (err) {
+      console.error('Conversion error:', err);
+      
+      await logAuditEvent('xml_conversion_error', {
+        error: err.message,
+        recordCount: data.length
+      }, user);	
+      
+      setError(`Conversion failed: ${err.message}`);
+      trackEvent('conversion_error', {
+        error: err.message,
+        user_type: user ? 'registered' : 'anonymous'
+      });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (!result) return;
+    
+    logAuditEvent('xml_download', {
+      filename: result.filename,
+      recordCount: result.recordCount,
+      fileSize: result.xml.length
+    }, user);
+
+    const blob = new Blob([result.xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = result.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    trackEvent('file_downloaded', {
+      file_type: 'xml',
+      record_count: result.recordCount,
+      user_type: user ? 'registered' : 'anonymous'
+    });
+  };
+
+  const handleSettingsChange = (section, field, value) => {
+    if (field === null) {
+      setSettings(prev => ({
+        ...prev,
+        [section]: value
+      }));
+    } else {
+      setSettings(prev => ({
+        ...prev,
+        [section]: {
+          ...prev[section],
+          [field]: value
+        }
+      }));
+    }
+  };
+
+  return (
+    <>
+      <div id="converter" className="py-20 bg-gray-50">
+        <div className="max-w-4xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              CRS XML Converter
+            </h2>
+            <p className="text-xl text-gray-600">
+              Convert your Excel/CSV data to regulatory-compliant CRS XML format
+            </p>
+          </div>
+
+          <div className="space-y-8">
+            {/* File Upload Section */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Step 1: Upload Your Data File
+              </h3>
+              
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
+              >
+                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-lg font-medium text-gray-900 mb-2">
+                  {file ? file.name : 'Click to upload your Excel or CSV file'}
+                </p>
+                <p className="text-sm text-gray-500">
+                  Supports .xlsx, .xls, and .csv files up to 10MB
+                </p>
+              </div>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+
+              {processing && (
+                <div className="mt-4 flex items-center justify-center space-x-2 text-blue-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span>Processing file...</span>
+                </div>
+              )}
+
+              {data.length > 0 && (
+                <div className="mt-4">
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-center space-x-2 text-green-800">
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span className="font-medium">
+                        File processed successfully! Found {data.length} records.
+                      </span>
+                    </div>
+                  </div>
+                  <ValidationResultsDisplay validation={validationResults} />
+                </div>
+              )}
+            </div>
+
+            {/* Settings Section */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Step 2: Configure Report Settings
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Financial Institution Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.reportingFI.name}
+                    onChange={(e) => handleSettingsChange('reportingFI', 'name', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Your Financial Institution Name"
+                  />
+                  {settingsValidation.fiName && !settingsValidation.fiName.valid && (
+                    <p className="mt-1 text-sm text-red-600">{settingsValidation.fiName.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    GIIN *
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.reportingFI.giin}
+                    onChange={(e) => handleSettingsChange('reportingFI', 'giin', e.target.value.toUpperCase())}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="XXXXXX.XXXXX.XX.XXX"
+                  />
+                  {settingsValidation.giin && !settingsValidation.giin.valid && (
+                    <p className="mt-1 text-sm text-red-600">{settingsValidation.giin.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Country
+                  </label>
+                  <select
+                    value={settings.reportingFI.country}
+                    onChange={(e) => handleSettingsChange('reportingFI', 'country', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="MU">Mauritius</option>
+                    <option value="US">United States</option>
+                    <option value="GB">United Kingdom</option>
+                    <option value="FR">France</option>
+                    <option value="DE">Germany</option>
+                    <option value="SG">Singapore</option>
+                    <option value="HK">Hong Kong</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tax Year *
+                  </label>
+                  <select
+                    value={settings.taxYear}
+                    onChange={(e) => handleSettingsChange('taxYear', null, parseInt(e.target.value))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {Array.from({ length: 10 }, (_, i) => {
+                      const year = new Date().getFullYear() - i;
+                      return (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {settingsValidation.taxYear && !settingsValidation.taxYear.valid && (
+                    <p className="mt-1 text-sm text-red-600">{settingsValidation.taxYear.message}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Convert Button */}
+            <div className="text-center">
+              <button
+                onClick={handleConvert}
+                disabled={processing || !usageStatus.canConvert || data.length === 0}
+                className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg flex items-center mx-auto"
+              >
+                {processing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Converting...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-5 h-5 mr-2" />
+                    Convert to CRS XML
+                  </>
+                )}
+              </button>
+
+              {!usageStatus.canConvert && (
+                <p className="mt-3 text-sm text-red-600 font-medium">
+                  {usageStatus.reason}
+                </p>
+              )}
+            </div>
+
+            {/* Error Display */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center space-x-2 text-red-800">
+                  <AlertCircle className="w-5 h-5" />
+                  <span className="font-medium">Error: {error}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Results Display */}
+            {result && (
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Conversion Successful!
+                </h3>
+                
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-green-800">
+                        Generated CRS XML Report
+                      </p>
+                      <p className="text-sm text-green-600">
+                        {result.recordCount} records • Tax Year {settings.taxYear} • Generated {new Date(result.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleDownload}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Download XML
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm font-medium text-gray-700 mb-2">XML Preview (first 500 characters):</p>
+                  <pre className="text-xs text-gray-600 bg-white p-3 rounded border overflow-x-auto">
+                    {result.xml.substring(0, 500)}...
+                  </pre>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Registration Prompt Modal */}
+      {showRegistrationPrompt && (
+        <RegistrationPrompt
+          onRegister={() => {
+            setShowRegistrationPrompt(false);
+            setAuthMode('register');
+            setShowAuthModal(true);
+          }}
+          onLogin={() => {
+            setShowRegistrationPrompt(false);
+            setAuthMode('login');
+            setShowAuthModal(true);
+          }}
+          onClose={() => setShowRegistrationPrompt(false)}
+        />
+      )}
+
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)}
+        initialMode={authMode}
+      />
+    </>
+  );
+};
+
+// ==========================================
+// FEATURES SECTION
+// ==========================================
+
+const FeaturesSection = () => {
+  return (
+    <div id="features" className="py-20 bg-gray-50">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold text-gray-900 mb-6">
+            OECD CRS v2.0 Compliant
+          </h2>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Generate XML reports that meet the latest regulatory standards
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ==========================================
+// FOOTER COMPONENT
+// ==========================================
+
+const Footer = () => {
+  return (
+    <footer className="bg-gray-900 text-white py-12">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="text-center">
+          <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-red-400 bg-clip-text text-transparent mb-4">
+            iAfrica
+          </div>
+          <p className="text-gray-400 mb-4">
+            Professional compliance solutions for financial institutions worldwide.
+          </p>
+          <p className="text-sm text-gray-500">
+            © 2025 {COMPANY_NAME}. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </footer>
+  );
+};
+
+// ==========================================
 // MAIN APP EXPORT
 // ==========================================
 
