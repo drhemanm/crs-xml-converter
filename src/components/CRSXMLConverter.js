@@ -143,7 +143,6 @@ const PRICING_PLANS = {
     color: 'purple'
   }
 };
-
 // ==========================================
 // ANONYMOUS USAGE TRACKING
 // ==========================================
@@ -272,8 +271,27 @@ const validateFIName = (name) => {
   
   return { valid: true };
 };
+
+const getFieldDescription = (field) => {
+  const descriptions = {
+    'account_number': 'Account Number',
+    'account_balance': 'Account Balance',
+    'currency_code': 'Currency Code (USD, EUR, etc.)',
+    'holder_type': 'Account Holder Type (Individual/Organization)',
+    'residence_country': 'Residence Country Code (2 letters)',
+    'address_country': 'Address Country Code (2 letters)',
+    'city': 'City',
+    'first_name': 'First Name',
+    'last_name': 'Last Name',
+    'organization_name': 'Organization Name',
+    'payment_amount': 'Payment Amount',
+    'payment_type': 'Payment Type (CRS501-CRS504)'
+  };
+  return descriptions[field] || field;
+};
+
 // ==========================================
-// COMPREHENSIVE CRS VALIDATION FUNCTION
+// TIERED CRS VALIDATION FUNCTION
 // ==========================================
 
 const validateCRSData = (data) => {
@@ -283,7 +301,7 @@ const validateCRSData = (data) => {
       criticalErrors: ['No data found in spreadsheet'],
       warnings: [],
       recommendations: [],
-      missingColumns: [],
+      missingColumns: { critical: [], warnings: [], recommendations: [] },
       dataIssues: { critical: [], warnings: [], recommendations: [] },
       summary: { totalRows: 0, validRows: 0, invalidRows: 0 }
     };
@@ -306,13 +324,27 @@ const validateCRSData = (data) => {
     'first_name': ['first_name', 'firstname', 'fname', 'given_name'],
     'last_name': ['last_name', 'lastname', 'lname', 'surname'],
     'tin': ['tin', 'tax_id', 'taxpayer_id'],
-    'birth_date': ['birth_date', 'birthdate', 'dob', 'date_of_birth']
+    'birth_date': ['birth_date', 'birthdate', 'dob', 'date_of_birth'],
+    'birth_city': ['birth_city', 'birthcity', 'place_of_birth'],
+    'birth_country': ['birth_country', 'birth_country_code', 'birthcountry'],
+    'organization_name': ['organization_name', 'org_name', 'company_name', 'entity_name'],
+    'organization_tin': ['organization_tin', 'org_tin', 'company_tin'],
+    'controlling_person_first_name': ['controlling_person_first_name', 'cp_first_name', 'cp_fname'],
+    'controlling_person_last_name': ['controlling_person_last_name', 'cp_last_name', 'cp_lname'],
+    'controlling_person_birth_date': ['controlling_person_birth_date', 'cp_birth_date', 'cp_dob'],
+    'controlling_person_birth_country': ['controlling_person_birth_country', 'cp_birth_country'],
+    'controlling_person_residence_country': ['controlling_person_residence_country', 'cp_residence_country'],
+    'controlling_person_address_country': ['controlling_person_address_country', 'cp_address_country'],
+    'controlling_person_city': ['controlling_person_city', 'cp_city'],
+    'controlling_person_tin': ['controlling_person_tin', 'cp_tin'],
+    'payment_type': ['payment_type', 'paymenttype', 'payment_code'],
+    'payment_amount': ['payment_amount', 'paymentamount', 'payment']
   };
 
   // Field classification
   const criticalFields = ['account_number', 'account_balance', 'currency_code', 'holder_type'];
   const warningFields = ['residence_country', 'address_country', 'city'];
-  const recommendationFields = ['first_name', 'last_name', 'tin', 'birth_date'];
+  const recommendationFields = ['first_name', 'last_name', 'tin', 'birth_date', 'birth_city', 'birth_country', 'organization_name', 'organization_tin', 'controlling_person_first_name', 'controlling_person_last_name', 'controlling_person_birth_date', 'controlling_person_birth_country', 'controlling_person_residence_country', 'controlling_person_address_country', 'controlling_person_city', 'controlling_person_tin', 'payment_type', 'payment_amount'];
 
   const columnMappings = {};
   const missingColumns = { critical: [], warnings: [], recommendations: [] };
@@ -424,196 +456,6 @@ const validateCRSData = (data) => {
     summary: { totalRows: data.length, validRows, invalidRows }
   };
 };
-
-  const headers = Object.keys(data[0]).map(h => h.toLowerCase().trim());
-  const requiredFields = {
-    // Account Information
-    'account_number': ['account_number', 'accountnumber', 'account_no', 'acct_no'],
-    'account_balance': ['account_balance', 'balance', 'accountbalance'],
-    'currency_code': ['currency_code', 'currency', 'currencycode', 'curr_code'],
-    
-    // Account Holder Information
-    'holder_type': ['holder_type', 'holdertype', 'type', 'account_holder_type'],
-    'residence_country': ['residence_country', 'res_country', 'residence_country_code'],
-    'address_country': ['address_country', 'addr_country', 'address_country_code'],
-    'city': ['city', 'address_city'],
-    
-    // Individual Fields
-    'first_name': ['first_name', 'firstname', 'fname', 'given_name'],
-    'last_name': ['last_name', 'lastname', 'lname', 'surname'],
-    'birth_date': ['birth_date', 'birthdate', 'dob', 'date_of_birth'],
-    'birth_city': ['birth_city', 'birthcity', 'place_of_birth'],
-    'birth_country': ['birth_country', 'birth_country_code', 'birthcountry'],
-    'tin': ['tin', 'tax_id', 'taxpayer_id'],
-    
-    // Organization Fields
-    'organization_name': ['organization_name', 'org_name', 'company_name', 'entity_name'],
-    'organization_tin': ['organization_tin', 'org_tin', 'company_tin'],
-    
-    // Controlling Person Fields (for organizations)
-    'controlling_person_first_name': ['controlling_person_first_name', 'cp_first_name', 'cp_fname'],
-    'controlling_person_last_name': ['controlling_person_last_name', 'cp_last_name', 'cp_lname'],
-    'controlling_person_birth_date': ['controlling_person_birth_date', 'cp_birth_date', 'cp_dob'],
-    'controlling_person_birth_country': ['controlling_person_birth_country', 'cp_birth_country'],
-    'controlling_person_residence_country': ['controlling_person_residence_country', 'cp_residence_country'],
-    'controlling_person_address_country': ['controlling_person_address_country', 'cp_address_country'],
-    'controlling_person_city': ['controlling_person_city', 'cp_city'],
-    'controlling_person_tin': ['controlling_person_tin', 'cp_tin'],
-    
-    // Payment Information
-    'payment_type': ['payment_type', 'paymenttype', 'payment_code'],
-    'payment_amount': ['payment_amount', 'paymentamount', 'payment']
-  };
-
-  // Find column mappings
-  const columnMappings = {};
-  const missingColumns = [];
-
-  Object.entries(requiredFields).forEach(([field, alternatives]) => {
-    let found = false;
-    for (const alt of alternatives) {
-      if (headers.includes(alt.toLowerCase())) {
-        columnMappings[field] = Object.keys(data[0]).find(h => 
-          h.toLowerCase().trim() === alt.toLowerCase()
-        );
-        found = true;
-        break;
-      }
-    }
-    if (!found && ['account_number', 'account_balance', 'currency_code', 'holder_type', 'residence_country', 'address_country', 'city'].includes(field)) {
-      missingColumns.push({
-        field,
-        alternatives,
-        description: getFieldDescription(field)
-      });
-    }
-  });
-
-  // Validate each row
-  const dataIssues = [];
-  let validRows = 0;
-  let invalidRows = 0;
-
-  data.forEach((row, index) => {
-    const rowErrors = [];
-    const holderType = row[columnMappings.holder_type]?.toLowerCase();
-
-    // Required field validations
-    if (!row[columnMappings.account_number]?.trim()) {
-      rowErrors.push('Account number is required');
-    }
-
-    const balance = parseFloat(row[columnMappings.account_balance]);
-    if (isNaN(balance) || balance < 0) {
-      rowErrors.push('Valid account balance is required');
-    }
-
-    if (!row[columnMappings.currency_code]?.match(/^[A-Z]{3}$/)) {
-      rowErrors.push('Valid 3-letter currency code is required (e.g., USD, EUR)');
-    }
-
-    if (!['individual', 'organization', 'organisation'].includes(holderType)) {
-      rowErrors.push('Holder type must be "Individual" or "Organization"');
-    }
-
-    if (!row[columnMappings.residence_country]?.match(/^[A-Z]{2}$/)) {
-      rowErrors.push('Valid 2-letter residence country code is required');
-    }
-
-    if (!row[columnMappings.address_country]?.match(/^[A-Z]{2}$/)) {
-      rowErrors.push('Valid 2-letter address country code is required');
-    }
-
-    if (!row[columnMappings.city]?.trim()) {
-      rowErrors.push('City is required');
-    }
-
-    // Individual-specific validations
-    if (holderType === 'individual') {
-      if (!row[columnMappings.first_name]?.trim() || !row[columnMappings.last_name]?.trim()) {
-        rowErrors.push('First name and last name are required for individuals');
-      }
-
-      const birthDate = row[columnMappings.birth_date];
-      if (birthDate && !birthDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        rowErrors.push('Birth date must be in YYYY-MM-DD format');
-      }
-    }
-
-    // Organization-specific validations
-    if (['organization', 'organisation'].includes(holderType)) {
-      if (!row[columnMappings.organization_name]?.trim()) {
-        rowErrors.push('Organization name is required for organizations');
-      }
-
-      // Controlling person validations (required for organizations)
-      if (!row[columnMappings.controlling_person_first_name]?.trim() || 
-          !row[columnMappings.controlling_person_last_name]?.trim()) {
-        rowErrors.push('Controlling person first and last name are required for organizations');
-      }
-
-      if (!row[columnMappings.controlling_person_residence_country]?.match(/^[A-Z]{2}$/)) {
-        rowErrors.push('Valid controlling person residence country is required');
-      }
-    }
-
-    // Payment validations
-    const paymentAmount = parseFloat(row[columnMappings.payment_amount]);
-    if (isNaN(paymentAmount) || paymentAmount < 0) {
-      rowErrors.push('Valid payment amount is required');
-    }
-
-    const paymentType = row[columnMappings.payment_type];
-    if (paymentType && !['CRS501', 'CRS502', 'CRS503', 'CRS504'].includes(paymentType)) {
-      rowErrors.push('Payment type must be CRS501, CRS502, CRS503, or CRS504');
-    }
-
-    if (rowErrors.length > 0) {
-      dataIssues.push({
-        row: index + 1,
-        errors: rowErrors
-      });
-      invalidRows++;
-    } else {
-      validRows++;
-    }
-  });
-
-  const isValid = missingColumns.length === 0 && dataIssues.length === 0;
-
-  return {
-    isValid,
-    errors: missingColumns.length > 0 ? ['Missing required columns'] : [],
-    warnings: [],
-    missingColumns,
-    columnMappings,
-    dataIssues,
-    summary: {
-      totalRows: data.length,
-      validRows,
-      invalidRows
-    }
-  };
-};
-
-const getFieldDescription = (field) => {
-  const descriptions = {
-    'account_number': 'Account Number',
-    'account_balance': 'Account Balance',
-    'currency_code': 'Currency Code (USD, EUR, etc.)',
-    'holder_type': 'Account Holder Type (Individual/Organization)',
-    'residence_country': 'Residence Country Code (2 letters)',
-    'address_country': 'Address Country Code (2 letters)',
-    'city': 'City',
-    'first_name': 'First Name',
-    'last_name': 'Last Name',
-    'organization_name': 'Organization Name',
-    'payment_amount': 'Payment Amount',
-    'payment_type': 'Payment Type (CRS501-CRS504)'
-  };
-  return descriptions[field] || field;
-};
-
 // ==========================================
 // AUDIT TRAIL FUNCTIONS
 // ==========================================
@@ -666,9 +508,11 @@ const logFileProcessing = async (fileData, validationResults, user = null) => {
         invalidRecords: validationResults.summary?.invalidRows || 0
       },
       validationResults: {
-        isValid: validationResults.isValid,
-        errorCount: validationResults.errors?.length || 0,
-        missingColumns: validationResults.missingColumns?.length || 0
+        canGenerate: validationResults.canGenerate,
+        errorCount: validationResults.criticalErrors?.length || 0,
+        missingColumns: (validationResults.missingColumns?.critical?.length || 0) + 
+                       (validationResults.missingColumns?.warnings?.length || 0) + 
+                       (validationResults.missingColumns?.recommendations?.length || 0)
       },
       complianceFlags: {
         containsPII: true,
@@ -1312,7 +1156,6 @@ const Navigation = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
 
-
   const handleLogout = async () => {
     try {
       await logout();
@@ -1500,13 +1343,8 @@ const HeroSection = () => {
     </div>
   );
 };
-
 // ==========================================
 // CRS XML GENERATION
-// ==========================================
-
-// ==========================================
-// DATA MAPPING FUNCTION
 // ==========================================
 
 const mapDataToCRS = (rowData, columnMappings) => {
@@ -1566,6 +1404,7 @@ const mapDataToCRS = (rowData, columnMappings) => {
     }
   };
 };
+
 const generateCRSXML = (data, settings, validationResults) => {
   const { reportingFI, messageRefId, taxYear } = settings;
   const { columnMappings } = validationResults;
@@ -1703,6 +1542,7 @@ const generateCRSXML = (data, settings, validationResults) => {
   </crs:CrsBody>
 </crs:CRS_OECD>`;
 };
+
 const ValidationResultsDisplay = ({ validation }) => {
   if (!validation || Object.keys(validation).length === 0) return null;
 
@@ -1805,69 +1645,69 @@ const CRSConverter = () => {
       setResult(null);
       setError(null);
       
-	  // Log file upload audit event
-	  logAuditEvent('file_upload', {
-	    filename: selectedFile.name,
+      // Log file upload audit event
+      logAuditEvent('file_upload', {
+        filename: selectedFile.name,
         fileSize: selectedFile.size,
         fileType: selectedFile.type
       }, user);
-	  processFile(selectedFile);
+      processFile(selectedFile);
     }
   };
 
   const processFile = async (file) => {
-  setProcessing(true);
-  setError(null);
+    setProcessing(true);
+    setError(null);
 
-  try {
-    const arrayBuffer = await file.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer);
-    
-    let jsonData = [];
-    for (const sheetName of workbook.SheetNames) {
-      const worksheet = workbook.Sheets[sheetName];
-      const sheetData = XLSX.utils.sheet_to_json(worksheet, {
-        defval: '',
-        raw: false
-      });
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer);
       
-      if (sheetData.length > 0) {
-        jsonData = sheetData;
-        break;
+      let jsonData = [];
+      for (const sheetName of workbook.SheetNames) {
+        const worksheet = workbook.Sheets[sheetName];
+        const sheetData = XLSX.utils.sheet_to_json(worksheet, {
+          defval: '',
+          raw: false
+        });
+        
+        if (sheetData.length > 0) {
+          jsonData = sheetData;
+          break;
+        }
       }
+
+      if (jsonData.length === 0) {
+        throw new Error('No data found in any sheet');
+      }
+
+      const validation = validateCRSData(jsonData);
+      setValidationResults(validation);
+      // Add this line after the validation results are set
+      await logFileProcessing(file, validation, user);
+
+      setData(jsonData);
+      trackEvent('file_processed', {
+        file_type: file.type,
+        record_count: jsonData.length,
+        is_valid: validation.canGenerate,
+        user_type: user ? 'registered' : 'anonymous'
+      });
+
+    } catch (err) {
+      console.error('File processing error:', err);
+      
+      // Log processing error
+      await logAuditEvent('file_processing_error', {
+        filename: file.name,
+        error: err.message
+      }, user);  
+      
+      setError(`Failed to process file: ${err.message}`);
+    } finally {
+      setProcessing(false);
     }
-
-    if (jsonData.length === 0) {
-      throw new Error('No data found in any sheet');
-    }
-
-    const validation = validateCRSData(jsonData);
-    setValidationResults(validation);
-	// Add this line after the validation results are set
-    await logFileProcessing(file, validation, user);
-
-    setData(jsonData);
-    trackEvent('file_processed', {
-      file_type: file.type,
-      record_count: jsonData.length,
-      is_valid: validation.isValid,
-      user_type: user ? 'registered' : 'anonymous'
-    });
-
-  } catch (err) {
-    console.error('File processing error:', err);
-	
-	// Log processing error
-	await logAuditEvent('file_processing_error', {
-	  filename: file.name,
-	  error: err.message
-	}, user);  
-	
-    setError(`Failed to process file: ${err.message}`);
-  } finally {
-    setProcessing(false);
-  }
-};
+  };
 
   const validateSettings = () => {
     const results = {};
@@ -1875,9 +1715,9 @@ const CRSConverter = () => {
     results.giin = validateGIIN(settings.reportingFI.giin);
     results.taxYear = validateTaxYear(settings.taxYear);
     results.fiName = validateFIName(settings.reportingFI.name);
-	
-	setSettingsValidation(results);
-       
+    
+    setSettingsValidation(results);
+           
     const hasErrors = Object.values(results).some(result => !result.valid);
     return !hasErrors;
   };
@@ -1898,6 +1738,11 @@ const CRSConverter = () => {
       return;
     }
 
+    if (!validationResults.canGenerate) {
+      setError('Please fix critical errors before converting');
+      return;
+    }
+
     if (!data || data.length === 0) {
       setError('Please upload a file first');
       return;
@@ -1907,12 +1752,12 @@ const CRSConverter = () => {
     setError(null);
 
     try {
-	  // Log conversion start
-	  await logAuditEvent('xml_conversion_started', {
-	    recordCount: data.length,
-		taxYear: settings.taxYear
-	  }, user);	
-	  
+      // Log conversion start
+      await logAuditEvent('xml_conversion_started', {
+        recordCount: data.length,
+        taxYear: settings.taxYear
+      }, user);	
+      
       const xml = generateCRSXML(data, settings, validationResults);
       
       if (user && userDoc) {
@@ -1925,12 +1770,12 @@ const CRSConverter = () => {
           conversion_number: getAnonymousUsage().count
         });
       }
-	  
-	  // Log successful XML generation
-	  await logXMLGeneration({
-	    recordCount: data.length,
-		xml: xml
-	  }, settings, user);
+      
+      // Log successful XML generation
+      await logXMLGeneration({
+        recordCount: data.length,
+        xml: xml
+      }, settings, user);
 
       setResult({
         xml,
@@ -1946,13 +1791,13 @@ const CRSConverter = () => {
 
     } catch (err) {
       console.error('Conversion error:', err);
-	  
-	  // Log conversion error
-	  await logAuditEvent('xml_conversion_error', {
-	    error: err.message,
-		recordCount: data.length
-	  }, user);	
-	  
+      
+      // Log conversion error
+      await logAuditEvent('xml_conversion_error', {
+        error: err.message,
+        recordCount: data.length
+      }, user);	
+      
       setError(`Conversion failed: ${err.message}`);
       trackEvent('conversion_error', {
         error: err.message,
@@ -1965,13 +1810,13 @@ const CRSConverter = () => {
 
   const handleDownload = () => {
     if (!result) return;
-	
-	// Log file download audit event
-	logAuditEvent('xml_download', {
-	  filename: result.filename,
-	  recordCount: result.recordCount,
-	  fileSize: result.xml.length
-	}, user);
+    
+    // Log file download audit event
+    logAuditEvent('xml_download', {
+      filename: result.filename,
+      recordCount: result.recordCount,
+      fileSize: result.xml.length
+    }, user);
 
     const blob = new Blob([result.xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
@@ -2079,7 +1924,7 @@ const CRSConverter = () => {
 
               {data.length > 0 && (
                 <div className="mt-4">
-				  <div className = "p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <div className = "p-4 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-center space-x-2 text-green-800">
                       <CheckCircle2 className="w-5 h-5" />
                       <span className="font-medium">
@@ -2087,8 +1932,8 @@ const CRSConverter = () => {
                       </span>
                     </div>
                   </div>
-				  <ValidationResultsDisplay validation={validationResults} />
-				</div>
+                  <ValidationResultsDisplay validation={validationResults} />
+                </div>
               )}
             </div>
 
@@ -2299,45 +2144,46 @@ const PricingSection = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('register');
 
-const handlePlanSelect = (planKey) => {
-  if (!user) {
-    setAuthMode('register');
-    setShowAuthModal(true);
-    return;
-  }
-  
-  if (planKey === 'free') {
-    return; // Already on free plan
-  }
-  
-  const plan = PRICING_PLANS[planKey];
-  if (plan.paypalPlanId && window.paypal) {
-    window.paypal.Buttons({
-      createSubscription: (data, actions) => {
-        return actions.subscription.create({
-          plan_id: plan.paypalPlanId
-        });
-      },
-      onApprove: async (data, actions) => {
-        try {
-          await updateDoc(doc(db, 'users', user.uid), {
-            plan: planKey,
-            subscriptionId: data.subscriptionID,
-            conversionsLimit: plan.conversions,
-            subscriptionStatus: 'active',
-            lastBillingDate: serverTimestamp()
+  const handlePlanSelect = (planKey) => {
+    if (!user) {
+      setAuthMode('register');
+      setShowAuthModal(true);
+      return;
+    }
+    
+    if (planKey === 'free') {
+      return; // Already on free plan
+    }
+    
+    const plan = PRICING_PLANS[planKey];
+    if (plan.paypalPlanId && window.paypal) {
+      window.paypal.Buttons({
+        createSubscription: (data, actions) => {
+          return actions.subscription.create({
+            plan_id: plan.paypalPlanId
           });
-          alert(`Successfully subscribed to ${plan.name}!`);
-          window.location.reload();
-        } catch (error) {
-          alert('Subscription update failed: ' + error.message);
-        }
-      },
-      onError: (err) => alert('PayPal error: ' + err.message),
-      onCancel: () => console.log('Payment cancelled')
-    }).render('#paypal-button-' + planKey);
-  }
-};
+        },
+        onApprove: async (data, actions) => {
+          try {
+            await updateDoc(doc(db, 'users', user.uid), {
+              plan: planKey,
+              subscriptionId: data.subscriptionID,
+              conversionsLimit: plan.conversions,
+              subscriptionStatus: 'active',
+              lastBillingDate: serverTimestamp()
+            });
+            alert(`Successfully subscribed to ${plan.name}!`);
+            window.location.reload();
+          } catch (error) {
+            alert('Subscription update failed: ' + error.message);
+          }
+        },
+        onError: (err) => alert('PayPal error: ' + err.message),
+        onCancel: () => console.log('Payment cancelled')
+      }).render('#paypal-button-' + planKey);
+    }
+  };
+  
   const currentPlan = userDoc?.plan || 'free';
 
   return (
@@ -2405,8 +2251,8 @@ const handlePlanSelect = (planKey) => {
                         </li>
                       ))}
                     </ul>
-					
-					<div id={`paypal-button-${planKey}`} className="mb-3"></div>
+                    
+                    <div id={`paypal-button-${planKey}`} className="mb-3"></div>
 
                     <button
                       onClick={() => handlePlanSelect(planKey)}
