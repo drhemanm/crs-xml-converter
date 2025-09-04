@@ -2294,4 +2294,5 @@ const App = () => {
   );
 };
 
-export default App;
+const CRSXMLConverter = App;
+export default CRSXMLConverter;
