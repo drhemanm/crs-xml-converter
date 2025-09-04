@@ -1710,54 +1710,61 @@ const ValidationResultsDisplay = ({ validation }) => {
     <div className="mt-4 p-4 border rounded-lg bg-white">
       <h4 className="font-medium mb-3 text-gray-900">Validation Results</h4>
       
-      {validation.isValid ? (
-        <div className="flex items-center text-green-600 text-sm">
+      {validation.canGenerate ? (
+        <div className="flex items-center text-green-600 text-sm mb-3">
           <CheckCircle2 className="w-4 h-4 mr-2" />
-          All validations passed - ready for conversion!
+          Ready for XML conversion!
         </div>
       ) : (
-        <div className="space-y-3">
-          {validation.missingColumns && validation.missingColumns.length > 0 && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded">
-              <p className="font-medium text-red-800 mb-2">Missing Required Columns:</p>
-              <ul className="text-sm text-red-700 space-y-1">
-                {validation.missingColumns.map((col, index) => (
-                  <li key={index}>• {col.description} (looking for: {col.alternatives.join(', ')})</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {validation.dataIssues && validation.dataIssues.length > 0 && (
-            <div className="p-3 bg-orange-50 border border-orange-200 rounded">
-              <p className="font-medium text-orange-800 mb-2">
-                Data Issues Found ({validation.dataIssues.length} rows):
-              </p>
-              <div className="max-h-32 overflow-y-auto">
-                {validation.dataIssues.slice(0, 5).map((issue, index) => (
-                  <div key={index} className="text-sm text-orange-700 mb-1">
-                    <strong>Row {issue.row}:</strong> {issue.errors.join(', ')}
-                  </div>
-                ))}
-                {validation.dataIssues.length > 5 && (
-                  <p className="text-sm text-orange-600 font-medium">
-                    ...and {validation.dataIssues.length - 5} more issues
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-          
-          <div className="text-sm text-gray-600">
-            Summary: {validation.summary.validRows} valid, {validation.summary.invalidRows} with issues
-          </div>
+        <div className="flex items-center text-red-600 text-sm mb-3">
+          <AlertCircle className="w-4 h-4 mr-2" />
+          Critical errors must be fixed before conversion
         </div>
       )}
+
+      {/* Critical Errors */}
+      {validation.missingColumns?.critical?.length > 0 && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded mb-3">
+          <p className="font-medium text-red-800 mb-2">🚫 Critical Errors (Must Fix):</p>
+          <ul className="text-sm text-red-700 space-y-1">
+            {validation.missingColumns.critical.map((col, index) => (
+              <li key={index}>• {col.description}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Warnings */}
+      {validation.missingColumns?.warnings?.length > 0 && (
+        <div className="p-3 bg-orange-50 border border-orange-200 rounded mb-3">
+          <p className="font-medium text-orange-800 mb-2">⚠️ Warnings (Recommended):</p>
+          <ul className="text-sm text-orange-700 space-y-1">
+            {validation.missingColumns.warnings.map((col, index) => (
+              <li key={index}>• {col.description}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Recommendations */}
+      {validation.missingColumns?.recommendations?.length > 0 && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded mb-3">
+          <p className="font-medium text-blue-800 mb-2">💡 Suggestions (Optional):</p>
+          <ul className="text-sm text-blue-700 space-y-1">
+            {validation.missingColumns.recommendations.map((col, index) => (
+              <li key={index}>• {col.description}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Summary */}
+      <div className="text-sm text-gray-600 mt-3">
+        Summary: {validation.summary.validRows} rows ready, {validation.summary.invalidRows} with critical errors
+      </div>
     </div>
   );
 };
-
-
 
 // ==========================================
 // MAIN CONVERTER COMPONENT
