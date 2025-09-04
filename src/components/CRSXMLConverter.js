@@ -1708,7 +1708,122 @@ const ValidationResultsDisplay = ({ validation }) => {
     </div>
   );
 };
+// ==========================================
+// PRICING SECTION COMPONENT
+// ==========================================
 
+const PricingSection = () => {
+  const { user, userDoc } = useAuth();
+  
+  return (
+    <div id="pricing" className="py-20 bg-white">
+      <div className="max-w-7xl mx-auto px-6">
+        
+        {/* Header */}
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            Simple, Transparent Pricing
+          </h2>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Start free and scale as you grow. All plans include GDPR-compliant processing and professional XML output.
+          </p>
+        </div>
+
+        {/* Pricing Cards */}
+        <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          {Object.entries(PRICING_PLANS).map(([key, plan]) => {
+            const isCurrentPlan = (userDoc?.plan || 'free') === key;
+
+            return (
+              <div
+                key={key}
+                className={`relative rounded-2xl border-2 p-8 ${
+                  plan.popular
+                    ? 'border-blue-500 bg-blue-50 transform scale-105'
+                    : isCurrentPlan
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                } transition-all duration-300`}
+              >
+                {/* Badge */}
+                {plan.popular && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <span className="px-4 py-1 rounded-full text-sm font-medium text-white bg-blue-600">
+                      Most Popular
+                    </span>
+                  </div>
+                )}
+
+                {/* Current Plan Indicator */}
+                {isCurrentPlan && (
+                  <div className="absolute -top-4 right-4">
+                    <span className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded-full">
+                      Current Plan
+                    </span>
+                  </div>
+                )}
+
+                {/* Plan Header */}
+                <div className="text-center mb-8">
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                  
+                  <div className="flex items-baseline justify-center mb-2">
+                    <span className="text-5xl font-bold text-gray-900">
+                      ${plan.price}
+                    </span>
+                    {plan.price > 0 && (
+                      <span className="text-lg text-gray-600 ml-1">/month</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-center mt-4 text-sm text-gray-600">
+                    <Zap className="w-4 h-4 mr-1 text-yellow-500" />
+                    {plan.conversions} conversions/month
+                  </div>
+                </div>
+
+                {/* Features List */}
+                <ul className="space-y-4 mb-8">
+                  {plan.features.map((feature, index) => (
+                    <li key={index} className="flex items-start">
+                      <Check className="w-5 h-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
+                      <span className="text-gray-700 text-sm">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* CTA Button */}
+                <button
+                  disabled={isCurrentPlan}
+                  className={`w-full py-3 px-6 rounded-lg font-semibold text-center transition-colors ${
+                    isCurrentPlan
+                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
+                      : plan.popular
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : key === 'free'
+                      ? 'bg-gray-800 hover:bg-gray-900 text-white'
+                      : 'bg-purple-600 hover:bg-purple-700 text-white'
+                  }`}
+                >
+                  {isCurrentPlan ? 'Current Plan' : plan.buttonText}
+                  {!isCurrentPlan && <ArrowRight className="w-4 h-4 ml-2 inline" />}
+                </button>
+
+                {/* Additional Info */}
+                {key === 'free' && (
+                  <p className="text-xs text-gray-500 text-center mt-3">
+                    No credit card required
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+        
 // ==========================================
 // MAIN CONVERTER COMPONENT
 // ==========================================
@@ -2286,6 +2401,7 @@ const App = () => {
       <div className="min-h-screen bg-gray-50">
         <Navigation />
         <HeroSection />
+        <PricingSection />
         <CRSConverter />
         <FeaturesSection />
         <Footer />
