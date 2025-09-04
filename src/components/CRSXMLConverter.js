@@ -279,14 +279,151 @@ const validateFIName = (name) => {
 const validateCRSData = (data) => {
   if (!data || data.length === 0) {
     return {
-      isValid: false,
-      errors: ['No data found in spreadsheet'],
+      canGenerate: false,
+      criticalErrors: ['No data found in spreadsheet'],
       warnings: [],
+      recommendations: [],
       missingColumns: [],
-      dataIssues: [],
+      dataIssues: { critical: [], warnings: [], recommendations: [] },
       summary: { totalRows: 0, validRows: 0, invalidRows: 0 }
     };
   }
+
+  const headers = Object.keys(data[0]).map(h => h.toLowerCase().trim());
+  const requiredFields = {
+    // Critical - Always required
+    'account_number': ['account_number', 'accountnumber', 'account_no', 'acct_no'],
+    'account_balance': ['account_balance', 'balance', 'accountbalance'],
+    'currency_code': ['currency_code', 'currency', 'currencycode', 'curr_code'],
+    'holder_type': ['holder_type', 'holdertype', 'type', 'account_holder_type'],
+    
+    // Warning - Usually required but may be optional
+    'residence_country': ['residence_country', 'res_country', 'residence_country_code'],
+    'address_country': ['address_country', 'addr_country', 'address_country_code'],
+    'city': ['city', 'address_city'],
+    
+    // Recommendations - Best practice
+    'first_name': ['first_name', 'firstname', 'fname', 'given_name'],
+    'last_name': ['last_name', 'lastname', 'lname', 'surname'],
+    'tin': ['tin', 'tax_id', 'taxpayer_id'],
+    'birth_date': ['birth_date', 'birthdate', 'dob', 'date_of_birth']
+  };
+
+  // Field classification
+  const criticalFields = ['account_number', 'account_balance', 'currency_code', 'holder_type'];
+  const warningFields = ['residence_country', 'address_country', 'city'];
+  const recommendationFields = ['first_name', 'last_name', 'tin', 'birth_date'];
+
+  const columnMappings = {};
+  const missingColumns = { critical: [], warnings: [], recommendations: [] };
+
+  // Check for missing columns
+  Object.entries(requiredFields).forEach(([field, alternatives]) => {
+    let found = false;
+    for (const alt of alternatives) {
+      if (headers.includes(alt.toLowerCase())) {
+        columnMappings[field] = Object.keys(data[0]).find(h => 
+          h.toLowerCase().trim() === alt.toLowerCase()
+        );
+        found = true;
+        break;
+      }
+    }
+    
+    if (!found) {
+      const fieldInfo = { field, alternatives, description: getFieldDescription(field) };
+      
+      if (criticalFields.includes(field)) {
+        missingColumns.critical.push(fieldInfo);
+      } else if (warningFields.includes(field)) {
+        missingColumns.warnings.push(fieldInfo);
+      } else if (recommendationFields.includes(field)) {
+        missingColumns.recommendations.push(fieldInfo);
+      }
+    }
+  });
+
+  // Validate each row
+  const dataIssues = { critical: [], warnings: [], recommendations: [] };
+  let validRows = 0;
+  let invalidRows = 0;
+
+  data.forEach((row, index) => {
+    const critical = [];
+    const warnings = [];
+    const recommendations = [];
+    
+    const holderType = row[columnMappings.holder_type]?.toLowerCase();
+
+    // Critical validations
+    if (!row[columnMappings.account_number]?.trim()) {
+      critical.push('Account number is required');
+    }
+    
+    const balance = parseFloat(row[columnMappings.account_balance]);
+    if (isNaN(balance) || balance < 0) {
+      critical.push('Valid account balance is required');
+    }
+    
+    if (!row[columnMappings.currency_code]?.match(/^[A-Z]{3}$/)) {
+      critical.push('Valid 3-letter currency code is required');
+    }
+    
+    if (!['individual', 'organization', 'organisation'].includes(holderType)) {
+      critical.push('Holder type must be Individual or Organization');
+    }
+
+    // Warning validations
+    if (!row[columnMappings.residence_country]?.match(/^[A-Z]{2}$/)) {
+      warnings.push('Residence country code recommended for compliance');
+    }
+    
+    if (!row[columnMappings.city]?.trim()) {
+      warnings.push('City information recommended');
+    }
+
+    // Recommendation validations
+    if (holderType === 'individual') {
+      if (!row[columnMappings.first_name]?.trim() || !row[columnMappings.last_name]?.trim()) {
+        recommendations.push('Full name improves CRS compliance');
+      }
+      
+      if (!row[columnMappings.tin]?.trim()) {
+        recommendations.push('TIN number recommended when available');
+      }
+    }
+
+    // Categorize issues
+    if (critical.length > 0) {
+      dataIssues.critical.push({ row: index + 1, errors: critical });
+      invalidRows++;
+    } else {
+      validRows++;
+    }
+    
+    if (warnings.length > 0) {
+      dataIssues.warnings.push({ row: index + 1, errors: warnings });
+    }
+    
+    if (recommendations.length > 0) {
+      dataIssues.recommendations.push({ row: index + 1, errors: recommendations });
+    }
+  });
+
+  // Determine if XML can be generated
+  const canGenerate = missingColumns.critical.length === 0 && dataIssues.critical.length === 0;
+
+  return {
+    canGenerate,
+    criticalErrors: missingColumns.critical.length > 0 ? ['Missing critical columns'] : [],
+    warnings: missingColumns.warnings.length > 0 ? ['Missing recommended columns'] : [],
+    recommendations: missingColumns.recommendations.length > 0 ? ['Optional fields missing'] : [],
+    missingColumns,
+    columnMappings,
+    dataIssues,
+    summary: { totalRows: data.length, validRows, invalidRows }
+  };
+};
 
   const headers = Object.keys(data[0]).map(h => h.toLowerCase().trim());
   const requiredFields = {
