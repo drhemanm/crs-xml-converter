@@ -234,8 +234,81 @@ const validateEnvironment = () => {
 if (!validateEnvironment()) {
   console.warn('Some environment variables are missing. PayPal integration may not work properly.');
 }
+
 // ==========================================
-// ENHANCED FIELD MAPPINGS
+// CRS v3.0 COMPLIANT MAPPINGS AND CONSTANTS
+// ==========================================
+
+// Enhanced CRS v3.0 compliant payment type mappings
+const CRS_PAYMENT_TYPES = {
+  'dividends': 'CRS501',
+  'interest': 'CRS502', 
+  'gross_proceeds': 'CRS503',
+  'redemptions': 'CRS503',
+  'other': 'CRS504',
+  // Default mappings for backward compatibility
+  'CRS501': 'CRS501', // Dividends
+  'CRS502': 'CRS502', // Interest  
+  'CRS503': 'CRS503', // Gross Proceeds/Redemptions
+  'CRS504': 'CRS504'  // Other
+};
+
+// Account holder type mappings for CRS v3.0
+const CRS_ACCOUNT_HOLDER_TYPES = {
+  'passive_nfe_reportable': 'CRS101', // Passive Non-Financial Entity with controlling person that is reportable
+  'reportable_person': 'CRS102',      // CRS Reportable Person
+  'passive_nfe_crs_reportable': 'CRS103' // Passive NFE that is a CRS Reportable Person
+};
+
+// Account type mappings
+const CRS_ACCOUNT_TYPES = {
+  'depository': 'CRS1101',           // Depository Account
+  'custodial': 'CRS1102',            // Custodial Account  
+  'insurance_annuity': 'CRS1103',    // Cash Value Insurance Contract or Annuity Contract
+  'investment_entity': 'CRS1104',    // Debt or Equity Interest in Investment Entity
+  'not_reported': 'CRS1100'          // Not reported (transitional)
+};
+
+// Due diligence procedure types
+const CRS_DD_PROCEDURE_TYPES = {
+  'new_account': 'CRS1201',      // New Account
+  'preexisting': 'CRS1202',      // Preexisting Account
+  'not_reported': 'CRS1200'      // Not reported (transitional)
+};
+
+// Controlling person type mappings
+const CRS_CONTROLLING_PERSON_TYPES = {
+  'ownership': 'CRS801',           // CP of legal person - ownership
+  'other_means': 'CRS802',         // CP of legal person - other means  
+  'senior_managing': 'CRS803',     // CP of legal person - senior managing official
+  'trust_settlor': 'CRS804',       // CP of legal arrangement - trust - settlor
+  'trust_trustee': 'CRS805',       // CP of legal arrangement - trust - trustee
+  'trust_protector': 'CRS806',     // CP of legal arrangement - trust - protector
+  'trust_beneficiary': 'CRS807',   // CP of legal arrangement - trust - beneficiary
+  'trust_other': 'CRS808',         // CP of legal arrangement - trust - other
+  'other_settlor_eq': 'CRS809',    // CP of legal arrangement - other - settlor-equivalent
+  'other_trustee_eq': 'CRS810',    // CP of legal arrangement - other - trustee-equivalent
+  'other_protector_eq': 'CRS811',  // CP of legal arrangement - other - protector-equivalent
+  'other_beneficiary_eq': 'CRS812', // CP of legal arrangement - other - beneficiary-equivalent
+  'other_equivalent': 'CRS813',    // CP of legal arrangement - other - other-equivalent
+  'not_reported': 'CRS800'         // Not reported (transitional)
+};
+
+// Self-certification status
+const CRS_SELF_CERT_STATUS = {
+  'true': 'CRS901',
+  'false': 'CRS902', 
+  'not_reported': 'CRS900'
+};
+
+const CRS_SELF_CERT_CONTROLLING_PERSON = {
+  'true': 'CRS1001',
+  'false': 'CRS1002',
+  'not_reported': 'CRS1000'
+};
+
+// ==========================================
+// ENHANCED FIELD MAPPINGS WITH CRS v3.0 SUPPORT
 // ==========================================
 
 const ENHANCED_FIELD_MAPPINGS = {
@@ -258,6 +331,7 @@ const ENHANCED_FIELD_MAPPINGS = {
   'birth_date': ['birth_date', 'birthdate', 'dob', 'date_of_birth'],
   'birth_city': ['birth_city', 'birthcity', 'place_of_birth'],
   'birth_country': ['birth_country', 'birth_country_code', 'birthcountry', 'country_of_birth'],
+  'nationality': ['nationality', 'citizen_country', 'citizenship'],
   
   // Organization fields
   'organization_name': ['organization_name', 'org_name', 'company_name', 'entity_name'],
@@ -274,14 +348,24 @@ const ENHANCED_FIELD_MAPPINGS = {
   'controlling_person_city': ['controlling_person_city', 'cp_city'],
   'controlling_person_address': ['controlling_person_address', 'cp_address'],
   'controlling_person_tin': ['controlling_person_tin', 'cp_tin'],
+  'controlling_person_nationality': ['controlling_person_nationality', 'cp_nationality'],
   
-  // Payment fields
+  // CRS v3.0 specific fields
+  'self_cert': ['self_cert', 'self_certification', 'selfcert', 'self_certified'],
+  'account_type': ['account_type', 'accounttype', 'acct_type', 'financial_account_type'],
+  'dd_procedure': ['dd_procedure', 'due_diligence', 'ddprocedure', 'due_diligence_procedure'],
+  'account_holder_type': ['account_holder_type', 'holder_type_detail', 'acctholdertype', 'crs_holder_type'],
+  'controlling_person_type': ['controlling_person_type', 'cp_type', 'ctrlg_person_type', 'cp_relationship'],
+  'controlling_person_self_cert': ['controlling_person_self_cert', 'cp_self_cert', 'cp_self_certification'],
+  
+  // Enhanced payment fields
   'payment_type': ['payment_type', 'paymenttype', 'payment_code', 'income_type'],
   'payment_amount': ['payment_amount', 'paymentamount', 'payment', 'income_amount'],
-  'interest_amount': ['interest_amount', 'interest', 'interest_income'],
-  'dividend_amount': ['dividend_amount', 'dividend', 'dividend_income']
+  'interest_amount': ['interest_amount', 'interest', 'interest_income', 'interest_payment'],
+  'dividend_amount': ['dividend_amount', 'dividend', 'dividend_income', 'dividend_payment'],
+  'gross_proceeds_amount': ['gross_proceeds_amount', 'gross_proceeds', 'redemptions_amount', 'proceeds'],
+  'other_amount': ['other_amount', 'other_income', 'miscellaneous_amount', 'other_payment']
 };
-
 // ==========================================
 // ANONYMOUS USAGE TRACKING (Enhanced)
 // ==========================================
@@ -475,7 +559,12 @@ const getFieldDescription = (field) => {
     'birth_city': 'City of Birth',
     'birth_country': 'Country of Birth (2 letters)',
     'payment_amount': 'Payment Amount (numeric)',
-    'payment_type': 'Payment Type (CRS501-CRS504)'
+    'payment_type': 'Payment Type (CRS501-CRS504)',
+    'account_type': 'Account Type (Depository, Custodial, etc.)',
+    'self_cert': 'Self-Certification Status (true/false)',
+    'dd_procedure': 'Due Diligence Procedure (New/Preexisting Account)',
+    'controlling_person_type': 'Controlling Person Type',
+    'nationality': 'Nationality (ISO country code)'
   };
   return descriptions[field] || field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 };
@@ -525,6 +614,438 @@ const validateHolderType = (holderType) => {
   
   return { valid: true };
 };
+
+// ==========================================
+// CRS v3.0 DATA MAPPING FUNCTION
+// ==========================================
+
+const mapDataToCRSv3 = (rowData, columnMappings) => {
+  if (!rowData || !columnMappings) {
+    throw new Error('Invalid data or column mappings provided');
+  }
+
+  const safeGet = (key, defaultValue = '') => {
+    const value = rowData[columnMappings[key]];
+    return (value !== null && value !== undefined) ? String(value).trim() : defaultValue;
+  };
+
+  const safeGetNumber = (key, defaultValue = 0) => {
+    const value = parseFloat(rowData[columnMappings[key]]);
+    return isNaN(value) ? defaultValue : value;
+  };
+
+  const holderType = safeGet('holder_type').toLowerCase();
+  const isIndividual = holderType === 'individual';
+  const isOrganization = ['organization', 'organisation'].includes(holderType);
+
+  // Enhanced data mapping with CRS v3.0 compliance
+  const mappedData = {
+    // Account details
+    accountNumber: safeGet('account_number'),
+    accountBalance: safeGetNumber('account_balance'),
+    currencyCode: safeGet('currency_code', 'USD').toUpperCase(),
+    
+    // CRS v3.0 required fields
+    accountType: safeGet('account_type') ? 
+      CRS_ACCOUNT_TYPES[safeGet('account_type').toLowerCase()] || 'CRS1101' : 'CRS1101', // Default to depository
+    ddProcedure: safeGet('dd_procedure') ? 
+      CRS_DD_PROCEDURE_TYPES[safeGet('dd_procedure').toLowerCase()] || 'CRS1202' : 'CRS1202', // Default to preexisting
+    selfCert: safeGet('self_cert') ? 
+      CRS_SELF_CERT_STATUS[safeGet('self_cert').toLowerCase()] || 'CRS901' : 'CRS901', // Default to true
+    
+    // Holder type classification
+    isIndividual,
+    isOrganization,
+    
+    // Individual data (only if holder type is individual)
+    individual: isIndividual ? {
+      firstName: safeGet('first_name'),
+      lastName: safeGet('last_name'),
+      birthDate: safeGet('birth_date'),
+      birthCity: safeGet('birth_city'),
+      birthCountry: safeGet('birth_country').toUpperCase(),
+      tin: safeGet('tin'),
+      resCountryCode: safeGet('residence_country', 'XX').toUpperCase(),
+      addressCountryCode: (safeGet('address_country') || safeGet('residence_country', 'XX')).toUpperCase(),
+      city: safeGet('city'),
+      address: safeGet('address'),
+      nationality: safeGet('nationality', '').toUpperCase()
+    } : null,
+    
+    // Organization data (only if holder type is organization) 
+    organization: isOrganization ? {
+      name: safeGet('organization_name'),
+      tin: safeGet('organization_tin'),
+      resCountryCode: safeGet('residence_country', 'XX').toUpperCase(),
+      addressCountryCode: (safeGet('address_country') || safeGet('residence_country', 'XX')).toUpperCase(),
+      city: safeGet('city'),
+      address: safeGet('address'),
+      // CRS v3.0 account holder type (required for organizations)
+      acctHolderType: safeGet('account_holder_type') ? 
+        CRS_ACCOUNT_HOLDER_TYPES[safeGet('account_holder_type').toLowerCase()] || 'CRS102' : 'CRS102'
+    } : null,
+    
+    // Controlling person (for organizations) with v3.0 compliance
+    controllingPerson: isOrganization ? {
+      firstName: safeGet('controlling_person_first_name'),
+      lastName: safeGet('controlling_person_last_name'), 
+      birthDate: safeGet('controlling_person_birth_date'),
+      birthCity: safeGet('controlling_person_birth_city'),
+      birthCountry: safeGet('controlling_person_birth_country').toUpperCase(),
+      resCountryCode: safeGet('controlling_person_residence_country', 'XX').toUpperCase(),
+      addressCountryCode: (safeGet('controlling_person_address_country') || 
+                          safeGet('controlling_person_residence_country', 'XX')).toUpperCase(),
+      city: safeGet('controlling_person_city'),
+      address: safeGet('controlling_person_address'),
+      tin: safeGet('controlling_person_tin'),
+      nationality: safeGet('controlling_person_nationality', '').toUpperCase(),
+      // CRS v3.0 controlling person type
+      ctrlgPersonType: safeGet('controlling_person_type') ? 
+        CRS_CONTROLLING_PERSON_TYPES[safeGet('controlling_person_type').toLowerCase()] || 'CRS801' : 'CRS801',
+      // CRS v3.0 controlling person self-certification
+      selfCert: safeGet('controlling_person_self_cert') ?
+        CRS_SELF_CERT_CONTROLLING_PERSON[safeGet('controlling_person_self_cert').toLowerCase()] || 'CRS1001' : 'CRS1001'
+    } : null,
+    
+    // Enhanced payment data with v3.0 compliant payment types
+    payments: []
+  };
+
+  // Process multiple payment types for CRS v3.0
+  const paymentTypes = ['interest', 'dividends', 'gross_proceeds', 'other'];
+  
+  paymentTypes.forEach(type => {
+    const amountKey = `${type}_amount`;
+    const amount = safeGetNumber(amountKey);
+    
+    if (amount > 0) {
+      mappedData.payments.push({
+        type: CRS_PAYMENT_TYPES[type] || 'CRS504',
+        amount: amount,
+        currency: mappedData.currencyCode
+      });
+    }
+  });
+
+  // Fallback payment from account balance if no specific payments
+  if (mappedData.payments.length === 0 && mappedData.accountBalance > 0) {
+    const paymentType = safeGet('payment_type');
+    mappedData.payments.push({
+      type: CRS_PAYMENT_TYPES[paymentType] || 'CRS504',
+      amount: mappedData.accountBalance,
+      currency: mappedData.currencyCode
+    });
+  }
+
+  // Enhanced validation for CRS v3.0
+  if (!mappedData.accountNumber) {
+    throw new Error('Account number is required for CRS v3.0 compliance');
+  }
+  
+  if (mappedData.accountBalance < 0) {
+    throw new Error('Account balance cannot be negative');
+  }
+
+  if (!/^[A-Z]{3}$/.test(mappedData.currencyCode)) {
+    throw new Error('Invalid currency code format - must be 3-letter ISO 4217 code');
+  }
+
+  return mappedData;
+};
+
+// ==========================================
+// CRS v3.0 XML GENERATION FUNCTION
+// ==========================================
+
+const generateCRSXMLv3 = (data, settings, validationResults) => {
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    throw new Error('No data provided for XML generation');
+  }
+
+  if (!settings || !settings.reportingFI) {
+    throw new Error('Invalid settings provided for XML generation');
+  }
+
+  if (!validationResults || !validationResults.columnMappings) {
+    throw new Error('Invalid validation results provided for XML generation');
+  }
+
+  const { reportingFI, messageRefId, taxYear } = settings;
+  const { columnMappings } = validationResults;
+  
+  // Enhanced utility functions
+  const formatDate = (date) => {
+    if (!date) return '';
+    
+    try {
+      let dateObj;
+      if (date instanceof Date) {
+        dateObj = date;
+      } else if (typeof date === 'string') {
+        // Handle various date formats
+        dateObj = new Date(date);
+        if (isNaN(dateObj.getTime())) {
+          // Try parsing DD/MM/YYYY or MM/DD/YYYY
+          const parts = date.split(/[\/\-\.]/);
+          if (parts.length === 3) {
+            // Assume DD/MM/YYYY format first
+            dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
+            if (isNaN(dateObj.getTime())) {
+              // Try MM/DD/YYYY format
+              dateObj = new Date(parts[2], parts[0] - 1, parts[1]);
+            }
+          }
+        }
+      } else {
+        return '';
+      }
+      
+      if (isNaN(dateObj.getTime())) return '';
+      
+      return dateObj.toISOString().split('T')[0];
+    } catch (error) {
+      console.error('Date formatting error:', error);
+      return '';
+    }
+  };
+
+  const formatCurrency = (amount) => {
+    if (amount === null || amount === undefined || amount === '') return '0.00';
+    const numAmount = parseFloat(amount);
+    return isNaN(numAmount) ? '0.00' : numAmount.toFixed(2);
+  };
+
+  const escapeXML = (text) => {
+    if (text === null || text === undefined) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
+  const generateUniqueRefId = (prefix = 'MU2024MU') => {
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 15);
+    return prefix + timestamp + random;
+  };
+
+  const generateDocRefId = () => {
+    return generateUniqueRefId('DOC');
+  };
+
+  // CRS v3.0 compliant account report generation
+  const generateAccountReport = (mappedAccount, index) => {
+    const docRefId = generateDocRefId();
+    
+    // Generate account holder section with CRS v3.0 compliance
+    const generateAccountHolder = () => {
+      if (mappedAccount.isIndividual && mappedAccount.individual) {
+        const individual = mappedAccount.individual;
+        return `
+        <AccountHolder>
+          <SelfCert>${escapeXML(mappedAccount.selfCert)}</SelfCert>
+          <Individual>
+            <ResCountryCode>${escapeXML(individual.resCountryCode || 'XX')}</ResCountryCode>
+            ${individual.tin ? `<TIN issuedBy="${escapeXML(individual.resCountryCode || 'XX')}">${escapeXML(individual.tin)}</TIN>` : ''}
+            <Name nameType="OECD202">
+              <FirstName>${escapeXML(individual.firstName)}</FirstName>
+              <LastName>${escapeXML(individual.lastName)}</LastName>
+            </Name>
+            <Address legalAddressType="OECD302">
+              <CountryCode>${escapeXML(individual.addressCountryCode || individual.resCountryCode || 'XX')}</CountryCode>
+              <AddressFix>
+                <Street>${escapeXML(individual.address || 'Not Provided')}</Street>
+                <City>${escapeXML(individual.city || 'Not Provided')}</City>
+              </AddressFix>
+            </Address>
+            ${individual.nationality ? `<Nationality>${escapeXML(individual.nationality)}</Nationality>` : ''}
+            ${individual.birthDate ? `
+            <BirthInfo>
+              <BirthDate>${formatDate(individual.birthDate)}</BirthDate>
+              ${individual.birthCity ? `<City>${escapeXML(individual.birthCity)}</City>` : ''}
+              <CountryInfo>
+                <CountryCode>${escapeXML(individual.birthCountry || individual.resCountryCode || 'XX')}</CountryCode>
+              </CountryInfo>
+            </BirthInfo>` : ''}
+          </Individual>
+        </AccountHolder>`;
+      } else if (mappedAccount.isOrganization && mappedAccount.organization) {
+        const organization = mappedAccount.organization;
+        return `
+        <AccountHolder>
+          <SelfCert>${escapeXML(mappedAccount.selfCert)}</SelfCert>
+          <Organisation>
+            ${organization.resCountryCode ? `<ResCountryCode>${escapeXML(organization.resCountryCode)}</ResCountryCode>` : ''}
+            ${organization.tin ? `<IN issuedBy="${escapeXML(organization.resCountryCode || 'XX')}">${escapeXML(organization.tin)}</IN>` : ''}
+            <Name>${escapeXML(organization.name)}</Name>
+            <Address>
+              <CountryCode>${escapeXML(organization.addressCountryCode || organization.resCountryCode || 'XX')}</CountryCode>
+              <AddressFix>
+                <Street>${escapeXML(organization.address || 'Not Provided')}</Street>
+                <City>${escapeXML(organization.city || 'Not Provided')}</City>
+              </AddressFix>
+            </Address>
+          </Organisation>
+          <AcctHolderType>${escapeXML(organization.acctHolderType)}</AcctHolderType>
+        </AccountHolder>`;
+      }
+      
+      throw new Error(`Invalid account holder type for account ${mappedAccount.accountNumber}`);
+    };
+
+    // Generate controlling person section with CRS v3.0 compliance
+    const generateControllingPerson = () => {
+      if (!mappedAccount.isOrganization || !mappedAccount.controllingPerson) {
+        return '';
+      }
+      
+      const cp = mappedAccount.controllingPerson;
+      
+      // Only generate if we have at least first and last name
+      if (!cp.firstName || !cp.lastName) {
+        return '';
+      }
+      
+      return `
+        <ControllingPerson>
+          <Individual>
+            <ResCountryCode>${escapeXML(cp.resCountryCode || 'XX')}</ResCountryCode>
+            ${cp.tin ? `<TIN issuedBy="${escapeXML(cp.resCountryCode || 'XX')}">${escapeXML(cp.tin)}</TIN>` : ''}
+            <Name nameType="OECD202">
+              <FirstName>${escapeXML(cp.firstName)}</FirstName>
+              <LastName>${escapeXML(cp.lastName)}</LastName>
+            </Name>
+            <Address legalAddressType="OECD302">
+              <CountryCode>${escapeXML(cp.addressCountryCode || cp.resCountryCode || 'XX')}</CountryCode>
+              <AddressFix>
+                <Street>${escapeXML(cp.address || 'Not Provided')}</Street>
+                <City>${escapeXML(cp.city || 'Not Provided')}</City>
+              </AddressFix>
+            </Address>
+            ${cp.nationality ? `<Nationality>${escapeXML(cp.nationality)}</Nationality>` : ''}
+            ${cp.birthDate ? `
+            <BirthInfo>
+              <BirthDate>${formatDate(cp.birthDate)}</BirthDate>
+              ${cp.birthCity ? `<City>${escapeXML(cp.birthCity)}</City>` : ''}
+              <CountryInfo>
+                <CountryCode>${escapeXML(cp.birthCountry || cp.resCountryCode || 'XX')}</CountryCode>
+              </CountryInfo>
+            </BirthInfo>` : ''}
+          </Individual>
+          <CtrlgPersonType>${escapeXML(cp.ctrlgPersonType)}</CtrlgPersonType>
+          <SelfCert>${escapeXML(cp.selfCert)}</SelfCert>
+        </ControllingPerson>`;
+    };
+
+    // Generate payment sections with CRS v3.0 compliance
+    const generatePayments = () => {
+      if (!mappedAccount.payments || mappedAccount.payments.length === 0) {
+        return '';
+      }
+      
+      return mappedAccount.payments.map(payment => `
+        <Payment>
+          <Type>${escapeXML(payment.type)}</Type>
+          <PaymentAmnt currCode="${escapeXML(payment.currency)}">${formatCurrency(payment.amount)}</PaymentAmnt>
+        </Payment>`).join('');
+    };
+
+    return `
+      <AccountReport>
+        <DocSpec>
+          <DocTypeIndic>OECD1</DocTypeIndic>
+          <DocRefId>${docRefId}</DocRefId>
+        </DocSpec>
+        <AccountNumber UndocumentedAccount="false" AcctNumberType="OECD605">${escapeXML(mappedAccount.accountNumber)}</AccountNumber>
+        ${generateAccountHolder()}
+        ${generateControllingPerson()}
+        <AccountBalance currCode="${escapeXML(mappedAccount.currencyCode)}">${formatCurrency(mappedAccount.accountBalance)}</AccountBalance>
+        ${generatePayments()}
+        <DDProcedure>${escapeXML(mappedAccount.ddProcedure)}</DDProcedure>
+        <AccountType>${escapeXML(mappedAccount.accountType)}</AccountType>
+      </AccountReport>`;
+  };
+  
+  // Process and map all data rows with error handling
+  const mappedAccounts = [];
+  const processingErrors = [];
+
+  data.forEach((row, index) => {
+    try {
+      const mappedAccount = mapDataToCRSv3(row, columnMappings);
+      mappedAccounts.push(mappedAccount);
+    } catch (error) {
+      processingErrors.push(`Row ${index + 1}: ${error.message}`);
+    }
+  });
+
+  // Throw error if too many rows failed processing
+  if (processingErrors.length > 0) {
+    console.warn('XML Generation warnings:', processingErrors);
+    if (processingErrors.length > data.length * 0.5) {
+      throw new Error(`Too many processing errors: ${processingErrors.length} out of ${data.length} rows failed`);
+    }
+  }
+
+  if (mappedAccounts.length === 0) {
+    throw new Error('No valid accounts to process after data mapping');
+  }
+
+  // Generate account reports
+  const accountReports = mappedAccounts.map((account, index) => 
+    generateAccountReport(account, index)
+  ).join('');
+
+  // Generate enhanced message reference ID
+  const messageRef = messageRefId || generateUniqueRefId('CRS');
+  const reportingPeriod = `${taxYear}-12-31`;
+  const timestamp = new Date().toISOString();
+  const fiDocRefId = generateDocRefId();
+
+  // Build complete CRS v3.0 compliant XML
+  return `<?xml version="1.0" encoding="utf-8"?>
+<CRS_OECD xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+          xmlns:crs="urn:oecd:ties:crs:v3" 
+          xmlns:cfc="urn:oecd:ties:commontypesfatcacrs:v2" 
+          xmlns:stf="urn:oecd:ties:crsstf:v5" 
+          version="3.0" 
+          xmlns="urn:oecd:ties:crs:v3"
+          xsi:schemaLocation="urn:oecd:ties:crs:v3 CrsXML_v3.0.xsd">
+  <MessageSpec>
+    <SendingCompanyIN>${escapeXML(reportingFI.giin || 'UNKNOWN')}</SendingCompanyIN>
+    <TransmittingCountry>${escapeXML(reportingFI.country || 'XX')}</TransmittingCountry>
+    <ReceivingCountry>${escapeXML(reportingFI.country || 'XX')}</ReceivingCountry>
+    <MessageType>CRS</MessageType>
+    <MessageRefId>${escapeXML(messageRef)}</MessageRefId>
+    <MessageTypeIndic>CRS701</MessageTypeIndic>
+    <ReportingPeriod>${reportingPeriod}</ReportingPeriod>
+    <Timestamp>${timestamp}</Timestamp>
+  </MessageSpec>
+  <CrsBody>
+    <ReportingFI>
+      ${reportingFI.country ? `<ResCountryCode>${escapeXML(reportingFI.country)}</ResCountryCode>` : ''}
+      <IN issuedBy="${escapeXML(reportingFI.country || 'XX')}" INType="GIIN">${escapeXML(reportingFI.giin || 'UNKNOWN')}</IN>
+      <Name>${escapeXML(reportingFI.name || 'Unknown Institution')}</Name>
+      <Address>
+        <CountryCode>${escapeXML(reportingFI.country || 'XX')}</CountryCode>
+        <AddressFix>
+          <Street>${escapeXML(reportingFI.address || 'Not Provided')}</Street>
+          <City>${escapeXML(reportingFI.city || 'Not Provided')}</City>
+        </AddressFix>
+      </Address>
+      <DocSpec>
+        <DocTypeIndic>OECD1</DocTypeIndic>
+        <DocRefId>${fiDocRefId}</DocRefId>
+      </DocSpec>
+    </ReportingFI>
+    <ReportingGroup>
+      ${accountReports}
+    </ReportingGroup>
+  </CrsBody>
+</CRS_OECD>`;
+};
 // ==========================================
 // COMPREHENSIVE CRS DATA VALIDATION
 // ==========================================
@@ -568,7 +1089,8 @@ const validateCRSData = (data) => {
     'controlling_person_last_name', 'controlling_person_birth_date', 
     'controlling_person_birth_country', 'controlling_person_residence_country', 
     'controlling_person_address_country', 'controlling_person_city', 
-    'controlling_person_tin', 'payment_type', 'payment_amount'
+    'controlling_person_tin', 'payment_type', 'payment_amount',
+    'self_cert', 'account_type', 'dd_procedure'
   ];
 
   const columnMappings = {};
@@ -777,760 +1299,7 @@ const validateCRSData = (data) => {
 };
 
 // ==========================================
-// ENHANCED DATA MAPPING FUNCTION
-// ==========================================
-
-const mapDataToCRS = (rowData, columnMappings) => {
-  if (!rowData || !columnMappings) {
-    throw new Error('Invalid data or column mappings provided');
-  }
-
-  const safeGet = (key, defaultValue = '') => {
-    const value = rowData[columnMappings[key]];
-    return (value !== null && value !== undefined) ? String(value).trim() : defaultValue;
-  };
-
-  const safeGetNumber = (key, defaultValue = 0) => {
-    const value = parseFloat(rowData[columnMappings[key]]);
-    return isNaN(value) ? defaultValue : value;
-  };
-
-  const holderType = safeGet('holder_type').toLowerCase();
-  const isIndividual = holderType === 'individual';
-  const isOrganization = ['organization', 'organisation'].includes(holderType);
-
-  // Enhanced data mapping with validation
-  const mappedData = {
-    // Account details
-    accountNumber: safeGet('account_number'),
-    accountBalance: safeGetNumber('account_balance'),
-    currencyCode: safeGet('currency_code', 'USD').toUpperCase(),
-    
-    // Holder type classification
-    isIndividual,
-    isOrganization,
-    
-    // Individual data (only if holder type is individual)
-    individual: isIndividual ? {
-      firstName: safeGet('first_name'),
-      lastName: safeGet('last_name'),
-      birthDate: safeGet('birth_date'),
-      birthCity: safeGet('birth_city'),
-      birthCountry: safeGet('birth_country').toUpperCase(),
-      tin: safeGet('tin'),
-      resCountryCode: safeGet('residence_country', 'XX').toUpperCase(),
-      addressCountryCode: (safeGet('address_country') || safeGet('residence_country', 'XX')).toUpperCase(),
-      city: safeGet('city'),
-      address: safeGet('address')
-    } : null,
-    
-    // Organization data (only if holder type is organization)
-    organization: isOrganization ? {
-      name: safeGet('organization_name'),
-      tin: safeGet('organization_tin'),
-      resCountryCode: safeGet('residence_country', 'XX').toUpperCase(),
-      addressCountryCode: (safeGet('address_country') || safeGet('residence_country', 'XX')).toUpperCase(),
-      city: safeGet('city'),
-      address: safeGet('address')
-    } : null,
-    
-    // Controlling person (for organizations)
-    controllingPerson: isOrganization ? {
-      firstName: safeGet('controlling_person_first_name'),
-      lastName: safeGet('controlling_person_last_name'),
-      birthDate: safeGet('controlling_person_birth_date'),
-      birthCity: safeGet('controlling_person_birth_city'),
-      birthCountry: safeGet('controlling_person_birth_country').toUpperCase(),
-      resCountryCode: safeGet('controlling_person_residence_country', 'XX').toUpperCase(),
-      addressCountryCode: (safeGet('controlling_person_address_country') || 
-                          safeGet('controlling_person_residence_country', 'XX')).toUpperCase(),
-      city: safeGet('controlling_person_city'),
-      address: safeGet('controlling_person_address'),
-      tin: safeGet('controlling_person_tin')
-    } : null,
-    
-    // Enhanced payment data with multiple payment types
-    payment: {
-      type: safeGet('payment_type', 'CRS503'), // Default to Other Income
-      amount: safeGetNumber('payment_amount') || safeGetNumber('account_balance'),
-      interestAmount: safeGetNumber('interest_amount'),
-      dividendAmount: safeGetNumber('dividend_amount'),
-      currency: safeGet('currency_code', 'USD').toUpperCase()
-    }
-  };
-
-  // Data validation for mapped object
-  if (!mappedData.accountNumber) {
-    throw new Error('Account number is required');
-  }
-  
-  if (mappedData.accountBalance < 0) {
-    throw new Error('Account balance cannot be negative');
-  }
-
-  if (!/^[A-Z]{3}$/.test(mappedData.currencyCode)) {
-    throw new Error('Invalid currency code format');
-  }
-
-  return mappedData;
-};
-// ==========================================
-// ENHANCED CRS XML GENERATION FUNCTION
-// ==========================================
-
-const generateCRSXML = (data, settings, validationResults) => {
-  if (!data || !Array.isArray(data) || data.length === 0) {
-    throw new Error('No data provided for XML generation');
-  }
-
-  if (!settings || !settings.reportingFI) {
-    throw new Error('Invalid settings provided for XML generation');
-  }
-
-  if (!validationResults || !validationResults.columnMappings) {
-    throw new Error('Invalid validation results provided for XML generation');
-  }
-
-  const { reportingFI, messageRefId, taxYear } = settings;
-  const { columnMappings } = validationResults;
-  
-  // Enhanced utility functions
-  const formatDate = (date) => {
-    if (!date) return '';
-    
-    try {
-      // Handle various date formats
-      let dateObj;
-      if (date instanceof Date) {
-        dateObj = date;
-      } else if (typeof date === 'string') {
-        // Try parsing various date formats
-        dateObj = new Date(date);
-        if (isNaN(dateObj.getTime())) {
-          // Try parsing DD/MM/YYYY or MM/DD/YYYY
-          const parts = date.split(/[\/\-\.]/);
-          if (parts.length === 3) {
-            // Assume DD/MM/YYYY format first
-            dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
-            if (isNaN(dateObj.getTime())) {
-              // Try MM/DD/YYYY format
-              dateObj = new Date(parts[2], parts[0] - 1, parts[1]);
-            }
-          }
-        }
-      } else {
-        return '';
-      }
-      
-      if (isNaN(dateObj.getTime())) return '';
-      
-      return dateObj.toISOString().split('T')[0];
-    } catch (error) {
-      console.error('Date formatting error:', error);
-      return '';
-    }
-  };
-
-  const formatCurrency = (amount) => {
-    if (amount === null || amount === undefined || amount === '') return '0.00';
-    const numAmount = parseFloat(amount);
-    return isNaN(numAmount) ? '0.00' : numAmount.toFixed(2);
-  };
-
-  const escapeXML = (text) => {
-    if (text === null || text === undefined) return '';
-    return String(text)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  };
-
-  const generateUniqueRefId = (prefix = 'MU2024MU') => {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 15);
-    return prefix + timestamp + random;
-  };
-
-  const generateDocRefId = () => {
-    return generateUniqueRefId('DOC');
-  };
-
-  // Enhanced account report generation
-  const generateAccountReport = (mappedAccount, index) => {
-    const docRefId = generateDocRefId();
-    
-    // Generate account holder section with enhanced validation
-    const generateAccountHolder = () => {
-      if (mappedAccount.isIndividual && mappedAccount.individual) {
-        const individual = mappedAccount.individual;
-        return `
-        <AccountHolder>
-          <Individual>
-            <ResCountryCode>${escapeXML(individual.resCountryCode || 'XX')}</ResCountryCode>
-            ${individual.tin ? `<TIN issuedBy="${escapeXML(individual.resCountryCode || 'XX')}">${escapeXML(individual.tin)}</TIN>` : ''}
-            <Name nameType="OECD202">
-              <FirstName>${escapeXML(individual.firstName)}</FirstName>
-              <LastName>${escapeXML(individual.lastName)}</LastName>
-            </Name>
-            <Address legalAddressType="OECD302">
-              <cfc:CountryCode>${escapeXML(individual.addressCountryCode || individual.resCountryCode || 'XX')}</cfc:CountryCode>
-              <cfc:AddressFix>
-                <cfc:Street>${escapeXML(individual.address || 'Not Provided')}</cfc:Street>
-                <cfc:City>${escapeXML(individual.city || 'Not Provided')}</cfc:City>
-              </cfc:AddressFix>
-            </Address>
-            ${individual.birthDate ? `
-            <BirthInfo>
-              <BirthDate>${formatDate(individual.birthDate)}</BirthDate>
-              ${individual.birthCity ? `<City>${escapeXML(individual.birthCity)}</City>` : ''}
-              <CountryInfo>
-                <CountryCode>${escapeXML(individual.birthCountry || individual.resCountryCode || 'XX')}</CountryCode>
-              </CountryInfo>
-            </BirthInfo>` : ''}
-          </Individual>
-          <AcctHolderType>CRS101</AcctHolderType>
-        </AccountHolder>`;
-      } else if (mappedAccount.isOrganization && mappedAccount.organization) {
-        const organization = mappedAccount.organization;
-        return `
-        <AccountHolder>
-          <Organisation>
-            <ResCountryCode>${escapeXML(organization.resCountryCode || 'XX')}</ResCountryCode>
-            ${organization.tin ? `<IN issuedBy="${escapeXML(organization.resCountryCode || 'XX')}">${escapeXML(organization.tin)}</IN>` : ''}
-            <Name>${escapeXML(organization.name)}</Name>
-            <Address>
-              <cfc:CountryCode>${escapeXML(organization.addressCountryCode || organization.resCountryCode || 'XX')}</cfc:CountryCode>
-              <cfc:AddressFix>
-                <cfc:Street>${escapeXML(organization.address || 'Not Provided')}</cfc:Street>
-                <cfc:City>${escapeXML(organization.city || 'Not Provided')}</cfc:City>
-              </cfc:AddressFix>
-            </Address>
-          </Organisation>
-          <AcctHolderType>CRS101</AcctHolderType>
-        </AccountHolder>`;
-      }
-      
-      throw new Error(`Invalid account holder type for account ${mappedAccount.accountNumber}`);
-    };
-
-    // Generate controlling person section with validation
-    const generateControllingPerson = () => {
-      if (!mappedAccount.isOrganization || !mappedAccount.controllingPerson) {
-        return '';
-      }
-      
-      const cp = mappedAccount.controllingPerson;
-      
-      // Only generate if we have at least first and last name
-      if (!cp.firstName || !cp.lastName) {
-        return '';
-      }
-      
-      return `
-        <ControllingPerson>
-          <Individual>
-            <ResCountryCode>${escapeXML(cp.resCountryCode || 'XX')}</ResCountryCode>
-            ${cp.tin ? `<TIN issuedBy="${escapeXML(cp.resCountryCode || 'XX')}">${escapeXML(cp.tin)}</TIN>` : ''}
-            <Name nameType="OECD202">
-              <FirstName>${escapeXML(cp.firstName)}</FirstName>
-              <LastName>${escapeXML(cp.lastName)}</LastName>
-            </Name>
-            <Address legalAddressType="OECD302">
-              <cfc:CountryCode>${escapeXML(cp.addressCountryCode || cp.resCountryCode || 'XX')}</cfc:CountryCode>
-              <cfc:AddressFix>
-                <cfc:Street>${escapeXML(cp.address || 'Not Provided')}</cfc:Street>
-                <cfc:City>${escapeXML(cp.city || 'Not Provided')}</cfc:City>
-              </cfc:AddressFix>
-            </Address>
-            ${cp.birthDate ? `
-            <BirthInfo>
-              <BirthDate>${formatDate(cp.birthDate)}</BirthDate>
-              ${cp.birthCity ? `<City>${escapeXML(cp.birthCity)}</City>` : ''}
-              <CountryInfo>
-                <CountryCode>${escapeXML(cp.birthCountry || cp.resCountryCode || 'XX')}</CountryCode>
-              </CountryInfo>
-            </BirthInfo>` : ''}
-          </Individual>
-          <CtrlgPersonType>CRS801</CtrlgPersonType>
-        </ControllingPerson>`;
-    };
-
-    // Generate payment sections with enhanced logic
-    const generatePayments = () => {
-      const payments = [];
-      const payment = mappedAccount.payment;
-      
-      // Interest payment (CRS501)
-      if (payment.interestAmount && payment.interestAmount > 0) {
-        payments.push(`
-        <Payment>
-          <Type>CRS501</Type>
-          <PaymentAmnt currCode="${escapeXML(payment.currency)}">${formatCurrency(payment.interestAmount)}</PaymentAmnt>
-        </Payment>`);
-      }
-      
-      // Dividend payment (CRS502)
-      if (payment.dividendAmount && payment.dividendAmount > 0) {
-        payments.push(`
-        <Payment>
-          <Type>CRS502</Type>
-          <PaymentAmnt currCode="${escapeXML(payment.currency)}">${formatCurrency(payment.dividendAmount)}</PaymentAmnt>
-        </Payment>`);
-      }
-      
-      // Other income payment (CRS503) - default for account balance or specified payment
-      if (payment.amount && payment.amount > 0) {
-        const paymentType = payment.type || 'CRS503';
-        payments.push(`
-        <Payment>
-          <Type>${escapeXML(paymentType)}</Type>
-          <PaymentAmnt currCode="${escapeXML(payment.currency)}">${formatCurrency(payment.amount)}</PaymentAmnt>
-        </Payment>`);
-      }
-      
-      // Default payment if none specified but account has balance
-      if (payments.length === 0 && mappedAccount.accountBalance > 0) {
-        payments.push(`
-        <Payment>
-          <Type>CRS503</Type>
-          <PaymentAmnt currCode="${escapeXML(mappedAccount.currencyCode)}">${formatCurrency(mappedAccount.accountBalance)}</PaymentAmnt>
-        </Payment>`);
-      }
-      
-      return payments.join('');
-    };
-
-    return `
-      <AccountReport>
-        <DocSpec>
-          <stf:DocTypeIndic>OECD1</stf:DocTypeIndic>
-          <stf:DocRefId>${docRefId}</stf:DocRefId>
-        </DocSpec>
-        <AccountNumber UndocumentedAccount="false" AcctNumberType="OECD605">${escapeXML(mappedAccount.accountNumber)}</AccountNumber>
-        ${generateAccountHolder()}
-        ${generateControllingPerson()}
-        <AccountBalance currCode="${escapeXML(mappedAccount.currencyCode)}">${formatCurrency(mappedAccount.accountBalance)}</AccountBalance>
-        ${generatePayments()}
-      </AccountReport>`;
-  };
-  
-  // Process and map all data rows with error handling
-  const mappedAccounts = [];
-  const processingErrors = [];
-
-  data.forEach((row, index) => {
-    try {
-      const mappedAccount = mapDataToCRS(row, columnMappings);
-      mappedAccounts.push(mappedAccount);
-    } catch (error) {
-      processingErrors.push(`Row ${index + 1}: ${error.message}`);
-    }
-  });
-
-  // Throw error if too many rows failed processing
-  if (processingErrors.length > 0) {
-    console.warn('XML Generation warnings:', processingErrors);
-    if (processingErrors.length > data.length * 0.5) {
-      throw new Error(`Too many processing errors: ${processingErrors.length} out of ${data.length} rows failed`);
-    }
-  }
-
-  if (mappedAccounts.length === 0) {
-    throw new Error('No valid accounts to process after data mapping');
-  }
-
-  // Generate account reports
-  const accountReports = mappedAccounts.map((account, index) => 
-    generateAccountReport(account, index)
-  ).join('');
-
-  // Generate enhanced message reference ID
-  const messageRef = messageRefId || generateUniqueRefId('CRS');
-  const reportingPeriod = `${taxYear}-12-31`;
-  const timestamp = new Date().toISOString();
-  const fiDocRefId = generateDocRefId();
-
-  // Build complete XML with proper structure and validation
-  return `<?xml version="1.0" encoding="utf-8"?>
-<CRS_OECD xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-          xmlns:crs="urn:oecd:ties:crs:v2" 
-          xmlns:cfc="urn:oecd:ties:commontypesfatcacrs:v2" 
-          xmlns:stf="urn:oecd:ties:crsstf:v5" 
-          version="2.0" 
-          xmlns="urn:oecd:ties:crs:v2"
-          xsi:schemaLocation="urn:oecd:ties:crs:v2 CrsXML_v2.0.xsd">
-  <MessageSpec>
-    <SendingCompanyIN>${escapeXML(reportingFI.giin || 'UNKNOWN')}</SendingCompanyIN>
-    <TransmittingCountry>${escapeXML(reportingFI.country || 'XX')}</TransmittingCountry>
-    <ReceivingCountry>${escapeXML(reportingFI.country || 'XX')}</ReceivingCountry>
-    <MessageType>CRS</MessageType>
-    <MessageRefId>${escapeXML(messageRef)}</MessageRefId>
-    <MessageTypeIndic>CRS701</MessageTypeIndic>
-    <ReportingPeriod>${reportingPeriod}</ReportingPeriod>
-    <Timestamp>${timestamp}</Timestamp>
-  </MessageSpec>
-  <CrsBody>
-    <ReportingFI>
-      <ResCountryCode>${escapeXML(reportingFI.country || 'XX')}</ResCountryCode>
-      <IN issuedBy="${escapeXML(reportingFI.country || 'XX')}" INType="GIIN">${escapeXML(reportingFI.giin || 'UNKNOWN')}</IN>
-      <Name>${escapeXML(reportingFI.name || 'Unknown Institution')}</Name>
-      <Address>
-        <cfc:CountryCode>${escapeXML(reportingFI.country || 'XX')}</cfc:CountryCode>
-        <cfc:AddressFix>
-          <cfc:Street>${escapeXML(reportingFI.address || 'Not Provided')}</cfc:Street>
-          <cfc:City>${escapeXML(reportingFI.city || 'Not Provided')}</cfc:City>
-        </cfc:AddressFix>
-      </Address>
-      <DocSpec>
-        <stf:DocTypeIndic>OECD1</stf:DocTypeIndic>
-        <stf:DocRefId>${fiDocRefId}</stf:DocRefId>
-      </DocSpec>
-    </ReportingFI>
-    <ReportingGroup>
-      ${accountReports}
-    </ReportingGroup>
-  </CrsBody>
-</CRS_OECD>`;
-};
-
-// ==========================================
-// SUBSCRIPTION MANAGEMENT FUNCTIONS
-// ==========================================
-
-const updateUserSubscription = async (subscriptionId, planKey, user, subscriptionData = {}) => {
-  if (!user) {
-    throw new Error('User not authenticated');
-  }
-
-  if (!PRICING_PLANS[planKey]) {
-    throw new Error('Invalid subscription plan');
-  }
-
-  try {
-    const plan = PRICING_PLANS[planKey];
-    const updateData = {
-      subscriptionId: subscriptionId,
-      plan: planKey,
-      subscriptionStatus: 'active',
-      conversionsLimit: plan.conversions,
-      conversionsUsed: 0,
-      subscriptionDate: serverTimestamp(),
-      lastUpdated: serverTimestamp(),
-      paypalData: {
-        subscriptionId: subscriptionId,
-        planId: plan.paypalPlanId,
-        amount: plan.price,
-        currency: 'USD',
-        ...subscriptionData
-      }
-    };
-
-    await updateDoc(doc(db, 'users', user.uid), updateData);
-
-    // Log subscription event for audit
-    await logAuditEvent('subscription_created', {
-      subscriptionId,
-      planKey,
-      planName: plan.name,
-      amount: plan.price,
-      conversionsLimit: plan.conversions
-    }, user);
-
-    console.log('Subscription updated successfully');
-    return updateData;
-  } catch (error) {
-    console.error('Error updating subscription:', error);
-    
-    // Log subscription error
-    await logAuditEvent('subscription_error', {
-      error: error.message,
-      subscriptionId,
-      planKey
-    }, user);
-
-    throw new Error(`Failed to update subscription: ${error.message}`);
-  }
-};
-
-const cancelUserSubscription = async (user) => {
-  if (!user) {
-    throw new Error('User not authenticated');
-  }
-
-  try {
-    const updateData = {
-      subscriptionStatus: 'cancelled',
-      subscriptionCancelledAt: serverTimestamp(),
-      lastUpdated: serverTimestamp()
-    };
-
-    await updateDoc(doc(db, 'users', user.uid), updateData);
-
-    // Log cancellation for audit
-    await logAuditEvent('subscription_cancelled', {
-      userId: user.uid,
-      cancellationDate: new Date().toISOString()
-    }, user);
-
-    console.log('Subscription cancelled successfully');
-    return updateData;
-  } catch (error) {
-    console.error('Error cancelling subscription:', error);
-    throw new Error(`Failed to cancel subscription: ${error.message}`);
-  }
-};
-
-const handleSubscriptionWebhook = async (webhookData) => {
-  try {
-    const { event_type, resource } = webhookData;
-    
-    switch (event_type) {
-      case 'BILLING.SUBSCRIPTION.ACTIVATED':
-        // Handle subscription activation
-        console.log('Subscription activated:', resource.id);
-        break;
-        
-      case 'BILLING.SUBSCRIPTION.CANCELLED':
-        // Handle subscription cancellation
-        console.log('Subscription cancelled:', resource.id);
-        break;
-        
-      case 'BILLING.SUBSCRIPTION.SUSPENDED':
-        // Handle subscription suspension
-        console.log('Subscription suspended:', resource.id);
-        break;
-        
-      default:
-        console.log('Unhandled webhook event:', event_type);
-    }
-  } catch (error) {
-    console.error('Webhook processing error:', error);
-    throw error;
-  }
-};
-// ==========================================
-// ENHANCED AUDIT TRAIL FUNCTIONS
-// ==========================================
-
-const getSessionId = () => {
-  let sessionId = sessionStorage.getItem('audit_session_id');
-  if (!sessionId) {
-    sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    sessionStorage.setItem('audit_session_id', sessionId);
-  }
-  return sessionId;
-};
-
-const logAuditEvent = async (eventType, eventData, user = null) => {
-  try {
-    const auditEntry = {
-      timestamp: serverTimestamp(),
-      eventType,
-      userId: user?.uid || 'anonymous',
-      userEmail: user?.email || 'anonymous',
-      sessionId: getSessionId(),
-      userAgent: navigator.userAgent.substring(0, 200), // Limit to prevent bloat
-      ipAddress: 'masked_for_privacy', // In production, you might want to capture this
-      eventData: {
-        ...eventData,
-        timestamp: new Date().toISOString()
-      },
-      compliance: {
-        dataClassification: 'CONFIDENTIAL',
-        regulatoryScope: 'CRS_OECD',
-        retentionPeriod: '7_YEARS'
-      },
-      browserInfo: {
-        language: navigator.language,
-        platform: navigator.platform,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      }
-    };
-
-    await addDoc(collection(db, AUDIT_COLLECTIONS.USER_ACTIONS), auditEntry);
-    console.log(`Audit Event Logged: ${eventType}`);
-  } catch (error) {
-    console.error('Audit logging failed:', error);
-    // Don't throw error to prevent disrupting user experience
-  }
-};
-
-const logFileProcessing = async (fileData, validationResults, user = null) => {
-  try {
-    const auditEntry = {
-      timestamp: serverTimestamp(),
-      userId: user?.uid || 'anonymous',
-      userEmail: user?.email || 'anonymous',
-      sessionId: getSessionId(),
-      fileMetadata: {
-        filename: fileData.name,
-        fileSize: fileData.size,
-        fileType: fileData.type,
-        lastModified: fileData.lastModified ? new Date(fileData.lastModified).toISOString() : null,
-        recordCount: validationResults.summary?.totalRows || 0,
-        validRecords: validationResults.summary?.validRows || 0,
-        invalidRecords: validationResults.summary?.invalidRows || 0
-      },
-      validationResults: {
-        canGenerate: validationResults.canGenerate,
-        errorCount: validationResults.criticalErrors?.length || 0,
-        warningCount: validationResults.warnings?.length || 0,
-        missingCriticalColumns: validationResults.missingColumns?.critical?.length || 0,
-        missingWarningColumns: validationResults.missingColumns?.warnings?.length || 0,
-        missingRecommendationColumns: validationResults.missingColumns?.recommendations?.length || 0
-      },
-      complianceFlags: {
-        containsPII: true,
-        dataClassification: 'CONFIDENTIAL',
-        regulatoryScope: 'CRS_OECD',
-        processingLawfulBasis: 'LEGITIMATE_INTEREST'
-      },
-      technicalMetadata: {
-        processingTimeMs: Date.now() - (validationResults.summary?.processingStartTime || Date.now()),
-        columnsDetected: Object.keys(validationResults.columnMappings || {}).length,
-        validationVersion: '2.0'
-      }
-    };
-
-    await addDoc(collection(db, AUDIT_COLLECTIONS.FILE_PROCESSING), auditEntry);
-    console.log('File processing audit logged');
-  } catch (error) {
-    console.error('File processing audit failed:', error);
-  }
-};
-
-const logXMLGeneration = async (conversionData, settingsUsed, user = null) => {
-  try {
-    const auditEntry = {
-      timestamp: serverTimestamp(),
-      userId: user?.uid || 'anonymous',
-      userEmail: user?.email || 'anonymous',
-      sessionId: getSessionId(),
-      conversionDetails: {
-        recordCount: conversionData.recordCount,
-        taxYear: settingsUsed.taxYear,
-        reportingCountry: settingsUsed.reportingFI.country,
-        messageRefId: settingsUsed.messageRefId,
-        xmlSizeBytes: conversionData.xml ? conversionData.xml.length : 0,
-        generationTimeMs: conversionData.processingTime || 0
-      },
-      institutionData: {
-        giinProvided: !!settingsUsed.reportingFI.giin,
-        institutionCountry: settingsUsed.reportingFI.country,
-        institutionNameProvided: !!settingsUsed.reportingFI.name,
-        addressProvided: !!settingsUsed.reportingFI.address
-      },
-      complianceMetadata: {
-        crsStandard: 'OECD_CRS_v2.0',
-        xmlValidation: 'PASSED',
-        dataMinimization: true,
-        purposeLimitation: 'CRS_REGULATORY_REPORTING',
-        schemaCompliance: 'CrsXML_v2.0.xsd'
-      },
-      qualityMetrics: {
-        accountsProcessed: conversionData.recordCount,
-        individualsCount: conversionData.individualsCount || 0,
-        organizationsCount: conversionData.organizationsCount || 0,
-        controllingPersonsCount: conversionData.controllingPersonsCount || 0
-      }
-    };
-
-    await addDoc(collection(db, AUDIT_COLLECTIONS.XML_GENERATION), auditEntry);
-    console.log('XML generation audit logged');
-  } catch (error) {
-    console.error('XML generation audit failed:', error);
-  }
-};
-
-// Enhanced data access logging
-const logDataAccess = async (accessType, dataDetails, user = null) => {
-  try {
-    const auditEntry = {
-      timestamp: serverTimestamp(),
-      userId: user?.uid || 'anonymous',
-      userEmail: user?.email || 'anonymous',
-      sessionId: getSessionId(),
-      accessType, // 'READ', 'WRITE', 'DELETE', 'EXPORT'
-      dataDetails,
-      compliance: {
-        lawfulBasis: 'LEGITIMATE_INTEREST',
-        dataCategory: 'FINANCIAL_DATA',
-        accessJustification: 'CRS_COMPLIANCE_PROCESSING'
-      }
-    };
-
-    await addDoc(collection(db, AUDIT_COLLECTIONS.DATA_ACCESS), auditEntry);
-  } catch (error) {
-    console.error('Data access audit failed:', error);
-  }
-};
-
-// ==========================================
-// ENHANCED ANALYTICS FUNCTIONS
-// ==========================================
-
-const trackEvent = (eventName, parameters = {}) => {
-  try {
-    if (analytics) {
-      const eventParams = {
-        timestamp: new Date().toISOString(),
-        session_id: getSessionId(),
-        user_type: parameters.user_type || 'unknown',
-        ...parameters
-      };
-
-      // Remove any PII before tracking
-      const sanitizedParams = Object.keys(eventParams).reduce((acc, key) => {
-        if (key !== 'email' && key !== 'user_id' && key !== 'personal_info') {
-          acc[key] = eventParams[key];
-        }
-        return acc;
-      }, {});
-
-      logEvent(analytics, eventName, sanitizedParams);
-      console.log(`📊 Analytics Event: ${eventName}`, sanitizedParams);
-    }
-  } catch (error) {
-    console.error('Analytics error:', error);
-  }
-};
-
-// Enhanced conversion tracking
-const trackConversion = (conversionData) => {
-  trackEvent('crs_conversion_completed', {
-    record_count: conversionData.recordCount,
-    file_type: conversionData.fileType,
-    tax_year: conversionData.taxYear,
-    user_type: conversionData.userType,
-    processing_time_ms: conversionData.processingTime,
-    validation_errors: conversionData.validationErrors || 0,
-    conversion_id: conversionData.conversionId
-  });
-};
-
-// User journey tracking
-const trackUserJourney = (step, additionalData = {}) => {
-  trackEvent('user_journey_step', {
-    step,
-    ...additionalData
-  });
-};
-
-// Error tracking with context
-const trackError = (error, context = {}) => {
-  trackEvent('error_occurred', {
-    error_message: error.message.substring(0, 100), // Limit length
-    error_type: error.name,
-    context_type: context.type || 'unknown',
-    user_action: context.userAction || 'unknown',
-    severity: context.severity || 'medium'
-  });
-};
-
-// ==========================================
-// ENHANCED AUTHENTICATION CONTEXT
+// AUTHENTICATION CONTEXT
 // ==========================================
 
 const AuthContext = createContext();
@@ -1547,18 +1316,13 @@ const AuthProvider = ({ children }) => {
       try {
         if (firebaseUser) {
           await loadUserData(firebaseUser);
-          trackUserJourney('user_authenticated', {
-            auth_method: firebaseUser.providerData[0]?.providerId || 'email'
-          });
         } else {
           setUser(null);
           setUserDoc(null);
-          trackUserJourney('user_logged_out');
         }
       } catch (error) {
         console.error('Auth state change error:', error);
         setAuthError(error.message);
-        trackError(error, { type: 'auth_state_change' });
       } finally {
         setLoading(false);
       }
@@ -1581,11 +1345,6 @@ const AuthProvider = ({ children }) => {
           lastLogin: serverTimestamp(),
           lastLoginIP: 'masked_for_privacy'
         });
-
-        await logAuditEvent('user_login', {
-          loginMethod: firebaseUser.providerData[0]?.providerId || 'email',
-          lastLogin: userData.lastLogin?.toDate?.() || null
-        }, firebaseUser);
         
       } else {
         // Create new user document
@@ -1617,16 +1376,6 @@ const AuthProvider = ({ children }) => {
         
         await setDoc(userDocRef, userData);
         setUserDoc(userData);
-
-        await logAuditEvent('user_registration', {
-          registrationMethod: userData.provider,
-          previousAnonymousUsage: userData.previousAnonymousUsage
-        }, firebaseUser);
-
-        trackEvent('user_registered', {
-          registration_method: userData.provider,
-          previous_anonymous_usage: userData.previousAnonymousUsage
-        });
       }
       
       setUser(firebaseUser);
@@ -1634,7 +1383,6 @@ const AuthProvider = ({ children }) => {
       console.error('Error loading user data:', error);
       setUser(firebaseUser);
       setUserDoc(null);
-      trackError(error, { type: 'user_data_loading' });
     }
   };
 
@@ -1678,17 +1426,10 @@ const AuthProvider = ({ children }) => {
       setUserDoc(userData);
       clearAnonymousUsage();
       
-      trackEvent('user_registered', {
-        registration_method: 'email',
-        has_company: !!company,
-        previous_anonymous_usage: userData.previousAnonymousUsage
-      });
-      
       return newUser;
     } catch (error) {
       const errorMessage = getFirebaseErrorMessage(error.code);
       setAuthError(errorMessage);
-      trackError(error, { type: 'user_registration', userAction: 'register' });
       throw new Error(errorMessage);
     }
   };
@@ -1705,15 +1446,10 @@ const AuthProvider = ({ children }) => {
       
       clearAnonymousUsage();
       
-      trackEvent('user_logged_in', {
-        login_method: 'email'
-      });
-      
       return loggedInUser;
     } catch (error) {
       const errorMessage = getFirebaseErrorMessage(error.code);
       setAuthError(errorMessage);
-      trackError(error, { type: 'user_login', userAction: 'login' });
       throw new Error(errorMessage);
     }
   };
@@ -1726,30 +1462,18 @@ const AuthProvider = ({ children }) => {
       
       clearAnonymousUsage();
       
-      trackEvent('user_logged_in', {
-        login_method: 'google'
-      });
-      
       return user;
     } catch (error) {
       const errorMessage = getFirebaseErrorMessage(error.code);
       setAuthError(errorMessage);
-      trackError(error, { type: 'google_signin', userAction: 'google_login' });
       throw new Error(errorMessage);
     }
   };
 
   const logout = async () => {
     try {
-      await logAuditEvent('user_logout', {
-        logoutTime: new Date().toISOString()
-      }, user);
-      
       await signOut(auth);
-      
-      trackEvent('user_logged_out');
     } catch (error) {
-      trackError(error, { type: 'user_logout' });
       throw error;
     }
   };
@@ -1758,14 +1482,9 @@ const AuthProvider = ({ children }) => {
     try {
       setAuthError(null);
       await sendPasswordResetEmail(auth, email);
-      
-      trackEvent('password_reset_requested', {
-        email_provided: !!email
-      });
     } catch (error) {
       const errorMessage = getFirebaseErrorMessage(error.code);
       setAuthError(errorMessage);
-      trackError(error, { type: 'password_reset' });
       throw new Error(errorMessage);
     }
   };
@@ -1784,20 +1503,8 @@ const AuthProvider = ({ children }) => {
           conversionsUsed: newUsage
         }));
         
-        await logAuditEvent('conversion_usage_updated', {
-          newUsageCount: newUsage,
-          planLimit: userDoc.conversionsLimit
-        }, user);
-        
-        trackEvent('usage_updated', {
-          new_usage: newUsage,
-          plan_limit: userDoc.conversionsLimit,
-          usage_percentage: (newUsage / userDoc.conversionsLimit) * 100
-        });
-        
         return newUsage;
       } catch (error) {
-        trackError(error, { type: 'usage_update' });
         throw error;
       }
     }
@@ -1855,8 +1562,9 @@ const getFirebaseErrorMessage = (errorCode) => {
       return 'An error occurred. Please try again.';
   }
 };
+
 // ==========================================
-// BUSINESS LOGIC FUNCTIONS (Enhanced)
+// BUSINESS LOGIC FUNCTIONS
 // ==========================================
 
 const getUserConversionStatus = (user, userDoc) => {
@@ -1949,825 +1657,6 @@ const GoogleIcon = ({ className = "w-5 h-5" }) => (
 );
 
 // ==========================================
-// REGISTRATION PROMPT COMPONENT (Enhanced)
-// ==========================================
-
-const RegistrationPrompt = ({ onRegister, onLogin, onClose }) => {
-  const anonymousStatus = canAnonymousUserConvert();
-
-  useEffect(() => {
-    trackUserJourney('registration_prompt_shown', {
-      anonymous_usage: anonymousStatus.used,
-      trigger: 'conversion_limit_reached'
-    });
-  }, []);
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="text-center">
-          <div className="mb-4">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <UserPlus className="w-8 h-8 text-blue-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              You've Used Your Free Trial
-            </h2>
-            <p className="text-gray-600 mb-4">
-              You've used all <strong>{ANONYMOUS_LIMIT} free conversions</strong>. Register now to get <strong>3 more conversions</strong> and unlock additional features!
-            </p>
-          </div>
-          
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-green-800 mb-2">What you get after registration:</h3>
-            <ul className="text-sm text-green-700 space-y-1 text-left">
-              <li>• <strong>3 additional free conversions</strong></li>
-              <li>• Save your conversion history</li>
-              <li>• Priority email support</li>
-              <li>• Usage analytics dashboard</li>
-              <li>• Upgrade options for more conversions</li>
-            </ul>
-          </div>
-          
-          <div className="space-y-3">
-            <button
-              onClick={() => {
-                trackUserJourney('clicked_register_from_prompt');
-                onRegister();
-              }}
-              className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center"
-            >
-              Register for 3 More Free Conversions
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </button>
-            
-            <button
-              onClick={() => {
-                trackUserJourney('clicked_login_from_prompt');
-                onLogin();
-              }}
-              className="w-full py-2 text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Already have an account? Sign In
-            </button>
-          </div>
-          
-          <div className="mt-4 text-xs text-gray-500">
-            Total: {ANONYMOUS_LIMIT} anonymous + 3 registered = 6 free conversions
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// ENHANCED AUTHENTICATION MODAL
-// ==========================================
-
-const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
-  const { login, register, signInWithGoogle, resetPassword, authError } = useAuth();
-  const [isLogin, setIsLogin] = useState(initialMode === 'login');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [showResetForm, setShowResetForm] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    displayName: '',
-    company: ''
-  });
-
-  useEffect(() => {
-    if (isOpen) {
-      trackUserJourney('auth_modal_opened', {
-        mode: initialMode
-      });
-    }
-  }, [isOpen, initialMode]);
-
-  useEffect(() => {
-    if (authError) {
-      setMessage(authError);
-      setLoading(false);
-    }
-  }, [authError]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('');
-    
-    try {
-      if (isLogin) {
-        await login(formData.email, formData.password);
-        setMessage('Successfully signed in!');
-        trackUserJourney('login_success', { method: 'email' });
-        setTimeout(() => {
-          onClose();
-          window.location.reload();
-        }, 1000);
-      } else {
-        await register(formData.email, formData.password, formData.displayName, formData.company);
-        setMessage('Account created! Please verify your email.');
-        trackUserJourney('registration_success', { 
-          method: 'email',
-          has_company: !!formData.company
-        });
-        setTimeout(() => {
-          onClose();
-          window.location.reload();
-        }, 2000);
-      }
-    } catch (error) {
-      setMessage(error.message);
-      trackError(error, { 
-        type: isLogin ? 'login_error' : 'registration_error',
-        userAction: isLogin ? 'login' : 'register'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
-    setMessage('');
-    
-    try {
-      await signInWithGoogle();
-      setMessage('Successfully signed in with Google!');
-      trackUserJourney('login_success', { method: 'google' });
-      setTimeout(() => {
-        onClose();
-        window.location.reload();
-      }, 1000);
-    } catch (error) {
-      setMessage(error.message);
-      trackError(error, { 
-        type: 'google_signin_error',
-        userAction: 'google_signin'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResetPassword = async () => {
-    if (!formData.email) {
-      setMessage('Please enter your email address first.');
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      await resetPassword(formData.email);
-      setMessage('Password reset email sent! Check your inbox.');
-      setShowResetForm(false);
-      trackUserJourney('password_reset_sent');
-    } catch (error) {
-      setMessage(error.message);
-      trackError(error, { type: 'password_reset_error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {showResetForm ? 'Reset Password' : (isLogin ? 'Sign In' : 'Create Account')}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        {!showResetForm && (
-          <p className="text-gray-600 mb-6">
-            {isLogin ? 'Access your dashboard and conversions' : 'Get 3 additional free conversions'}
-          </p>
-        )}
-
-        {showResetForm ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="your@email.com"
-                required
-              />
-            </div>
-
-            {message && (
-              <div className={`p-3 rounded-lg text-sm ${
-                message.includes('sent') || message.includes('Success')
-                  ? 'bg-green-50 text-green-700 border border-green-200' 
-                  : 'bg-red-50 text-red-700 border border-red-200'
-              }`}>
-                {message}
-              </div>
-            )}
-
-            <div className="flex space-x-3">
-              <button
-                onClick={handleResetPassword}
-                disabled={loading}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-semibold"
-              >
-                {loading ? 'Sending...' : 'Send Reset Email'}
-              </button>
-              <button
-                onClick={() => setShowResetForm(false)}
-                className="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Back
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="your@email.com"
-                  required
-                />
-              </div>
-
-              {!isLogin && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      name="displayName"
-                      value={formData.displayName}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="John Doe"
-                      required
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Company (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      name="company"
-                      value={formData.company}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Your Company Name"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
-                </label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-
-              {message && (
-                <div className={`p-3 rounded-lg text-sm ${
-                  message.includes('Success') || message.includes('created') 
-                    ? 'bg-green-50 text-green-700 border border-green-200' 
-                    : 'bg-red-50 text-red-700 border border-red-200'
-                }`}>
-                  {message}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-semibold transition-colors"
-              >
-                {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
-              </button>
-            </form>
-
-            <div className="mt-4">
-              <button
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full py-3 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center transition-colors"
-              >
-                <GoogleIcon className="w-5 h-5 mr-2" />
-                Sign {isLogin ? 'in' : 'up'} with Google
-              </button>
-            </div>
-
-            <div className="mt-6 text-center space-y-3">
-              <button
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setMessage('');
-                  trackUserJourney('switched_auth_mode', { 
-                    from: isLogin ? 'login' : 'register',
-                    to: !isLogin ? 'login' : 'register'
-                  });
-                }}
-                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-              >
-                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-              </button>
-
-              {isLogin && (
-                <div>
-                  <button
-                    onClick={() => setShowResetForm(true)}
-                    className="text-sm text-gray-600 hover:text-gray-700"
-                  >
-                    Forgot your password?
-                  </button>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// ENHANCED PRICING SECTION WITH PAYPAL
-// ==========================================
-
-const PricingSection = () => {
-  const { user, userDoc } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('register');
-  const [processingSubscription, setProcessingSubscription] = useState(null);
-  const paypalContainerRef = useRef(null);
-  
-  const handlePlanClick = async (planKey, plan) => {
-    trackUserJourney('pricing_plan_clicked', { 
-      plan: planKey,
-      price: plan.price,
-      user_type: user ? 'registered' : 'anonymous'
-    });
-    
-    if (planKey === 'free') {
-      if (!user) {
-        setAuthMode('register');
-        setShowAuthModal(true);
-      } else {
-        document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' });
-      }
-    } else if (planKey === 'enterprise') {
-      trackUserJourney('enterprise_contact_clicked');
-      window.open(`mailto:sales@iafrica.solutions?subject=Enterprise Plan Inquiry&body=Hi, I'm interested in the Enterprise plan for CRS XML conversion. Please contact me with more details.`);
-    } else {
-      // Professional plan with PayPal
-      if (!user) {
-        setAuthMode('register');
-        setShowAuthModal(true);
-        return;
-      }
-
-      setProcessingSubscription(planKey);
-      
-      try {
-        // Clear any existing PayPal buttons
-        if (paypalContainerRef.current) {
-          paypalContainerRef.current.innerHTML = '';
-        }
-
-        const paypalButtons = await createPayPalSubscription(
-          plan.paypalPlanId,
-          async (subscriptionId, subscriptionData) => {
-            try {
-              await updateUserSubscription(subscriptionId, planKey, user, subscriptionData);
-              
-              trackEvent('subscription_completed', {
-                plan: planKey,
-                subscription_id: subscriptionId,
-                amount: plan.price
-              });
-
-              alert(`Subscription activated! You now have ${plan.conversions} conversions per month.`);
-              window.location.reload();
-            } catch (error) {
-              console.error('Subscription update error:', error);
-              alert('Subscription payment successful, but there was an error updating your account. Please contact support.');
-            }
-          },
-          (error) => {
-            console.error('PayPal subscription error:', error);
-            trackError(error, { 
-              type: 'paypal_subscription_error',
-              plan: planKey
-            });
-            alert(`Subscription failed: ${error.message}. Please try again or contact support.`);
-            setProcessingSubscription(null);
-          }
-        );
-
-        if (paypalContainerRef.current && paypalButtons) {
-          paypalButtons.render(paypalContainerRef.current);
-        }
-      } catch (error) {
-        console.error('PayPal initialization error:', error);
-        alert('Unable to initialize PayPal. Please try again or contact support.');
-        setProcessingSubscription(null);
-      }
-    }
-  };
-  
-  return (
-    <>
-      <div id="pricing" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              Simple, Transparent Pricing
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Start free and scale as you grow. All plans include GDPR-compliant processing and professional XML output.
-            </p>
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {Object.entries(PRICING_PLANS).map(([key, plan]) => {
-              const isCurrentPlan = (userDoc?.plan || 'free') === key;
-              const isProcessing = processingSubscription === key;
-
-              return (
-                <div
-                  key={key}
-                  className={`relative rounded-2xl border-2 p-8 ${
-                    plan.popular
-                      ? 'border-blue-500 bg-blue-50 transform scale-105'
-                      : isCurrentPlan
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  } transition-all duration-300`}
-                >
-                  {plan.popular && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                      <span className="px-4 py-1 rounded-full text-sm font-medium text-white bg-blue-600">
-                        Most Popular
-                      </span>
-                    </div>
-                  )}
-
-                  {isCurrentPlan && (
-                    <div className="absolute -top-4 right-4">
-                      <span className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded-full">
-                        Current Plan
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="text-center mb-8">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                    
-                    <div className="flex items-baseline justify-center mb-2">
-                      <span className="text-5xl font-bold text-gray-900">
-                        ${plan.price}
-                      </span>
-                      {plan.price > 0 && (
-                        <span className="text-lg text-gray-600 ml-1">/month</span>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center justify-center mt-4 text-sm text-gray-600">
-                      <Zap className="w-4 h-4 mr-1 text-yellow-500" />
-                      {plan.conversions} conversions/month
-                    </div>
-                  </div>
-
-                  <ul className="space-y-4 mb-8">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-start">
-                        <Check className="w-5 h-5 text-green-500 mr-3 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700 text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* PayPal button container for professional plan */}
-                  {key === 'professional' && !isCurrentPlan && isProcessing && (
-                    <div 
-                      ref={paypalContainerRef}
-                      className="mb-4"
-                    ></div>
-                  )}
-
-                  {!isProcessing && (
-                    <button
-                      disabled={isCurrentPlan}
-                      onClick={() => handlePlanClick(key, plan)}
-                      className={`w-full py-3 px-6 rounded-lg font-semibold text-center transition-colors ${
-                        isCurrentPlan
-                          ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                          : plan.popular
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                          : key === 'free'
-                          ? 'bg-gray-800 hover:bg-gray-900 text-white'
-                          : 'bg-purple-600 hover:bg-purple-700 text-white'
-                      }`}
-                    >
-                      {isCurrentPlan ? 'Current Plan' : plan.buttonText}
-                      {!isCurrentPlan && <ArrowRight className="w-4 h-4 ml-2 inline" />}
-                    </button>
-                  )}
-
-                  {isProcessing && (
-                    <div className="text-center text-sm text-gray-600 mt-2">
-                      Loading PayPal...
-                    </div>
-                  )}
-
-                  {key === 'free' && (
-                    <p className="text-xs text-gray-500 text-center mt-3">
-                      No credit card required
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)}
-        initialMode={authMode}
-      />
-    </>
-  );
-};
-
-// ==========================================
-// NAVIGATION COMPONENT
-// ==========================================
-
-const Navigation = () => {
-  const { user, userDoc, logout } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authMode, setAuthMode] = useState('login');
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
-  };
-
-  const handleSignIn = () => {
-    setAuthMode('login');
-    setShowAuthModal(true);
-  };
-
-  const handleSignUp = () => {
-    setAuthMode('register');
-    setShowAuthModal(true);
-  };
-
-  const usageStatus = getUserConversionStatus(user, userDoc);
-
-  return (
-    <>
-      <nav className="bg-white shadow-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-red-500 bg-clip-text text-transparent">
-                iAfrica
-              </div>
-              <div className="hidden md:block">
-                <span className="text-lg font-semibold text-gray-900">Compliance Platform</span>
-                <span className="text-sm text-gray-500 ml-2">by {COMPANY_NAME}</span>
-              </div>
-            </div>
-
-            <div className="hidden md:flex items-center space-x-6">
-              <button 
-                onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
-                className="text-gray-700 hover:text-blue-600 font-medium"
-              >
-                Convert
-              </button>
-              
-              {user ? (
-                <>
-                  <div className="flex items-center space-x-3 pl-6 border-l border-gray-200">
-                    <div className="text-sm">
-                      <div className="font-medium text-gray-900">
-                        {userDoc?.displayName || user.email?.split('@')[0]}
-                      </div>
-                      <div className="text-gray-500 capitalize">
-                        {userDoc?.plan || 'free'} Plan ({usageStatus.remaining}/{usageStatus.limit})
-                      </div>
-                    </div>
-                    <button 
-                      onClick={handleLogout}
-                      className="p-2 text-gray-500 hover:text-gray-700"
-                      title="Sign Out"
-                    >
-                      <LogOut className="w-4 h-4" />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center space-x-3 text-sm">
-                    <div className="text-gray-600">
-                      Free Trial: {usageStatus.remaining}/{usageStatus.limit} remaining
-                    </div>
-                    <button 
-                      onClick={handleSignIn}
-                      className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50"
-                    >
-                      Sign In
-                    </button>
-                    <button 
-                      onClick={handleSignUp}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      Register Free
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <button 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)}
-        initialMode={authMode}
-      />
-    </>
-  );
-};
-
-// ==========================================
-// HERO SECTION
-// ==========================================
-
-const HeroSection = () => {
-  const { user } = useAuth();
-  const usageStatus = getUserConversionStatus(user, null);
-  
-  if (user) return null;
-
-  return (
-    <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 py-20">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center">
-          <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium mb-6">
-            <Sparkles className="w-4 h-4 mr-2" />
-            Try 3 conversions FREE • No registration required
-          </div>
-          
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Turn Your Financial Data Into
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Tax Authority Ready Reports</span> 
-            <span className="block">in Minutes</span>
-          </h1>
-          
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Transform your Excel/CSV financial data into compliant regulatory reports instantly. 
-            Try it now with <strong>{usageStatus.remaining} free conversions</strong> - no signup required!
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-            <button 
-              onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
-              className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center text-lg font-semibold"
-            >
-              Try Free Now ({usageStatus.remaining} conversions left)
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// VALIDATION RESULTS DISPLAY COMPONENT
-// ==========================================
-
-const ValidationResultsDisplay = ({ validation }) => {
-  if (!validation || Object.keys(validation).length === 0) return null;
-
-  return (
-    <div className="mt-4 p-4 border rounded-lg bg-white">
-      <h4 className="font-medium mb-3 text-gray-900">Validation Results</h4>
-      
-      {validation.canGenerate ? (
-        <div className="flex items-center text-green-600 text-sm mb-3">
-          <CheckCircle2 className="w-4 h-4 mr-2" />
-          Ready for XML conversion!
-        </div>
-      ) : (
-        <div className="flex items-center text-red-600 text-sm mb-3">
-          <AlertCircle className="w-4 h-4 mr-2" />
-          Critical errors must be fixed before conversion
-        </div>
-      )}
-
-      {/* Critical Errors */}
-      {validation.missingColumns?.critical?.length > 0 && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded mb-3">
-          <p className="font-medium text-red-800 mb-2">🚫 Critical Errors (Must Fix):</p>
-          <ul className="text-sm text-red-700 space-y-1">
-            {validation.missingColumns.critical.map((col, index) => (
-              <li key={index}>• {col.description}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Warnings */}
-      {validation.missingColumns?.warnings?.length > 0 && (
-        <div className="p-3 bg-orange-50 border border-orange-200 rounded mb-3">
-          <p className="font-medium text-orange-800 mb-2">⚠️ Warnings (Recommended):</p>
-          <ul className="text-sm text-orange-700 space-y-1">
-            {validation.missingColumns.warnings.map((col, index) => (
-              <li key={index}>• {col.description}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="text-sm text-gray-600 mt-3">
-        Summary: {validation.summary.validRows} rows ready, {validation.summary.invalidRows} with critical errors
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
 // MAIN CONVERTER COMPONENT  
 // ==========================================
 
@@ -2805,12 +1694,6 @@ const CRSConverter = () => {
       setData([]);
       setResult(null);
       setError(null);
-      
-      logAuditEvent('file_upload', {
-        filename: selectedFile.name,
-        fileSize: selectedFile.size,
-        fileType: selectedFile.type
-      }, user);
       processFile(selectedFile);
     }
   };
@@ -2843,24 +1726,10 @@ const CRSConverter = () => {
 
       const validation = validateCRSData(jsonData);
       setValidationResults(validation);
-      await logFileProcessing(file, validation, user);
-
       setData(jsonData);
-      trackEvent('file_processed', {
-        file_type: file.type,
-        record_count: jsonData.length,
-        is_valid: validation.canGenerate,
-        user_type: user ? 'registered' : 'anonymous'
-      });
 
     } catch (err) {
       console.error('File processing error:', err);
-      
-      await logAuditEvent('file_processing_error', {
-        filename: file.name,
-        error: err.message
-      }, user);  
-      
       setError(`Failed to process file: ${err.message}`);
     } finally {
       setProcessing(false);
@@ -2910,28 +1779,14 @@ const CRSConverter = () => {
     setError(null);
 
     try {
-      await logAuditEvent('xml_conversion_started', {
-        recordCount: data.length,
-        taxYear: settings.taxYear
-      }, user);	
-      
-      const xml = generateCRSXML(data, settings, validationResults);
+      // Updated to use CRS v3.0 function
+      const xml = generateCRSXMLv3(data, settings, validationResults);
       
       if (user && userDoc) {
         await updateUserUsage();
       } else {
         updateAnonymousUsage();
-        trackEvent('anonymous_conversion', {
-          file_type: file?.type || 'unknown',
-          record_count: data.length,
-          conversion_number: getAnonymousUsage().count
-        });
       }
-      
-      await logXMLGeneration({
-        recordCount: data.length,
-        xml: xml
-      }, settings, user);
 
       setResult({
         xml,
@@ -2940,24 +1795,9 @@ const CRSConverter = () => {
         timestamp: new Date().toISOString()
       });
 
-      trackEvent('conversion_success', {
-        record_count: data.length,
-        user_type: user ? 'registered' : 'anonymous'
-      });
-
     } catch (err) {
       console.error('Conversion error:', err);
-      
-      await logAuditEvent('xml_conversion_error', {
-        error: err.message,
-        recordCount: data.length
-      }, user);	
-      
       setError(`Conversion failed: ${err.message}`);
-      trackEvent('conversion_error', {
-        error: err.message,
-        user_type: user ? 'registered' : 'anonymous'
-      });
     } finally {
       setProcessing(false);
     }
@@ -2966,12 +1806,6 @@ const CRSConverter = () => {
   const handleDownload = () => {
     if (!result) return;
     
-    logAuditEvent('xml_download', {
-      filename: result.filename,
-      recordCount: result.recordCount,
-      fileSize: result.xml.length
-    }, user);
-
     const blob = new Blob([result.xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -2981,12 +1815,6 @@ const CRSConverter = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-
-    trackEvent('file_downloaded', {
-      file_type: 'xml',
-      record_count: result.recordCount,
-      user_type: user ? 'registered' : 'anonymous'
-    });
   };
 
   const handleSettingsChange = (section, field, value) => {
@@ -3012,7 +1840,7 @@ const CRSConverter = () => {
         <div className="max-w-4xl mx-auto px-6">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              CRS XML Converter
+              CRS v3.0 XML Converter
             </h2>
             <p className="text-xl text-gray-600">
               Convert your Excel/CSV data to regulatory-compliant CRS XML format
@@ -3064,7 +1892,53 @@ const CRSConverter = () => {
                       </span>
                     </div>
                   </div>
-                  <ValidationResultsDisplay validation={validationResults} />
+                  
+                  {/* Validation Results Display */}
+                  {validationResults && Object.keys(validationResults).length > 0 && (
+                    <div className="mt-4 p-4 border rounded-lg bg-white">
+                      <h4 className="font-medium mb-3 text-gray-900">Validation Results</h4>
+                      
+                      {validationResults.canGenerate ? (
+                        <div className="flex items-center text-green-600 text-sm mb-3">
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Ready for XML conversion!
+                        </div>
+                      ) : (
+                        <div className="flex items-center text-red-600 text-sm mb-3">
+                          <AlertCircle className="w-4 h-4 mr-2" />
+                          Critical errors must be fixed before conversion
+                        </div>
+                      )}
+
+                      {/* Critical Errors */}
+                      {validationResults.missingColumns?.critical?.length > 0 && (
+                        <div className="p-3 bg-red-50 border border-red-200 rounded mb-3">
+                          <p className="font-medium text-red-800 mb-2">🚫 Critical Errors (Must Fix):</p>
+                          <ul className="text-sm text-red-700 space-y-1">
+                            {validationResults.missingColumns.critical.map((col, index) => (
+                              <li key={index}>• {col.description}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Warnings */}
+                      {validationResults.missingColumns?.warnings?.length > 0 && (
+                        <div className="p-3 bg-orange-50 border border-orange-200 rounded mb-3">
+                          <p className="font-medium text-orange-800 mb-2">⚠️ Warnings (Recommended):</p>
+                          <ul className="text-sm text-orange-700 space-y-1">
+                            {validationResults.missingColumns.warnings.map((col, index) => (
+                              <li key={index}>• {col.description}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div className="text-sm text-gray-600 mt-3">
+                        Summary: {validationResults.summary?.validRows || 0} rows ready, {validationResults.summary?.invalidRows || 0} with critical errors
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -3167,7 +2041,7 @@ const CRSConverter = () => {
                 ) : (
                   <>
                     <Zap className="w-5 h-5 mr-2" />
-                    Convert to CRS XML
+                    Convert to CRS v3.0 XML
                   </>
                 )}
               </button>
@@ -3200,7 +2074,7 @@ const CRSConverter = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium text-green-800">
-                        Generated CRS XML Report
+                        Generated CRS v3.0 XML Report
                       </p>
                       <p className="text-sm text-green-600">
                         {result.recordCount} records • Tax Year {settings.taxYear} • Generated {new Date(result.timestamp).toLocaleString()}
@@ -3227,76 +2101,7 @@ const CRSConverter = () => {
           </div>
         </div>
       </div>
-
-      {/* Registration Prompt Modal */}
-      {showRegistrationPrompt && (
-        <RegistrationPrompt
-          onRegister={() => {
-            setShowRegistrationPrompt(false);
-            setAuthMode('register');
-            setShowAuthModal(true);
-          }}
-          onLogin={() => {
-            setShowRegistrationPrompt(false);
-            setAuthMode('login');
-            setShowAuthModal(true);
-          }}
-          onClose={() => setShowRegistrationPrompt(false)}
-        />
-      )}
-
-      {/* Auth Modal */}
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)}
-        initialMode={authMode}
-      />
     </>
-  );
-};
-
-// ==========================================
-// FEATURES SECTION
-// ==========================================
-
-const FeaturesSection = () => {
-  return (
-    <div id="features" className="py-20 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-6">
-            OECD CRS v2.0 Compliant
-          </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Generate XML reports that meet the latest regulatory standards
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ==========================================
-// FOOTER COMPONENT
-// ==========================================
-
-const Footer = () => {
-  return (
-    <footer className="bg-gray-900 text-white py-12">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center">
-          <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-red-400 bg-clip-text text-transparent mb-4">
-            iAfrica
-          </div>
-          <p className="text-gray-400 mb-4">
-            Professional compliance solutions for financial institutions worldwide.
-          </p>
-          <p className="text-sm text-gray-500">
-            © 2025 {COMPANY_NAME}. All rights reserved.
-          </p>
-        </div>
-      </div>
-    </footer>
   );
 };
 
@@ -3308,12 +2113,7 @@ const CRSXMLConverter = () => {
   return (
     <AuthProvider>
       <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <HeroSection />
-        <PricingSection />
         <CRSConverter />
-        <FeaturesSection />
-        <Footer />
       </div>
     </AuthProvider>
   );
