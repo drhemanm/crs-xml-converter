@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@crs/core": ["../../packages/core/src/index.ts"],
+      "@crs/ingest": ["../../packages/ingest/src/index.ts"],
+      "@crs/jurisdictions": ["../../packages/jurisdictions/src/index.ts"],
+      "@crs/validate": ["../../packages/validate/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts"]
+}
