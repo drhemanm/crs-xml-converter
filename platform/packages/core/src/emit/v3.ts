@@ -29,6 +29,7 @@ import type { FilingPlan, PlannedRecord } from "../lifecycle.js";
 import { MessageTypeIndic } from "../lifecycle.js";
 import {
   buildAddress,
+  childCtx,
   buildDocSpec,
   buildIndividual,
   buildMessageSpec,
@@ -110,7 +111,7 @@ function buildControllingPerson(
   );
 
   return el("ControllingPerson", {}, [
-    buildIndividual(cp.individual, { includeNationality: true }),
+    buildIndividual(cp.individual, { includeNationality: true }, { diagnostics, path, provenance: record.provenance }),
     cpType ? el("CtrlgPersonType", {}, [text(cpType)]) : undefined,
     cpSelfCert ? el("SelfCert", {}, [text(cpSelfCert)]) : undefined,
   ]);
@@ -136,8 +137,10 @@ function buildAccountHolder(
     selfCert ? el("SelfCert", {}, [text(selfCert)]) : undefined,
   ];
 
+  const ctx = { diagnostics, path, provenance: record.provenance };
+
   if (record.holder.kind === "individual") {
-    children.push(buildIndividual(record.holder, { includeNationality: true }));
+    children.push(buildIndividual(record.holder, { includeNationality: true }, ctx));
   } else {
     const org = record.holder;
     children.push(
@@ -145,7 +148,7 @@ function buildAccountHolder(
         ...org.residenceCountries.map((c) => el("ResCountryCode", {}, [text(c)])),
         ...buildOrganisationIdentifiers(org.identifiers),
         el("Name", {}, [text(org.name)]),
-        buildAddress(org.address),
+        buildAddress(org.address, childCtx(ctx, "/Organisation")),
       ]),
     );
     const holderType = valueOf(org.holderType);
@@ -237,7 +240,7 @@ export const v3Emitter: Emitter = {
     const allowSentinel = sentinelsPermitted(plan.reportingPeriod);
 
     const sendingCompanyIn = plan.reportingFi.identifiers[0]?.value;
-    const timestamp = `${plan.reportingPeriod.end}T00:00:00Z`;
+    const timestamp = plan.generatedAt;
 
     const fiDocSpec = buildDocSpec(
       plan.reportingFiRecord.docTypeIndic,
@@ -253,7 +256,10 @@ export const v3Emitter: Emitter = {
     // (CTS 80015). We always emit it, which is correct for FI-to-authority
     // domestic reporting where the FI identifies itself.
     const crsBody = el("CrsBody", {}, [
-      buildReportingFi(plan.reportingFi, fiDocSpec),
+      buildReportingFi(plan.reportingFi, fiDocSpec, {
+        diagnostics,
+        path: "/CRS_OECD/CrsBody",
+      }),
       plan.messageTypeIndic === MessageTypeIndic.NilReturn && accountReports.length === 0
         ? undefined
         : el("ReportingGroup", {}, accountReports),

@@ -18,8 +18,21 @@ import {
   type TaxIdentification,
   valueOf,
 } from "../model.js";
-import type { Diagnostic } from "../diagnostics.js";
+import { DiagnosticCode, error as diagError, type Diagnostic, type Provenance } from "../diagnostics.js";
 import type { FilingPlan } from "../lifecycle.js";
+
+/** Collects diagnostics while building a subtree, with a path for locating them. */
+export interface EmitCtx {
+  readonly diagnostics: Diagnostic[];
+  readonly path: string;
+  readonly provenance?: Provenance;
+}
+
+export const childCtx = (ctx: EmitCtx, segment: string): EmitCtx => ({
+  diagnostics: ctx.diagnostics,
+  path: `${ctx.path}${segment}`,
+  ...(ctx.provenance ? { provenance: ctx.provenance } : {}),
+});
 
 export interface EmitOptions {
   readonly indent?: boolean;
@@ -55,12 +68,36 @@ export function formatAmount(a: MonetaryAmount): string {
   return `${whole}.${cents}`;
 }
 
-export function buildAddress(a: Address, ns = "cfc"): XmlElement {
+/**
+ * Address.
+ *
+ * `City` is mandatory inside `AddressFix` in the OECD common types, so an
+ * absent city is an error rather than an omission — otherwise we emit an empty
+ * `<AddressFix/>` that the authority's validator will reject. Reporting it here
+ * turns a portal rejection days before a deadline into a fixable diagnostic
+ * pointing at the row.
+ */
+export function buildAddress(
+  a: Address,
+  ctx: { diagnostics: Diagnostic[]; path: string; provenance?: Provenance },
+  ns = "cfc",
+): XmlElement {
+  const city = valueOf(a.city);
+  if (city === undefined) {
+    ctx.diagnostics.push(
+      diagError(DiagnosticCode.MISSING_REQUIRED_VALUE, "City is required within an address.", {
+        path: `${ctx.path}/AddressFix/City`,
+        ...(ctx.provenance ? { provenance: ctx.provenance } : {}),
+        remediation: "Supply a city. The OECD address type makes it mandatory and it must not be substituted.",
+      }),
+    );
+  }
+
   return el("Address", { legalAddressType: a.type }, [
     el(`${ns}:CountryCode`, {}, [text(a.countryCode)]),
     el(`${ns}:AddressFix`, {}, [
       leaf(`${ns}:Street`, valueOf(a.street)),
-      leaf(`${ns}:City`, valueOf(a.city)),
+      leaf(`${ns}:City`, city),
       leaf(`${ns}:PostCode`, valueOf(a.postCode)),
       leaf(`${ns}:CountrySubentity`, valueOf(a.countrySubentity)),
     ]),
@@ -109,12 +146,13 @@ export function buildBirthInfo(b: BirthInfo): XmlElement | undefined {
 export function buildIndividual(
   i: Individual,
   opts: { includeNationality: boolean },
+  ctx: EmitCtx,
 ): XmlElement {
   const children: Array<XmlNode | undefined> = [
     ...i.residenceCountries.map((c) => el("ResCountryCode", {}, [text(c)])),
     ...buildTins(i.tins),
     buildPersonName(i.name),
-    buildAddress(i.address),
+    buildAddress(i.address, childCtx(ctx, "/Individual")),
   ];
   if (opts.includeNationality) {
     const nat = valueOf(i.nationality);
@@ -125,21 +163,25 @@ export function buildIndividual(
   return el("Individual", {}, children);
 }
 
-export function buildOrganisation(o: Organisation): XmlElement {
+export function buildOrganisation(o: Organisation, ctx: EmitCtx): XmlElement {
   return el("Organisation", {}, [
     ...o.residenceCountries.map((c) => el("ResCountryCode", {}, [text(c)])),
     ...buildOrganisationIdentifiers(o.identifiers),
     el("Name", {}, [text(o.name)]),
-    buildAddress(o.address),
+    buildAddress(o.address, childCtx(ctx, "/Organisation")),
   ]);
 }
 
-export function buildReportingFi(fi: ReportingFinancialInstitution, docSpec: XmlElement): XmlElement {
+export function buildReportingFi(
+  fi: ReportingFinancialInstitution,
+  docSpec: XmlElement,
+  ctx: EmitCtx,
+): XmlElement {
   return el("ReportingFI", {}, [
     el("ResCountryCode", {}, [text(fi.residenceCountry)]),
     ...buildOrganisationIdentifiers(fi.identifiers),
     el("Name", {}, [text(fi.name)]),
-    buildAddress(fi.address),
+    buildAddress(fi.address, childCtx(ctx, "/ReportingFI")),
     docSpec,
   ]);
 }

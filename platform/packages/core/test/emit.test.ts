@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   InMemoryLedger,
+  notReported,
   planNewFiling,
   v2Emitter,
   v3Emitter,
   findCharsetViolations,
   type FilingPlan,
+  type Individual,
 } from "../src/index.js";
 import { completeRecord, period2025, planContext, recordWithoutSelfCert } from "./fixtures.js";
 
@@ -102,6 +104,36 @@ describe("fabricated data", () => {
     const { xml } = v3Emitter.emit(planFor());
     expect(xml).not.toContain("<cfc:PostCode>");
     expect(xml).not.toContain("<cfc:PostCode/>");
+  });
+
+  /**
+   * City is mandatory inside AddressFix in the OECD common types. Emitting an
+   * empty <AddressFix/> would be rejected by the authority's validator, so a
+   * missing city has to be an error here rather than a silent omission.
+   */
+  it("reports a missing city instead of emitting an empty AddressFix", () => {
+    const base = completeRecord();
+    const record = completeRecord({
+      holder: {
+        ...(base.holder as Individual),
+        address: { ...(base.holder as Individual).address, city: notReported },
+      },
+    });
+    const { xml, diagnostics } = v3Emitter.emit(planFor([record]));
+
+    expect(xml).not.toContain("<cfc:AddressFix/>");
+    const cityError = diagnostics.find((d) => /City is required/.test(d.message));
+    expect(cityError?.severity).toBe("error");
+    expect(cityError?.path).toContain("AddressFix/City");
+  });
+});
+
+describe("message metadata", () => {
+  it("uses the plan's generation time as the Timestamp, not the period end", () => {
+    const plan = planFor();
+    const { xml } = v3Emitter.emit(plan);
+    expect(xml).toContain(`<Timestamp>${plan.generatedAt}</Timestamp>`);
+    expect(xml).not.toContain("<Timestamp>2026-12-31T00:00:00Z</Timestamp>");
   });
 });
 

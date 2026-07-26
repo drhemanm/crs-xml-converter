@@ -18,7 +18,9 @@ import type { FilingPlan, PlannedRecord } from "../lifecycle.js";
 import { MessageTypeIndic } from "../lifecycle.js";
 import {
   buildAddress,
+  childCtx,
   buildDocSpec,
+  type EmitCtx,
   buildIndividual,
   buildMessageSpec,
   buildOrganisationIdentifiers,
@@ -37,20 +39,22 @@ const NS = {
   xsi: "http://www.w3.org/2001/XMLSchema-instance",
 } as const;
 
-function buildControllingPerson(cp: ControllingPerson): XmlElement {
+function buildControllingPerson(cp: ControllingPerson, ctx: EmitCtx): XmlElement {
   // v2.0 carries CtrlgPersonType but has no per-CP SelfCert element.
   const cpType = valueOf(cp.type);
   return el("ControllingPerson", {}, [
-    buildIndividual(cp.individual, { includeNationality: false }),
+    buildIndividual(cp.individual, { includeNationality: false }, childCtx(ctx, "/ControllingPerson")),
     cpType ? el("CtrlgPersonType", {}, [text(cpType)]) : undefined,
   ]);
 }
 
 function buildAccountHolder(record: AccountRecord, diagnostics: Diagnostic[]): XmlElement {
   const children: Array<XmlNode | undefined> = [];
+  const path = "/CRS_OECD/CrsBody/ReportingGroup/AccountReport/AccountHolder";
+  const ctx: EmitCtx = { diagnostics, path, provenance: record.provenance };
 
   if (record.holder.kind === "individual") {
-    children.push(buildIndividual(record.holder, { includeNationality: false }));
+    children.push(buildIndividual(record.holder, { includeNationality: false }, ctx));
   } else {
     const org = record.holder;
     children.push(
@@ -58,7 +62,7 @@ function buildAccountHolder(record: AccountRecord, diagnostics: Diagnostic[]): X
         ...org.residenceCountries.map((c) => el("ResCountryCode", {}, [text(c)])),
         ...buildOrganisationIdentifiers(org.identifiers),
         el("Name", {}, [text(org.name)]),
-        buildAddress(org.address),
+        buildAddress(org.address, childCtx(ctx, "/Organisation")),
       ]),
     );
     const holderType = valueOf(org.holderType);
@@ -70,7 +74,7 @@ function buildAccountHolder(record: AccountRecord, diagnostics: Diagnostic[]): X
           DiagnosticCode.MISSING_REQUIRED_VALUE,
           "Account holder type (AcctHolderType) is required for organisation account holders.",
           {
-            path: "/CRS_OECD/CrsBody/ReportingGroup/AccountReport/AccountHolder/AcctHolderType",
+            path: `${path}/AcctHolderType`,
             provenance: record.provenance,
             remediation: "Supply CRS101, CRS102 or CRS103.",
           },
@@ -129,7 +133,13 @@ function buildAccountReport(planned: PlannedRecord, diagnostics: Diagnostic[]): 
       [text(record.accountNumber)],
     ),
     buildAccountHolder(record, diagnostics),
-    ...record.controllingPersons.map((cp) => buildControllingPerson(cp)),
+    ...record.controllingPersons.map((cp) =>
+      buildControllingPerson(cp, {
+        diagnostics,
+        path: "/CRS_OECD/CrsBody/ReportingGroup/AccountReport",
+        provenance: record.provenance,
+      }),
+    ),
     el("AccountBalance", { currCode: record.balance.currency }, [text(formatAmount(record.balance))]),
     ...record.payments.map((p) =>
       el("Payment", {}, [
@@ -146,7 +156,7 @@ export const v2Emitter: Emitter = {
   emit(plan: FilingPlan, options: EmitOptions = {}): EmitResult {
     const diagnostics: Diagnostic[] = [];
     const sendingCompanyIn = plan.reportingFi.identifiers[0]?.value;
-    const timestamp = `${plan.reportingPeriod.end}T00:00:00Z`;
+    const timestamp = plan.generatedAt;
 
     const fiDocSpec = buildDocSpec(
       plan.reportingFiRecord.docTypeIndic,
@@ -159,7 +169,10 @@ export const v2Emitter: Emitter = {
       .filter((x): x is XmlElement => x !== undefined);
 
     const crsBody = el("CrsBody", {}, [
-      buildReportingFi(plan.reportingFi, fiDocSpec),
+      buildReportingFi(plan.reportingFi, fiDocSpec, {
+        diagnostics,
+        path: "/CRS_OECD/CrsBody",
+      }),
       plan.messageTypeIndic === MessageTypeIndic.NilReturn && accountReports.length === 0
         ? undefined
         : el("ReportingGroup", {}, accountReports),

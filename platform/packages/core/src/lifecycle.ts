@@ -95,6 +95,8 @@ export interface PlannedRecord {
 
 export interface FilingPlan {
   readonly messageRefId: MessageRefId;
+  /** When this plan was produced. Emitted as MessageSpec/Timestamp. */
+  readonly generatedAt: string;
   readonly messageTypeIndic: MessageTypeIndic;
   readonly environment: Environment;
   readonly schemaTarget: SchemaTarget;
@@ -258,6 +260,7 @@ export function planNewFiling(ctx: PlanContext, records: readonly AccountRecord[
 
   return {
     messageRefId: msgRef.value,
+    generatedAt: ctx.now(),
     messageTypeIndic: MessageTypeIndic.New,
     environment: ctx.environment,
     schemaTarget: ctx.schemaTarget,
@@ -471,6 +474,7 @@ export function planCorrection(
 
   return {
     messageRefId: msgRef.value,
+    generatedAt: ctx.now(),
     messageTypeIndic: MessageTypeIndic.Corrections,
     environment: ctx.environment,
     schemaTarget: ctx.schemaTarget,
@@ -564,6 +568,7 @@ export function planReportingFiDeletion(
 
   return {
     messageRefId: msgRef.value,
+    generatedAt: ctx.now(),
     messageTypeIndic: MessageTypeIndic.Corrections,
     environment: ctx.environment,
     schemaTarget: ctx.schemaTarget,
@@ -596,6 +601,7 @@ export function planNilReturn(ctx: PlanContext): FilingPlan | Diagnostic[] {
 
   return {
     messageRefId: msgRef.value,
+    generatedAt: ctx.now(),
     messageTypeIndic: MessageTypeIndic.NilReturn,
     environment: ctx.environment,
     schemaTarget: ctx.schemaTarget,

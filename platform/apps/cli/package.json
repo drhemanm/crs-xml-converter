@@ -1,0 +1,17 @@
+{
+  "name": "@crs/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "crs": "./src/index.ts" },
+  "scripts": {
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@crs/core": "workspace:*",
+    "@crs/ingest": "workspace:*",
+    "@crs/jurisdictions": "workspace:*",
+    "@crs/validate": "workspace:*",
+    "csv-parse": "^5.6.0"
+  }
+}

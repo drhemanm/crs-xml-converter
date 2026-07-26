@@ -4,12 +4,14 @@
   "private": true,
   "description": "CRS/AEOI filing system of record",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "pnpm -r --filter './packages/**' build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -b --pretty",
+    "typecheck": "tsc -p packages/core/tsconfig.json && tsc -p packages/jurisdictions/tsconfig.json && tsc -p packages/ingest/tsconfig.json && tsc -p packages/validate/tsconfig.json && tsc -p apps/cli/tsconfig.json",
     "cli": "tsx apps/cli/src/index.ts"
   },
   "devDependencies": {
@@ -17,5 +19,8 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "libxml2-wasm": "^0.7.1"
   }
 }
