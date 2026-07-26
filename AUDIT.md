@@ -15,11 +15,24 @@ The core product (Excel/CSV → CRS v3.0 XML conversion in the browser) is funct
 
 Additionally, the Firestore rules for audit collections are broken (audit writes are silently denied), the GDPR data-request portal is a stub that stores requests in the requester's own browser, and stated retention policies contradict what the code does. Several "GDPR compliant / 7-year retention / 100% XSD validated" claims in the UI and audit metadata are not backed by the implementation, which is a real exposure for a regulatory-compliance product.
 
-Severity counts: **6 critical, 7 high, 8 medium, 7 low.**
+Severity counts: **7 critical, 7 high, 8 medium, 7 low.**
+
+> **Update (added after CRS domain research):** a seventh critical finding, **C0**, was added below and is more serious than any security issue here — the generator fabricates self-certification attestations when source data is missing, causing institutions to make false statements to their tax authority. See also `CONCEPT.md` for a strategic and architectural assessment of whether this product concept is sound.
 
 ---
 
 ## Critical findings
+
+### C0. Fabricated regulatory attestations in generated filings — highest severity
+*(Added after CRS domain research; see `CONCEPT.md` §2.5 for the full analysis.)*
+
+When a source column is missing, `mapDataToCRS` does not fail and does not mark the value unknown — it substitutes a compliant-looking default (`CRSXMLConverter.js:1346-1351`, `:1396`, `:1419-1422`). Most seriously, `SelfCert` defaults to **`CRS901`** and controlling-person `SelfCert` to **`CRS1001`** — both meaning *"a valid self-certification was obtained."*
+
+An institution that uploads a spreadsheet with no `self_cert` column will therefore file a return asserting, for every account, that it holds a valid self-certification — the cornerstone due-diligence obligation under CRS. If it does not hold them, the institution has made a false statement to its tax authority, produced by a tool that reported the output as "100% compliant."
+
+The schema provides the honest alternative and the code ignores it: the "not reported" sentinels `CRS900` / `CRS1000` / `CRS1100` / `CRS1200` / `CRS800` are declared in this file (`:172-217`) and never used. Their validity is gated on reporting period (not usable for periods after 2025-12-31, valid for earlier ones), so the fix must branch on `ReportingPeriod`.
+
+**Fix:** treat missing required data as a hard stop, or emit the period-appropriate "not reported" sentinel. Never a plausible default. Same applies to the `"Not Provided"` street/city and `"XX"` country-code substitutions at `:1587-1590` (finding M4).
 
 ### C1. Users can self-upgrade to any plan (broken access control)
 `firestore.rules:5-7` gives the account owner unrestricted `write` on `users/{userId}`:
