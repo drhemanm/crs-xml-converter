@@ -62,7 +62,11 @@ packages/
   validate/       XSD validation via libxml2-wasm (browser and Node, same path)
 apps/
   cli/            End-to-end reference implementation
+  web/            React + Vite front end over the same packages
 ```
+
+Both apps are thin. All domain logic lives in `packages/`, which is why the CLI
+and the browser produce byte-identical output from the same input.
 
 The core returns `LedgerMutation`s rather than writing anything, so planning is
 testable without a database and mutations are persisted only once a filing is
@@ -110,6 +114,17 @@ pnpm cli correct fixed.csv --jurisdiction MU --fi-name "Banque X" --fi-id MU1020
 
 The correction command derives `CorrDocRefId` from the ledger. Nobody types a
 200-character identifier.
+
+For the web app:
+
+```bash
+pnpm --filter @crs/web dev
+```
+
+Account data never leaves the browser, and that is verifiable rather than
+asserted: a CSP with `connect-src 'self'` blocks any other origin, and a
+headless run driving upload through generation records zero external requests.
+Open the network panel and check.
 
 ## Jurisdiction packs
 
