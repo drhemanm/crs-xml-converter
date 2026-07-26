@@ -1,0 +1,146 @@
+# Platform Audit — CRS XML Converter SaaS
+
+**Date:** 2026-07-26
+**Scope:** Full repository — React frontend, Firebase (Auth/Firestore/Functions), Vercel serverless API, PayPal billing, Firestore security rules, configuration, and compliance posture.
+
+---
+
+## Executive summary
+
+The core product (Excel/CSV → CRS v3.0 XML conversion in the browser) is functional and reasonably built, but the platform around it has **critical security and revenue-integrity flaws**. The three most serious problems:
+
+1. **Any signed-in user can grant themselves an unlimited Enterprise plan** — Firestore rules let users write their own `users/{uid}` document, where `plan`, `conversionsLimit`, `conversionsUsed`, and even `role: 'admin'` live. All entitlement enforcement is client-side.
+2. **The PayPal webhook accepts forged events** — neither webhook implementation verifies PayPal's signature, so an unauthenticated `POST` can activate a subscription for any account.
+3. **Paying is actually impossible** — the pricing/checkout UI is never rendered, the checkout component charges one-time prices ($29/$99) that don't match the advertised plans ($79/$299), and one-time payments would never trigger the subscription webhook that upgrades accounts anyway.
+
+Additionally, the Firestore rules for audit collections are broken (audit writes are silently denied), the GDPR data-request portal is a stub that stores requests in the requester's own browser, and stated retention policies contradict what the code does. Several "GDPR compliant / 7-year retention / 100% XSD validated" claims in the UI and audit metadata are not backed by the implementation, which is a real exposure for a regulatory-compliance product.
+
+Severity counts: **6 critical, 7 high, 8 medium, 7 low.**
+
+---
+
+## Critical findings
+
+### C1. Users can self-upgrade to any plan (broken access control)
+`firestore.rules:5-7` gives the account owner unrestricted `write` on `users/{userId}`:
+
+```
+match /users/{userId} {
+  allow read, write: if request.auth != null && request.auth.uid == userId;
+}
+```
+
+The same document stores the billing entitlements the app enforces (`plan`, `conversionsLimit`, `conversionsUsed`, `subscriptionStatus` — see `CRSXMLConverter.js:2030-2059`). Any user can run one `updateDoc` from the browser console and get `plan: 'enterprise'`, `conversionsLimit: 10^9`, `conversionsUsed: 0`. Quota checks (`getUserConversionStatus`, `CRSXMLConverter.js:554`) run entirely client-side against this user-writable data.
+
+**Fix:** Split entitlements out of the user-writable document (e.g. `users/{uid}/private/entitlements` writable only by Admin SDK / Cloud Functions), or restrict the rule with `request.resource.data.diff(resource.data).affectedKeys().hasOnly([...safe fields...])`. Enforce quota server-side (see C4).
+
+### C2. PayPal webhooks are not verified — forged subscription activation
+Both webhook handlers process events with **no signature verification**:
+- `functions/index.js:10-60` — reads `functions.config().paypal?.webhook_id` into a variable and never uses it. CORS is opened to `*` for good measure.
+- `api/paypal-webhook.js:16-50` — same pattern with `process.env.PAYPAL_WEBHOOK_ID`, and its event handlers are empty stubs.
+
+`handleSubscriptionActivated` (`functions/index.js:73-145`) looks up the user **by the email inside the attacker-supplied payload** and upgrades them. An unauthenticated `curl` with `event_type: BILLING.SUBSCRIPTION.ACTIVATED`, your own email, and plan ID `P-85257906JW695051MNCWWEIQ` yields a free Enterprise plan.
+
+**Fix:** Verify every event with PayPal's `/v1/notifications/verify-webhook-signature` API (or validate the transmission headers against the webhook cert) before acting; reject on failure. Delete whichever of the two handlers isn't the live one.
+
+### C3. Admin check is defeatable via C1 (`role` is user-writable)
+`manualResetUser` (`functions/index.js:336-368`) gates on `users/{uid}.role === 'admin'` — but per C1 users can write `role: 'admin'` into their own document, then reset any user's quota (the target `userId` is caller-supplied). **Fix:** use Firebase custom claims for admin, not a user-writable field.
+
+### C4. All usage metering and limits are client-enforced
+- Anonymous limit: `localStorage` (`CRSXMLConverter.js:358-416`) — cleared in two clicks, or bypassed with incognito.
+- Registered limit: checked in the browser and incremented by the browser (`updateUserUsage`, `CRSXMLConverter.js:2229`); a user who blocks that write converts for free forever.
+- XML generation itself happens fully client-side, so nothing stops a tampered client.
+
+**Fix:** If quotas matter commercially, move conversion (or at least a signed "conversion token" issuance/decrement) behind a Cloud Function with server-side counting via a Firestore transaction.
+
+### C5. The payment funnel is broken end-to-end (revenue integrity)
+- `PayPalCheckout.js` is **never imported or rendered anywhere** — there is no upgrade/pricing UI in the app, so no customer can ever pay.
+- If it were rendered: it creates **one-time orders** at `$29/$99` (`PayPalCheckout.js:6-9`) while `PRICING_PLANS` advertises **subscriptions** at `$79/$299` (`CRSXMLConverter.js:89-144`), and `analytics.js` values them at `$29/$99` again.
+- One-time orders never emit `BILLING.SUBSCRIPTION.*` events, so even a successful payment would never upgrade the account. The order amount is also entirely client-controlled and never verified server-side.
+
+**Fix:** Decide the model (subscriptions, given the webhook), render a pricing section using `PayPalButtons` with `createSubscription({plan_id})`, and reconcile all price constants. Grant entitlements only from the verified webhook (C2).
+
+### C6. Secrets/config committed to the repository
+`.env` is committed (added 2025-08-26) despite being listed in `.gitignore`, and `.gitignore` itself has a PayPal client ID pasted into it (`.gitignore:32-33`). The Firebase web config and PayPal client ID are public-by-design values, but `PAYPAL_WEBHOOK_ID` is server config, and committing `.env` files sets the pattern that will eventually leak a real secret. **Fix:** `git rm --cached .env`, clean the `.gitignore` stray lines, move server config to Vercel/Firebase secret storage, and rotate the webhook ID. Also enable Firebase API-key referrer restrictions.
+
+---
+
+## High-severity findings
+
+### H1. Audit-trail Firestore rules are broken — audit logging silently fails
+Every audit `create` rule tests `resource.data.userId` (`firestore.rules:10-42`). On a `create`, `resource` does not exist — the correct object is `request.resource.data` — so the condition errors → denies. The anonymous catch-all block (`firestore.rules:39-42`) has the same bug **and** still implicitly requires auth context evaluation; unauthenticated writes are denied too. Net effect: **every `addDoc` to the audit collections fails**, and the app swallows the error with `console.error` (`logAuditEvent`, `CRSXMLConverter.js:486-488`). The product's advertised compliance audit trail does not exist in production.
+
+**Fix:** Use `request.resource.data.userId == request.auth.uid` (create-only, no client read/update/delete), or better: write audit entries from a Cloud Function so clients can't forge them at all. Add an integration test against the Firestore emulator.
+
+### H2. Retention claims contradict the code
+Audit entries are stamped `retentionPeriod: '7_YEARS'` (`CRSXMLConverter.js:475`), while `cleanupAuditLogs` deletes anything older than **90 days** (`functions/index.js:284-333`). For a CRS compliance product, misstating audit retention is a serious legal exposure. Pick one policy and make code, privacy policy, and metadata agree.
+
+### H3. GDPR Data Request Portal is a façade
+`DataRequestPortal.js:79-108` "submits" access/erasure/rectification requests to `localStorage` in the requester's own browser after a fake 2-second delay. No one at the company is ever notified. Users are led to believe they exercised statutory rights (30-day deadlines are displayed). **Fix:** persist requests to a backend (Firestore collection + email notification via a Cloud Function) or replace the portal with a mailto flow until one exists.
+
+### H4. Known-vulnerable and end-of-life dependencies
+- `xlsx@0.18.5` — known prototype-pollution (CVE-2023-30533) and ReDoS (CVE-2024-22363) advisories; the npm package is abandoned (SheetJS distributes fixed builds from its own registry). This library parses untrusted uploaded files — the single most exposed code path in the app.
+- Cloud Functions pinned to **Node 18** (`functions/package.json:12`) — deprecated/decommissioned on Cloud Functions; deploys will be blocked.
+- `firebase-functions@4` with `functions.config()` — the `functions.config()` API is shut down (March 2026 deadline); `resetMonthlyLimits`/`pubsub.schedule` v1 style also needs migration to v2.
+- `react-scripts@5` (CRA) is deprecated/unmaintained.
+
+### H5. Webhook duplication and dead code
+Two divergent webhook implementations exist (`api/paypal-webhook.js` on Vercel, `functions/index.js` on Firebase). The Vercel one has empty handler stubs (`// ... existing code`), meaning if PayPal points there, **nothing happens at all** on payment events. Keep exactly one, delete the other.
+
+### H6. `resetMonthlyLimits` breaks at >500 users
+Single `WriteBatch` for all active users (`functions/index.js:250-265`); Firestore batches cap at 500 ops, so the monthly reset throws and **no one's quota resets** once the user base passes 500. Chunk into batches of ≤500 (`cleanupAuditLogs` already does this correctly).
+
+### H7. Missing modern security headers
+`vercel.json` sets only `X-Content-Type-Options`, `X-Frame-Options`, and the deprecated `X-XSS-Protection`. No **Content-Security-Policy**, **Strict-Transport-Security**, **Referrer-Policy**, or **Permissions-Policy**; `firebase.json` hosting sets none at all. Given the app handles financial PII in-browser and loads the PayPal SDK, a CSP is the main XSS backstop.
+
+---
+
+## Medium-severity findings
+
+- **M1. PII flows into logs and analytics.** Audit entries store `userEmail` in plaintext; `console.log` sprinkles user/session data into the browser console; `analytics.js`'s duplicate `trackEvent` lacks the PII sanitization the in-component version has (`CRSXMLConverter.js:505-510`). Two competing `trackEvent` implementations invite the unsanitized one being imported.
+- **M2. "100% XSD compliant" is asserted, never verified.** No XSD validation is performed anywhere (browser can't easily do it); the string "100% XSD" appears ~40 times in UI copy and audit metadata (`xmlValidation: 'PASSED'` is hardcoded, `CRSXMLConverter.js:1926`). For a compliance tool, either actually validate (server-side `libxmljs`/`xmllint` against `CrsXML_v3.0.xsd`) or soften the claim.
+- **M3. XML correctness gaps.** `targetNamespace` is an XSD-schema attribute and doesn't belong on an instance document root (`CRSXMLConverter.js:1808`); `ReceivingCountry` is hardcoded to the FI's own country (`:1815`) — it should be the receiving jurisdiction; `DocRefId`/`MessageRefId` formats (`'MU2024MU' + base36`) don't follow the OECD/jurisdiction-mandated pattern (typically `<country><year><GIIN>...`); ambiguous date parsing tries DD/MM then MM/DD (`:1520-1526`) — silent misinterpretation of birth dates.
+- **M4. Fabricated fallback data in regulatory output.** Missing street/city become `"Not Provided"`, missing country codes become `"XX"` (`generateAddress`, `CRSXMLConverter.js:1587-1590`). Submitting placeholder values to tax authorities is worse than failing loudly.
+- **M5. Firebase config in Cloud Function env for Vercel API.** `firebase-admin-config.js` expects `FIREBASE_PRIVATE_KEY` in Vercel env — acceptable, but there's no runtime guard: a missing var yields a cryptic crash inside the webhook `try` and returns 500 to PayPal forever (no dead-letter/retry handling, no idempotency — replayed events double-append history records).
+- **M6. Webhook handlers never dedupe events.** PayPal redelivers; `payment_history`/`subscription_history`/`paypal_events` will accumulate duplicates. Key writes by `event.id`.
+- **M7. Rules leave server-only collections implicit.** `paypal_events`, `payment_history`, `subscription_history`, `pending_subscriptions`, `system_events`, `audit_subscription_events` have no rules (default deny — fine today), but there's no explicit deny-all catch-all, so a future careless rule addition inherits risk. Add an explicit `match /{document=**} { allow read, write: if false; }` at the end.
+- **M8. `window.location.reload()` after auth** (`CRSXMLConverter.js:2418,2431,2450`) — full page reloads defeat SPA state and mask the auth-state race it papers over; `onAuthStateChanged` already handles this.
+
+---
+
+## Low-severity / code-quality findings
+
+- **L1.** `App.js:4` imports a non-existent named export `{ CRSXMLConverter }` (unused → `undefined`); dead line.
+- **L2.** `CRSXMLConverter.js` is a 3,625-line file containing Firebase init, constants, validation, XML generation, auth context, and all UI. Split into modules; XML generation logic deserves its own tested package.
+- **L3.** No tests of any kind, and no CI. For a product whose output goes to tax authorities, the XML generator and validators are prime unit-test targets (testing libs are already in `devDependencies`).
+- **L4.** `firebase-tools` as a devDependency of the web app bloats installs; usually installed globally/CI-only.
+- **L5.** Duplicated business constants: prices in three places, plan IDs hardcoded in both frontend and webhook (`functions/index.js:99-105` says "should match what you've set up in PayPal").
+- **L6.** `README.md` is minimal; no setup, deploy, or environment documentation; `firestore.indexes.json` defines indexes for queries the client can never run (audit reads are denied per H1).
+- **L7.** Anonymous audit design conflict: `logAuditEvent` writes `userId: 'anonymous'` for signed-out users, but rules require `request.auth != null` — anonymous logging can never work even after fixing H1. Consider Firebase Anonymous Auth if pre-signup audit matters.
+
+---
+
+## What's done well
+
+- XML special-character escaping is applied consistently (`escapeXML`) — no injection into generated XML.
+- Processing uploaded financial data entirely in the browser is a genuinely good privacy posture (files never leave the user's machine).
+- The CRS v3.0 enum/code mappings and column auto-detection are thorough and well organized.
+- Error states surface to the user rather than failing silently (in the UI layer, at least).
+- Firestore user-isolation intent is right (owner-only access) — it's the *scope* of writable fields that's wrong, not the model.
+
+---
+
+## Prioritized remediation plan
+
+| # | Action | Addresses |
+|---|--------|-----------|
+| 1 | Verify PayPal webhook signatures; delete the dead duplicate handler | C2, H5 |
+| 2 | Lock down `users/{uid}` writes (field allowlist or server-only entitlements subdoc); move `role` to custom claims | C1, C3 |
+| 3 | Fix audit rules (`request.resource.data`), or move audit writes server-side; add emulator tests | H1, L7 |
+| 4 | Remove `.env` from git, rotate webhook ID, clean `.gitignore` | C6 |
+| 5 | Build the actual subscription checkout (PayPal subscriptions), reconcile prices, grant plans only via verified webhook | C5 |
+| 6 | Move quota enforcement server-side | C4 |
+| 7 | Upgrade Node runtime, migrate off `functions.config()`, replace `xlsx` with a patched SheetJS build, chunk the monthly-reset batch | H4, H6 |
+| 8 | Make the GDPR portal real; align retention policy (90d vs 7y) everywhere | H2, H3 |
+| 9 | Add CSP/HSTS/Referrer-Policy headers on both hosts | H7 |
+| 10 | Add unit tests for validation + XML generation; real XSD validation step; fix XML metadata issues | M2, M3, M4, L3 |
