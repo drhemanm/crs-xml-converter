@@ -267,6 +267,13 @@ Single `WriteBatch` for all active users (`functions/index.js:250-265`); Firesto
 ## Additions since the original audit
 
 ### A1. Firestore rules, indexes and functions were never deployed
+
+> **Rules and indexes deployed to `crs-xml-converter-saas` on 27 July 2026**
+> via `firebase deploy --only firestore:rules,firestore:indexes`. C1, C3 and H1
+> are closed in production from that point, not merely in the repository.
+> Cloud Functions are **not** yet deployed — scheduled cleanup and the admin
+> callable still run their old code. Nothing user-facing depends on them.
+
 Vercel deploys the web app and nothing else. `firestore.rules`,
 `firestore.indexes.json` and `functions/` ship only via `firebase deploy`, which
 nothing and nobody was running — so C1, C3 and H1 were fixed in the repository
