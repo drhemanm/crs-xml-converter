@@ -9,7 +9,9 @@ export const trackEvent = (eventName, parameters = {}) => {
         timestamp: new Date().toISOString(),
         ...parameters
       });
-      console.log(`📊 Analytics Event: ${eventName}`, parameters);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`📊 Analytics Event: ${eventName}`, parameters);
+      }
     }
   } catch (error) {
     console.error('Analytics error:', error);

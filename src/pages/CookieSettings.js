@@ -62,11 +62,15 @@ const CookieSettings = () => {
 
     // Initialize other tracking services based on preferences
     if (preferences.marketing) {
-      console.log('Marketing tracking initialized');
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Marketing tracking initialized');
+      }
     }
 
     if (preferences.functional) {
-      console.log('Functional cookies initialized');
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Functional cookies initialized');
+      }
     }
   };
 

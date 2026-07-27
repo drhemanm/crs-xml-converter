@@ -504,7 +504,9 @@ const trackEvent = (eventName, parameters = {}) => {
       }, {});
 
       logEvent(analytics, eventName, sanitizedParams);
-      console.log(`📊 Analytics Event: ${eventName}`, sanitizedParams);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`📊 Analytics Event: ${eventName}`, sanitizedParams);
+      }
     }
   } catch (error) {
     console.error('Analytics error:', error);
