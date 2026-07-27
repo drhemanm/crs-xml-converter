@@ -12,8 +12,11 @@ npm install
 npm test          # needs a JDK on PATH for the emulator
 ```
 
-`firebase.json` points at `../firestore.rules`, so there is one copy of the
-rules and the tests exercise the file that actually deploys.
+The emulator runs from the repository root against the real `firestore.rules`
+and the root `firebase.json`, so there is one copy of the rules and the tests
+exercise the file that actually deploys. (firebase-tools refuses a rules path
+outside its project directory, which is why the harness reaches up rather than
+keeping a config of its own.)
 
 ## What is covered
 

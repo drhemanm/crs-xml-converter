@@ -4,7 +4,7 @@ import fs from 'fs';
 
 const env = await initializeTestEnvironment({
   projectId: 'crs-rules-test',
-  firestore: { rules: fs.readFileSync('../firestore.rules', 'utf8'), host: '127.0.0.1', port: 8089 },
+  firestore: { rules: fs.readFileSync('firestore.rules', 'utf8'), host: '127.0.0.1', port: 8089 },
 });
 
 let pass = 0, fail = 0;
