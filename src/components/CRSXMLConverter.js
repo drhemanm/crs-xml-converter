@@ -2013,7 +2013,7 @@ const AuthProvider = ({ children }) => {
           lastLoginIP: 'masked_for_privacy'
         });
 
-        await logAuditEvent('user_login', {
+        void logAuditEvent('user_login', {
           loginMethod: firebaseUser.providerData[0]?.providerId || 'email',
           lastLogin: userData.lastLogin?.toDate?.() || null
         }, firebaseUser);
@@ -2055,7 +2055,7 @@ const AuthProvider = ({ children }) => {
         await setDoc(userDocRef, userData);
         setUserDoc(userData);
 
-        await logAuditEvent('user_registration', {
+        void logAuditEvent('user_registration', {
           registrationMethod: userData.provider,
           previousAnonymousUsage: userData.previousAnonymousUsage,
           crsVersion: '3.0'
@@ -2189,7 +2189,7 @@ const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      await logAuditEvent('user_logout', {
+      void logAuditEvent('user_logout', {
         logoutTime: new Date().toISOString(),
         crsVersion: '3.0'
       }, user);
@@ -2234,7 +2234,7 @@ const AuthProvider = ({ children }) => {
           conversionsUsed: newUsage
         }));
         
-        await logAuditEvent('conversion_usage_updated', {
+        void logAuditEvent('conversion_usage_updated', {
           newUsageCount: newUsage,
           planLimit: userDoc.conversionsLimit,
           crsVersion: '3.0'
@@ -2361,6 +2361,11 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
 
   useEffect(() => {
     if (isOpen) {
+      // Resync on open: this component stays mounted, so seeding isLogin from
+      // initialMode at construction meant "Get started" still showed sign-in.
+      setIsLogin(initialMode === 'login');
+      setShowResetForm(false);
+      setMessage('');
       trackEvent('auth_modal_opened', {
         mode: initialMode,
         crs_version: '3.0'
@@ -3092,7 +3097,8 @@ const CRSConverter = () => {
 
       const validation = validateCRSData(jsonData);
       setValidationResults(validation);
-      await logFileProcessing(file, validation, user);
+      // Fire-and-forget: audit logging must not gate the conversion.
+      void logFileProcessing(file, validation, user);
 
       setData(jsonData);
       trackEvent('file_processed', {
@@ -3107,7 +3113,7 @@ const CRSConverter = () => {
     } catch (err) {
       console.error('File processing error:', err);
       
-      await logAuditEvent('file_processing_error', {
+      void logAuditEvent('file_processing_error', {
         filename: file.name,
         error: err.message,
         crsVersion: '3.0'
@@ -3162,7 +3168,7 @@ const CRSConverter = () => {
     setError(null);
 
     try {
-      await logAuditEvent('xml_conversion_started', {
+      void logAuditEvent('xml_conversion_started', {
         recordCount: data.length,
         taxYear: settings.taxYear,
         crsVersion: '3.0',
@@ -3187,7 +3193,7 @@ const CRSConverter = () => {
         });
       }
       
-      await logXMLGeneration({
+      void logXMLGeneration({
         recordCount: data.length,
         xml: xml,
         processingTime: processingTime
@@ -3195,7 +3201,7 @@ const CRSConverter = () => {
 
       setResult({
         xml,
-        filename: `CRS_v3.0_XSD_Compliant_${settings.taxYear}_${Date.now()}.xml`,
+        filename: `CRS_${settings.reportingFI.country}_${settings.taxYear}_${Date.now()}.xml`,
         recordCount: data.length,
         timestamp: new Date().toISOString(),
         crsVersion: '3.0',
@@ -3214,7 +3220,7 @@ const CRSConverter = () => {
     } catch (err) {
       console.error('Conversion error:', err);
       
-      await logAuditEvent('xml_conversion_error', {
+      void logAuditEvent('xml_conversion_error', {
         error: err.message,
         recordCount: data.length,
         crsVersion: '3.0'
