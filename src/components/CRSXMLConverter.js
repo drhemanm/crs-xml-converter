@@ -35,6 +35,13 @@ import {
 // Excel processing
 import * as XLSX from 'xlsx';
 
+import {
+  FilingMode,
+  DocTypeIndic,
+  messageTypeIndicFor,
+} from '../crs/lifecycle';
+import { createRefMinter, resolveMessageRefId } from '../crs/refs';
+
 // ==========================================
 // FIREBASE CONFIGURATION
 // ==========================================
@@ -1946,8 +1953,17 @@ const mapDataToCRS = (rowData, columnMappings) => {
 // XML GENERATION
 // ==========================================
 
-const generateCRSXML = (data, settings, validationResults) => {
-  if (!data || !Array.isArray(data) || data.length === 0) {
+/**
+ * @param filingPlan  Optional. Supplied by the filing workflow so this message
+ *   can be a correction, a void or a nil return rather than always new data.
+ *   Absent, the generator behaves as a first-time return of everything given
+ *   to it, which is what the plain converter path wants.
+ */
+const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
+  const mode = filingPlan.mode || FilingMode.New;
+  const isNilReturn = mode === FilingMode.Nil;
+
+  if (!isNilReturn && (!data || !Array.isArray(data) || data.length === 0)) {
     throw new Error('No data provided for XML generation');
   }
 
@@ -1955,12 +1971,12 @@ const generateCRSXML = (data, settings, validationResults) => {
     throw new Error('Invalid settings provided for XML generation');
   }
 
-  if (!validationResults || !validationResults.columnMappings) {
+  if (!isNilReturn && (!validationResults || !validationResults.columnMappings)) {
     throw new Error('Invalid validation results provided for XML generation');
   }
 
   const { reportingFI, messageRefId, taxYear } = settings;
-  const { columnMappings } = validationResults;
+  const columnMappings = validationResults ? validationResults.columnMappings : {};
 
   const profile = CRS_SCHEMA_PROFILES[settings.schemaVersion] ||
                   CRS_SCHEMA_PROFILES[DEFAULT_SCHEMA_VERSION];
@@ -2037,27 +2053,11 @@ const generateCRSXML = (data, settings, validationResults) => {
       .replace(/'/g, '&#39;');
   };
 
-  /**
-   * Reference identifiers.
-   *
-   * The OECD user guide requires a DocRefId to be globally unique and to begin
-   * with the transmitting jurisdiction's country code; jurisdictions validate
-   * the prefix on upload. These were previously `DOC` + a base36 timestamp,
-   * which starts with no country code at all and is rejected before the file
-   * is even read.
-   *
-   * Format: <CC><YYYY><timestamp36><random36><sequence>, capped at the 200
-   * character schema limit.
-   */
-  const refCountry = (reportingFI.country || '').toUpperCase();
-  const refBatch = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`.toUpperCase();
-  let refSequence = 0;
-
-  const generateUniqueRefId = () => {
-    refSequence += 1;
-    return `${refCountry}${taxYear}${refBatch}${refSequence}`.slice(0, 200);
-  };
-
+  // Reference identifiers come from the filing plan's minter when there is a
+  // plan, so a correction's DocRefId -- decided while planning -- is the exact
+  // value emitted here rather than a second, different one.
+  const generateUniqueRefId =
+    filingPlan.minter || createRefMinter({ country: reportingFI.country, taxYear });
   const generateDocRefId = () => generateUniqueRefId();
 
   // Person name
@@ -2315,11 +2315,22 @@ const generateCRSXML = (data, settings, validationResults) => {
         <AccountType>${escapeXML(mappedAccount.accountType)}</AccountType>`;
     };
 
+    // DocSpec is what makes a record correctable. A correction carries its own
+    // fresh DocRefId plus a CorrDocRefId naming the record it replaces; a void
+    // is the same shape with OECD3.
+    const docSpec = filingPlan.docSpecByAccount
+      ? filingPlan.docSpecByAccount.get(mappedAccount.accountNumber)
+      : null;
+    const docTypeIndic = docSpec ? docSpec.docTypeIndic : DocTypeIndic.New;
+    const recordRefId = docSpec ? docSpec.docRefId : docRefId;
+    const corrDocRefId = docSpec ? docSpec.corrDocRefId : undefined;
+
     return `
       <AccountReport>
         <DocSpec>
-          <stf:DocTypeIndic>OECD1</stf:DocTypeIndic>
-          <stf:DocRefId>${docRefId}</stf:DocRefId>
+          <stf:DocTypeIndic>${docTypeIndic}</stf:DocTypeIndic>
+          <stf:DocRefId>${recordRefId}</stf:DocRefId>${corrDocRefId ? `
+          <stf:CorrDocRefId>${escapeXML(corrDocRefId)}</stf:CorrDocRefId>` : ''}
         </DocSpec>
         <AccountNumber UndocumentedAccount="${mappedAccount.undocumentedAccount}" ClosedAccount="${mappedAccount.closedAccount}" DormantAccount="${mappedAccount.dormantAccount}" AcctNumberType="${escapeXML(mappedAccount.accountNumberType)}">${escapeXML(mappedAccount.accountNumber)}</AccountNumber>
         ${generateAccountHolder()}
@@ -2337,13 +2348,21 @@ const generateCRSXML = (data, settings, validationResults) => {
   // full input count, so a filer could submit a return that was silently short
   // of the accounts they uploaded. Both lists are returned to the caller.
   const mappedAccounts = [];
-  const rejectedRows = [];
+  // Rows the filing plan already turned away -- an account being corrected
+  // that was never filed, say -- arrive here so the filer sees one list of
+  // everything missing from the file rather than two.
+  const rejectedRows = [...(filingPlan.rejected || [])];
   const rowNotices = [];
 
-  data.forEach((row, index) => {
+  (isNilReturn ? [] : data).forEach((row, index) => {
     try {
       const mappedAccount = mapDataToCRS(row, columnMappings);
       mappedAccount.sourceRow = index + 1;
+      // With a plan in force, only planned accounts are emitted. An account
+      // absent from the plan was rejected upstream and is already listed.
+      if (filingPlan.docSpecByAccount && !filingPlan.docSpecByAccount.has(mappedAccount.accountNumber)) {
+        return;
+      }
       mappedAccounts.push(mappedAccount);
     } catch (error) {
       rejectedRows.push({ row: index + 1, message: error.message });
@@ -2354,11 +2373,13 @@ const generateCRSXML = (data, settings, validationResults) => {
   // person with no city, for instance. That must reject the one row, not the
   // whole file, so it is caught here rather than aborting the run.
   const serialisedReports = [];
+  const serialisedAccountNumbers = new Set();
   let emittedCount = 0;
 
   mappedAccounts.forEach((account) => {
     try {
       serialisedReports.push(generateAccountReport(account));
+      serialisedAccountNumbers.add(account.accountNumber);
       emittedCount += 1;
       // Notices are only recorded once the row is genuinely in the file, and
       // only for values the chosen schema actually carries -- under v2.0 there
@@ -2373,7 +2394,9 @@ const generateCRSXML = (data, settings, validationResults) => {
     }
   });
 
-  if (emittedCount === 0) {
+  // A nil return is the one message that is supposed to carry no account
+  // reports -- it exists precisely to say "nothing to report for this period".
+  if (emittedCount === 0 && !isNilReturn) {
     const first = rejectedRows[0];
     throw new Error(
       first
@@ -2385,16 +2408,16 @@ const generateCRSXML = (data, settings, validationResults) => {
   const accountReports = serialisedReports.join('');
 
   // Generate message reference ID and other required elements
-  // A MessageRefId carries the same country-code requirement. An override from
-  // settings is honoured only if it already satisfies it -- the default
-  // `CRS_<timestamp>` seeded at component construction does not, because the
-  // jurisdiction is not known that early.
-  const messageRef = (messageRefId && messageRefId.toUpperCase().startsWith(refCountry))
-    ? messageRefId
-    : generateUniqueRefId();
+  const messageRef = resolveMessageRefId(messageRefId, reportingFI.country, generateUniqueRefId);
   const reportingPeriod = `${taxYear}-12-31`;
   const timestamp = new Date().toISOString();
-  const fiDocRefId = generateDocRefId();
+  // The institution's own record. On a correction or a void it is resent
+  // unchanged as OECD0 under its ORIGINAL DocRefId -- a fresh one would make it
+  // a different record and orphan the corrections hanging off it.
+  const reportingFiDocSpec = filingPlan.reportingFi || {
+    docTypeIndic: DocTypeIndic.New,
+    docRefId: generateDocRefId(),
+  };
 
   if (!reportingFI.country) {
     throw new Error('Reporting jurisdiction is required for the message header.');
@@ -2419,7 +2442,7 @@ const generateCRSXML = (data, settings, validationResults) => {
     <ReceivingCountry>${escapeXML(reportingFI.country)}</ReceivingCountry>
     <MessageType>CRS</MessageType>
     <MessageRefId>${escapeXML(messageRef)}</MessageRefId>
-    <MessageTypeIndic>CRS701</MessageTypeIndic>
+    <MessageTypeIndic>${messageTypeIndicFor(mode)}</MessageTypeIndic>
     <ReportingPeriod>${reportingPeriod}</ReportingPeriod>
     <Timestamp>${timestamp}</Timestamp>
   </MessageSpec>
@@ -2434,13 +2457,13 @@ const generateCRSXML = (data, settings, validationResults) => {
         city: reportingFI.city
       })}
       <DocSpec>
-        <stf:DocTypeIndic>OECD1</stf:DocTypeIndic>
-        <stf:DocRefId>${fiDocRefId}</stf:DocRefId>
+        <stf:DocTypeIndic>${reportingFiDocSpec.docTypeIndic}</stf:DocTypeIndic>
+        <stf:DocRefId>${escapeXML(reportingFiDocSpec.docRefId)}</stf:DocRefId>
       </DocSpec>
     </ReportingFI>
-    <ReportingGroup>
+    ${isNilReturn ? '' : `<ReportingGroup>
       ${accountReports}
-    </ReportingGroup>
+    </ReportingGroup>`}
   </CrsBody>
 </CRS_OECD>`;
 
@@ -2449,6 +2472,23 @@ const generateCRSXML = (data, settings, validationResults) => {
     // between elements is insignificant here (no element carries mixed
     // content), so collapsing them costs nothing and makes the file readable.
     xml: xml.replace(/^[ \t]*\r?\n/gm, ''),
+    filingMode: mode,
+    messageRefId: messageRef,
+    reportingFiDocRefId: reportingFiDocSpec.docRefId,
+    // What was actually written, for the ledger: one entry per emitted record.
+    ledgerEntries: mappedAccounts
+      .filter((a) => serialisedAccountNumbers.has(a.accountNumber))
+      .map((a) => {
+        const spec = filingPlan.docSpecByAccount
+          ? filingPlan.docSpecByAccount.get(a.accountNumber)
+          : null;
+        return {
+          accountNumber: a.accountNumber,
+          docRefId: spec ? spec.docRefId : null,
+          docTypeIndic: spec ? spec.docTypeIndic : DocTypeIndic.New,
+          corrDocRefId: spec ? spec.corrDocRefId || null : null,
+        };
+      }),
     schemaVersion: profile.version,
     schemaLabel: profile.label,
     accountReportCount: emittedCount,

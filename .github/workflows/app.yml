@@ -1,0 +1,66 @@
+name: app
+
+# The web app had no CI at all. Its tests existed and nothing ran them, and a
+# deploy went red on a lint error that a local build could not have caught
+# (see .eslintrc.ci.js for why). Everything that gates the Vercel deploy runs
+# here first.
+
+on:
+  push:
+    paths-ignore: ["platform/**", "*.md"]
+  pull_request:
+    paths-ignore: ["platform/**", "*.md"]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Exactly the ruleset Vercel enforces. --max-warnings 0 mirrors CI=true,
+      # which is what makes react-scripts treat a warning as a failure.
+      - name: Lint as the deploy does
+        run: npm run lint:ci
+
+      - name: Unit tests
+        run: npm test -- --watchAll=false
+        env:
+          CI: true
+
+      - name: Production build
+        run: npm run build
+        env:
+          CI: true
+          DISABLE_ESLINT_PLUGIN: true
+
+  rules:
+    # Security rules are not the kind of thing to verify by reading: the
+    # previous audit-trail rules looked plausible and denied every write in
+    # production for the life of the product.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install rules test harness
+        working-directory: firestore-tests
+        run: npm install --no-audit --no-fund
+
+      - name: Firestore rules tests
+        working-directory: firestore-tests
+        run: npm test

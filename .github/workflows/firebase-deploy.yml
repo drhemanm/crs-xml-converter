@@ -1,0 +1,86 @@
+name: deploy firebase config
+
+# Vercel deploys the web app and nothing else. Firestore rules, indexes and
+# Cloud Functions ship only via `firebase deploy`, which nobody was running --
+# so four security fixes sat in the repository while production kept the holes
+# they closed.
+#
+# This runs on any change to those files, and can be triggered by hand.
+#
+# One-time setup:
+#   1. Create a service account in the Firebase console with the roles
+#      "Firebase Rules Admin", "Cloud Datastore Index Admin" and
+#      "Cloud Functions Admin" (plus "Service Account User").
+#   2. Download its JSON key.
+#   3. Add it as a repository secret named FIREBASE_SERVICE_ACCOUNT.
+#   4. Add your project id as a repository variable named FIREBASE_PROJECT_ID.
+#
+# Until the secret exists the job stops with an explanatory message rather than
+# failing obscurely.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "firestore.rules"
+      - "firestore.indexes.json"
+      - "firebase.json"
+      - "functions/**"
+      - ".github/workflows/firebase-deploy.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # The rules are tested before they are deployed, never after. A rule that
+      # denies a write the app depends on takes the product down silently.
+      - name: Install rules test harness
+        working-directory: firestore-tests
+        run: npm install --no-audit --no-fund
+
+      - name: Firestore rules tests
+        working-directory: firestore-tests
+        run: npm test
+
+      - name: Check credentials are configured
+        id: creds
+        env:
+          KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::FIREBASE_SERVICE_ACCOUNT is not set — rules, indexes and functions were NOT deployed. See the header of this workflow for setup."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install functions dependencies
+        if: steps.creds.outputs.configured == 'true'
+        working-directory: functions
+        run: npm install --no-audit --no-fund
+
+      - name: Deploy rules, indexes and functions
+        if: steps.creds.outputs.configured == 'true'
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
+          FIREBASE_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          printf '%s' "$FIREBASE_KEY" > "$GITHUB_WORKSPACE/service-account.json"
+          npx --yes firebase-tools@13 deploy \
+            --only firestore:rules,firestore:indexes,functions \
+            --project "$PROJECT_ID" \
+            --non-interactive
+          rm -f "$GITHUB_WORKSPACE/service-account.json"
