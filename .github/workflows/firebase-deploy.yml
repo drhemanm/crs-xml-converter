@@ -71,16 +71,50 @@ jobs:
         working-directory: functions
         run: npm install --no-audit --no-fund
 
-      - name: Deploy rules, indexes and functions
+      - name: Write credentials
+        if: steps.creds.outputs.configured == 'true'
+        env:
+          FIREBASE_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$FIREBASE_KEY" > "$GITHUB_WORKSPACE/service-account.json"
+
+      # Rules and indexes are the security-critical half and deploy on their
+      # own. They are separated from functions deliberately: a key generated
+      # from the Firebase console carries the Firebase permissions but not
+      # Cloud Functions Admin, and a combined command would fail on the
+      # functions half and leave the rules unshipped -- the exact outcome this
+      # workflow exists to prevent.
+      - name: Deploy rules and indexes
         if: steps.creds.outputs.configured == 'true'
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
-          FIREBASE_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
         run: |
-          printf '%s' "$FIREBASE_KEY" > "$GITHUB_WORKSPACE/service-account.json"
           npx --yes firebase-tools@13 deploy \
-            --only firestore:rules,firestore:indexes,functions \
+            --only firestore:rules,firestore:indexes \
             --project "$PROJECT_ID" \
             --non-interactive
-          rm -f "$GITHUB_WORKSPACE/service-account.json"
+
+      # Scheduled cleanup and the admin callable. Nothing user-facing breaks if
+      # this cannot deploy, so a permission gap here is a warning, not a
+      # failure that would mask a successful rules deploy above.
+      - name: Deploy functions
+        id: functions
+        if: steps.creds.outputs.configured == 'true'
+        continue-on-error: true
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
+          PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          npx --yes firebase-tools@13 deploy \
+            --only functions \
+            --project "$PROJECT_ID" \
+            --non-interactive
+
+      - name: Note if functions did not deploy
+        if: steps.functions.outcome == 'failure'
+        run: |
+          echo "::warning::Rules and indexes deployed; functions did not. The service account most likely lacks Cloud Functions Admin. Nothing user-facing depends on the functions, so this is not urgent — add the role when convenient."
+
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$GITHUB_WORKSPACE/service-account.json"
