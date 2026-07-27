@@ -189,14 +189,14 @@ const CookieSettings = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
+    <div className="min-h-screen bg-white">
       <div className="max-w-4xl mx-auto px-4 py-16">
         
         {/* Back Button */}
         <div className="mb-8">
           <Link 
             to="/" 
-            className="inline-flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors duration-200 backdrop-blur-sm border border-white/20"
+            className="inline-flex items-center px-4 py-2 bg-ink-50 hover:bg-white/20 text-ink rounded-card transition-colors duration-200 backdrop-blur-sm border border-ink-100"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Main Page
@@ -206,10 +206,10 @@ const CookieSettings = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-4">
-            <Cookie className="w-12 h-12 text-emerald-400 mr-3" />
-            <h1 className="text-4xl font-bold text-white">Cookie Settings</h1>
+            <Cookie className="w-12 h-12 text-accent mr-3" />
+            <h1 className="text-4xl font-bold text-ink">Cookie Settings</h1>
           </div>
-          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+          <p className="text-xl text-ink-600 max-w-2xl mx-auto">
             Manage your cookie preferences and control how we collect and use data to improve your experience.
           </p>
         </div>
@@ -217,10 +217,10 @@ const CookieSettings = () => {
         {/* Success Message */}
         {saved && (
           <div className="mb-6">
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+            <div className="bg-affirm/10 border border-affirm/20 rounded-card p-4">
               <div className="flex items-center">
-                <Check className="w-5 h-5 text-green-400 mr-2" />
-                <span className="text-green-100 font-medium">
+                <Check className="w-5 h-5 text-affirm mr-2" />
+                <span className="text-affirm font-medium">
                   Cookie preferences saved successfully!
                 </span>
               </div>
@@ -231,8 +231,8 @@ const CookieSettings = () => {
         {/* Last Saved Info */}
         {lastSaved && (
           <div className="mb-6">
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-              <p className="text-blue-100 text-sm">
+            <div className="bg-ink/10 border border-ink-200/20 rounded-card p-4">
+              <p className="text-ink text-sm">
                 <strong>Last updated:</strong> {lastSaved.toLocaleString()}
               </p>
             </div>
@@ -246,26 +246,26 @@ const CookieSettings = () => {
             const isEnabled = cookiePreferences[category.id];
             
             return (
-              <div key={category.id} className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20">
+              <div key={category.id} className="bg-ink-50 backdrop-blur-sm rounded-card border border-ink-100">
                 <div className="p-6">
                   
                   {/* Category Header */}
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center">
-                      <div className={`bg-${category.color}-500/20 p-3 rounded-lg mr-4`}>
+                      <div className={`bg-${category.color}-500/20 p-3 rounded-card mr-4`}>
                         <IconComponent className={`w-6 h-6 text-${category.color}-400`} />
                       </div>
                       <div>
-                        <h2 className="text-xl font-bold text-white">{category.title}</h2>
-                        <p className="text-gray-300 text-sm">{category.description}</p>
+                        <h2 className="text-xl font-bold text-ink">{category.title}</h2>
+                        <p className="text-ink-600 text-sm">{category.description}</p>
                       </div>
                     </div>
                     
                     {/* Toggle Switch */}
                     <div className="flex items-center">
                       {category.required ? (
-                        <div className="bg-green-500 rounded-full p-2">
-                          <Check className="w-4 h-4 text-white" />
+                        <div className="bg-affirm rounded-full p-2">
+                          <Check className="w-4 h-4 text-ink" />
                         </div>
                       ) : (
                         <label className="relative inline-flex items-center cursor-pointer">
@@ -275,7 +275,7 @@ const CookieSettings = () => {
                             onChange={() => togglePreference(category.id)}
                             className="sr-only peer"
                           />
-                          <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                          <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                         </label>
                       )}
                     </div>
@@ -286,14 +286,14 @@ const CookieSettings = () => {
                     
                     {/* Purpose & Examples */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-300 mb-2">PURPOSE</h3>
-                      <p className="text-white text-sm mb-3">{category.purpose}</p>
+                      <h3 className="text-sm font-semibold text-ink-600 mb-2">PURPOSE</h3>
+                      <p className="text-ink text-sm mb-3">{category.purpose}</p>
                       
-                      <h3 className="text-sm font-semibold text-gray-300 mb-2">EXAMPLES</h3>
-                      <ul className="text-gray-300 text-sm space-y-1">
+                      <h3 className="text-sm font-semibold text-ink-600 mb-2">EXAMPLES</h3>
+                      <ul className="text-ink-600 text-sm space-y-1">
                         {category.examples.map((example, index) => (
                           <li key={index} className="flex items-start">
-                            <span className="text-emerald-400 mr-2">•</span>
+                            <span className="text-accent mr-2">•</span>
                             {example}
                           </li>
                         ))}
@@ -302,26 +302,26 @@ const CookieSettings = () => {
 
                     {/* Technical Details */}
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-300 mb-2">RETENTION PERIOD</h3>
-                      <p className="text-white text-sm mb-3">{category.retention}</p>
+                      <h3 className="text-sm font-semibold text-ink-600 mb-2">RETENTION PERIOD</h3>
+                      <p className="text-ink text-sm mb-3">{category.retention}</p>
                       
-                      <h3 className="text-sm font-semibold text-gray-300 mb-2">THIRD-PARTY COOKIES</h3>
+                      <h3 className="text-sm font-semibold text-ink-600 mb-2">THIRD-PARTY COOKIES</h3>
                       <div className="flex items-center mb-3">
                         {category.thirdParty ? (
-                          <X className="w-4 h-4 text-red-400 mr-2" />
+                          <X className="w-4 h-4 text-critical mr-2" />
                         ) : (
-                          <Check className="w-4 h-4 text-green-400 mr-2" />
+                          <Check className="w-4 h-4 text-affirm mr-2" />
                         )}
-                        <span className="text-white text-sm">
+                        <span className="text-ink text-sm">
                           {category.thirdParty ? 'May include third-party services' : 'First-party only'}
                         </span>
                       </div>
 
                       {category.required && (
-                        <div className="bg-amber-500/10 border border-amber-500/20 rounded p-2">
+                        <div className="bg-caution/10 border border-caution/20 rounded p-2">
                           <div className="flex items-start">
-                            <AlertTriangle className="w-4 h-4 text-amber-400 mr-2 mt-0.5 flex-shrink-0" />
-                            <p className="text-amber-100 text-xs">
+                            <AlertTriangle className="w-4 h-4 text-caution mr-2 mt-0.5 flex-shrink-0" />
+                            <p className="text-caution text-xs">
                               Required for basic functionality. Cannot be disabled.
                             </p>
                           </div>
@@ -336,29 +336,29 @@ const CookieSettings = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
+        <div className="bg-ink-50 backdrop-blur-sm rounded-card p-6">
           <div className="flex flex-wrap gap-4 justify-center">
             <button
               onClick={savePreferences}
-              className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium transition-colors"
+              className="px-8 py-3 bg-accent hover:bg-accent text-ink rounded-card font-medium transition-colors"
             >
               Save Preferences
             </button>
             <button
               onClick={acceptAll}
-              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              className="px-8 py-3 bg-ink hover:bg-ink text-ink rounded-card font-medium transition-colors"
             >
               Accept All
             </button>
             <button
               onClick={rejectAll}
-              className="px-8 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors"
+              className="px-8 py-3 bg-gray-600 hover:bg-ink-100 text-ink rounded-card font-medium transition-colors"
             >
               Necessary Only
             </button>
             <button
               onClick={resetPreferences}
-              className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+              className="px-8 py-3 bg-critical hover:bg-critical text-ink rounded-card font-medium transition-colors"
             >
               Reset All
             </button>
@@ -369,12 +369,12 @@ const CookieSettings = () => {
         <div className="mt-8 space-y-6">
           
           {/* Impact of Disabling Cookies */}
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-6">
+          <div className="bg-caution/10 border border-caution/20 rounded-card p-6">
             <div className="flex items-start">
-              <AlertTriangle className="w-6 h-6 text-amber-400 mr-3 mt-0.5 flex-shrink-0" />
+              <AlertTriangle className="w-6 h-6 text-caution mr-3 mt-0.5 flex-shrink-0" />
               <div>
-                <h3 className="text-lg font-semibold text-amber-100 mb-2">Impact of Cookie Settings</h3>
-                <div className="text-amber-100 text-sm space-y-2">
+                <h3 className="text-lg font-semibold text-caution mb-2">Impact of Cookie Settings</h3>
+                <div className="text-caution text-sm space-y-2">
                   <p><strong>Analytics Disabled:</strong> We won't be able to understand how you use our service or improve it based on user behavior.</p>
                   <p><strong>Functional Disabled:</strong> You'll need to reset your preferences each visit, and personalization features won't work.</p>
                   <p><strong>Marketing Disabled:</strong> You may see less relevant advertising, and we can't measure marketing effectiveness.</p>
@@ -384,14 +384,14 @@ const CookieSettings = () => {
           </div>
 
           {/* Privacy Information */}
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-blue-100 mb-2">Your Privacy Rights</h3>
-            <div className="text-blue-100 text-sm space-y-2">
+          <div className="bg-ink/10 border border-ink-200/20 rounded-card p-6">
+            <h3 className="text-lg font-semibold text-ink mb-2">Your Privacy Rights</h3>
+            <div className="text-ink text-sm space-y-2">
               <p>You can change these settings at any time. Your choices will be remembered for future visits.</p>
               <p>
                 For more information about how we handle your data, see our{' '}
-                <Link to="/privacy" className="underline hover:text-blue-200">Privacy Policy</Link> or{' '}
-                <Link to="/data-request" className="underline hover:text-blue-200">submit a data request</Link>.
+                <Link to="/privacy" className="underline hover:text-ink">Privacy Policy</Link> or{' '}
+                <Link to="/data-request" className="underline hover:text-ink">submit a data request</Link>.
               </p>
               <p>If you have questions, contact our Data Protection Officer at contacts@evologics.ai</p>
             </div>
@@ -400,7 +400,7 @@ const CookieSettings = () => {
 
         {/* Footer */}
         <div className="text-center mt-12">
-          <p className="text-gray-400 text-sm">
+          <p className="text-ink-500 text-sm">
             Cookie preferences last updated: {lastSaved ? lastSaved.toLocaleDateString() : 'Not set'}
           </p>
         </div>

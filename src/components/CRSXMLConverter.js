@@ -29,8 +29,7 @@ import { getAnalytics, logEvent } from 'firebase/analytics';
 
 // Icons
 import {
-  Upload, Download, AlertCircle, CheckCircle2, Shield, X, Zap, Lock, Building2, Menu,
-  LogOut, Sparkles, ArrowRight, Users, UserPlus
+  Upload, Download, AlertCircle, CheckCircle2, Shield, X, Lock, Menu, LogOut, ArrowRight, ArrowUpRight, Users, FileText
 } from 'lucide-react';
 
 // Excel processing
@@ -2302,69 +2301,42 @@ const RegistrationPrompt = ({ onRegister, onLogin, onClose }) => {
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative">
+    <div className="fixed inset-0 z-50 bg-ink/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+      <div className="relative w-full max-w-[440px] rounded-card bg-white shadow-deep p-8 lg:p-10 animate-scale-in">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+          className="absolute top-5 right-5 p-1.5 text-ink-300 hover:text-ink transition-colors duration-300"
         >
-          <X className="w-5 h-5" />
+          <X className="w-5 h-5" strokeWidth={1.5} />
         </button>
 
-        <div className="text-center">
-          <div className="mb-4">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <UserPlus className="w-8 h-8 text-blue-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              You've Used Your Free Trial
-            </h2>
-            <p className="text-gray-600 mb-4">
-              You've used all <strong>{ANONYMOUS_LIMIT} free conversions</strong>. Register now to get <strong>3 more conversions</strong> and unlock additional CRS v3.0 features!
-            </p>
-          </div>
-          
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-green-800 mb-2">What you get after registration:</h3>
-            <ul className="text-sm text-green-700 space-y-1 text-left">
-              <li>• <strong>3 additional free conversions</strong></li>
-              <li>• 100% CRS v3.0 XSD compliant XML generation</li>
-              <li>• Enhanced validation with XSD constraints</li>
-              <li>• Save your conversion history</li>
-              <li>• Priority email support</li>
-              <li>• Usage analytics dashboard</li>
-              <li>• Joint account and controlling person support</li>
-              <li>• Upgrade options for more conversions</li>
-            </ul>
-          </div>
-          
-          <div className="space-y-3">
-            <button
-              onClick={() => {
-                trackEvent('clicked_register_from_prompt', { crs_version: '3.0' });
-                onRegister();
-              }}
-              className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center"
-            >
-              Register for 3 More Free Conversions
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </button>
-            
-            <button
-              onClick={() => {
-                trackEvent('clicked_login_from_prompt', { crs_version: '3.0' });
-                onLogin();
-              }}
-              className="w-full py-2 text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Already have an account? Sign In
-            </button>
-          </div>
-          
-          <div className="mt-4 text-xs text-gray-500">
-            Total: {ANONYMOUS_LIMIT} anonymous + 3 registered = 6 free CRS v3.0 conversions
-          </div>
+        <h2 className="font-display text-[30px] leading-[1.05] tracking-display text-ink pr-8">
+          You have used your free conversions
+        </h2>
+        <p className="mt-4 text-[15px] text-ink-500 leading-relaxed">
+          Create an account to continue. Registration adds three more conversions and keeps your
+          settings between sessions.
+        </p>
+
+        <div className="mt-7 space-y-3">
+          <button
+            onClick={() => { trackEvent('clicked_register_from_prompt', { crs_version: '3.0' }); onRegister(); }}
+            className="group w-full h-12 rounded-field bg-ink text-white font-medium text-[15px] inline-flex items-center justify-center gap-2 hover:bg-ink-800 transition-colors duration-300"
+          >
+            Create an account
+            <ArrowRight className="w-4 h-4 transition-transform duration-500 group-hover:translate-x-1" strokeWidth={1.75} />
+          </button>
+          <button
+            onClick={() => { trackEvent('clicked_login_from_prompt', { crs_version: '3.0' }); onLogin(); }}
+            className="w-full h-12 rounded-field text-ink-600 text-[15px] hover:bg-ink-50 transition-colors duration-300"
+          >
+            I already have an account
+          </button>
         </div>
+
+        <p className="mt-6 text-[13px] text-ink-400 text-center tabular">
+          {ANONYMOUS_LIMIT} without an account &middot; 3 more once registered
+        </p>
       </div>
     </div>
   );
@@ -2485,64 +2457,59 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {showResetForm ? 'Reset Password' : (isLogin ? 'Sign In' : 'Create Account')}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
+    <div className="fixed inset-0 z-50 bg-ink/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+      <div className="relative w-full max-w-[440px] max-h-[90vh] overflow-y-auto scroll-quiet rounded-card bg-white shadow-deep p-8 lg:p-10 animate-scale-in">
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-5 p-1.5 text-ink-300 hover:text-ink transition-colors duration-300"
+        >
+          <X className="w-5 h-5" strokeWidth={1.5} />
+        </button>
+
+        <h2 className="font-display text-[30px] leading-[1.05] tracking-display text-ink pr-8">
+          {showResetForm ? 'Reset your password' : isLogin ? 'Sign in' : 'Create an account'}
+        </h2>
 
         {!showResetForm && (
-          <p className="text-gray-600 mb-6">
-            {isLogin ? 'Access your CRS v3.0 dashboard and conversions' : 'Get 3 additional free CRS v3.0 conversions with 100% XSD compliance'}
+          <p className="mt-3 text-[15px] text-ink-500 leading-relaxed">
+            {isLogin
+              ? 'Pick up where you left off.'
+              : 'Three more conversions and your settings kept between sessions.'}
           </p>
         )}
 
         {showResetForm ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
+          <div className="mt-7 space-y-4">
+            <label className="block">
+              <span className="block text-[13px] text-ink-500 mb-2">Email</span>
               <input
                 type="email"
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="your@email.com"
+                className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] transition-colors duration-300 outline-none"
+                placeholder="you@institution.com"
                 required
               />
-            </div>
+            </label>
 
             {message && (
-              <div className={`p-3 rounded-lg text-sm ${
-                message.includes('sent') || message.includes('Success')
-                  ? 'bg-green-50 text-green-700 border border-green-200' 
-                  : 'bg-red-50 text-red-700 border border-red-200'
-              }`}>
+              <p className={`text-[14px] ${message.includes('sent') || message.includes('Success') ? 'text-affirm' : 'text-critical'}`}>
                 {message}
-              </div>
+              </p>
             )}
 
-            <div className="flex space-x-3">
+            <div className="flex gap-3 pt-1">
               <button
                 onClick={handleResetPassword}
                 disabled={loading}
-                className="flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-semibold"
+                className="flex-1 h-12 rounded-field bg-ink text-white font-medium text-[15px] hover:bg-ink-800 disabled:opacity-40 transition-colors duration-300"
               >
-                {loading ? 'Sending...' : 'Send Reset Email'}
+                {loading ? 'Sending' : 'Send reset link'}
               </button>
               <button
                 onClick={() => setShowResetForm(false)}
-                className="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-5 h-12 rounded-field text-ink-600 text-[15px] hover:bg-ink-50 transition-colors duration-300"
               >
                 Back
               </button>
@@ -2550,135 +2517,115 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
           </div>
         ) : (
           <>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
+            <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+              <label className="block">
+                <span className="block text-[13px] text-ink-500 mb-2">Email</span>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="your@email.com"
+                  className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] transition-colors duration-300 outline-none"
+                  placeholder="you@institution.com"
                   required
                 />
-              </div>
+              </label>
 
               {!isLogin && (
                 <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Full Name
-                    </label>
+                  <label className="block">
+                    <span className="block text-[13px] text-ink-500 mb-2">Full name</span>
                     <input
                       type="text"
                       name="displayName"
                       value={formData.displayName}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="John Doe"
+                      className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] transition-colors duration-300 outline-none"
                       required
                     />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Company (Optional)
-                    </label>
+                  </label>
+                  <label className="block">
+                    <span className="block text-[13px] text-ink-500 mb-2">
+                      Institution <span className="text-ink-300">optional</span>
+                    </span>
                     <input
                       type="text"
                       name="company"
                       value={formData.company}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Your Financial Institution"
+                      className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] transition-colors duration-300 outline-none"
                     />
-                  </div>
+                  </label>
                 </>
               )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Password
-                </label>
+              <label className="block">
+                <span className="block text-[13px] text-ink-500 mb-2">Password</span>
                 <input
                   type="password"
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="••••••••"
+                  className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] transition-colors duration-300 outline-none"
+                  placeholder="At least 6 characters"
                   required
                 />
-              </div>
+              </label>
 
               {message && (
-                <div className={`p-3 rounded-lg text-sm ${
-                  message.includes('Success') || message.includes('created') 
-                    ? 'bg-green-50 text-green-700 border border-green-200' 
-                    : 'bg-red-50 text-red-700 border border-red-200'
-                }`}>
+                <p className={`text-[14px] ${message.includes('Success') || message.includes('created') ? 'text-affirm' : 'text-critical'}`}>
                   {message}
-                </div>
+                </p>
               )}
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-semibold transition-colors"
+                className="w-full h-12 rounded-field bg-ink text-white font-medium text-[15px] hover:bg-ink-800 disabled:opacity-40 transition-colors duration-300"
               >
-                {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+                {loading ? 'Please wait' : isLogin ? 'Sign in' : 'Create account'}
               </button>
             </form>
 
-            <div className="mt-4">
-              <button
-                onClick={handleGoogleSignIn}
-                disabled={loading}
-                className="w-full py-3 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center transition-colors"
-              >
-                <GoogleIcon className="w-5 h-5 mr-2" />
-                Sign {isLogin ? 'in' : 'up'} with Google
-              </button>
+            <div className="my-5 flex items-center gap-4">
+              <span className="flex-1 h-px bg-ink-100" />
+              <span className="text-[12px] text-ink-300">or</span>
+              <span className="flex-1 h-px bg-ink-100" />
             </div>
 
-            <div className="mt-6 text-center space-y-3">
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full h-12 rounded-field hairline bg-white text-ink text-[15px] inline-flex items-center justify-center gap-2.5 hover:bg-ink-50 disabled:opacity-40 transition-colors duration-300"
+            >
+              <GoogleIcon className="w-[18px] h-[18px]" />
+              Continue with Google
+            </button>
+
+            <div className="mt-6 text-center space-y-2.5">
               <button
                 onClick={() => {
                   setIsLogin(!isLogin);
                   setMessage('');
-                  trackEvent('switched_auth_mode', { 
+                  trackEvent('switched_auth_mode', {
                     from: isLogin ? 'login' : 'register',
                     to: !isLogin ? 'login' : 'register',
                     crs_version: '3.0'
                   });
                 }}
-                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                className="block w-full text-[14px] text-ink-600 hover:text-ink transition-colors duration-300"
               >
-                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+                {isLogin ? 'No account? Create one' : 'Already registered? Sign in'}
               </button>
-
               {isLogin && (
-                <div>
-                  <button
-                    onClick={() => setShowResetForm(true)}
-                    className="text-sm text-gray-600 hover:text-gray-700"
-                  >
-                    Forgot your password?
-                  </button>
-                </div>
+                <button
+                  onClick={() => setShowResetForm(true)}
+                  className="block w-full text-[14px] text-ink-400 hover:text-ink-600 transition-colors duration-300"
+                >
+                  Forgot your password?
+                </button>
               )}
             </div>
-
-            {!isLogin && (
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-blue-800 text-xs">
-                  <strong>CRS v3.0 Benefits:</strong> 100% XSD compliant XML generation, enhanced validation, joint account support, controlling person management, and full equity interest handling.
-                </p>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -2733,85 +2680,119 @@ const Navigation = () => {
 
   return (
     <>
-      <nav className="bg-white shadow-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-red-500 bg-clip-text text-transparent">
+      <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl hairline-b animate-fade-in">
+        <div className="max-w-shell mx-auto px-5 sm:px-8 lg:px-10">
+          <div className="flex items-center justify-between h-16 lg:h-[72px]">
+            <div className="flex items-baseline gap-3 animate-slide-left delay-200">
+              <span className="font-display font-medium text-ink text-[26px] lg:text-[30px] tracking-display leading-none">
                 Evologics
-              </div>
-              <div className="hidden md:block">
-                <span className="text-lg font-semibold text-gray-900">CRS v3.0 Converter</span>
-                <span className="text-sm text-gray-500 ml-2">100% XSD Compliant • by {COMPANY_NAME}</span>
-              </div>
+              </span>
+              <span className="hidden sm:inline text-[13px] text-ink-400 tracking-tight">
+                CRS Reporting
+              </span>
             </div>
 
-            <div className="hidden md:flex items-center space-x-6">
-              <button 
+            <div className="hidden md:flex items-center gap-9 animate-fade-in delay-400">
+              <button
                 onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
-                className="text-gray-700 hover:text-blue-600 font-medium"
+                className="text-[15px] text-ink-600 hover:text-ink transition-colors duration-300"
               >
                 Convert
               </button>
-              
-              {user ? (
-                <>
-                  <div className="flex items-center space-x-3 pl-6 border-l border-gray-200">
-                    <div className="text-sm">
-                      <div className="font-medium text-gray-900">
-                        {userDoc?.displayName || user.email?.split('@')[0]}
-                      </div>
-                      <div className="text-gray-500 capitalize">
-                        {userDoc?.plan || 'free'} Plan ({usageStatus.remaining}/{usageStatus.limit}) • CRS v3.0
-                      </div>
-                    </div>
-                    <button 
-                      onClick={handleLogout}
-                      className="p-2 text-gray-500 hover:text-gray-700"
-                      title="Sign Out"
-                    >
-                      <LogOut className="w-4 h-4" />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center space-x-3 text-sm">
-                    <div className="text-gray-600">
-                      Free Trial: {usageStatus.remaining}/{usageStatus.limit} remaining • CRS v3.0
-                    </div>
-                    <button 
-                      onClick={handleSignIn}
-                      className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50"
-                    >
-                      Sign In
-                    </button>
-                    <button 
-                      onClick={handleSignUp}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      Register Free
-                    </button>
-                  </div>
-                </>
-              )}
+              <Link to="/documentation" className="text-[15px] text-ink-600 hover:text-ink transition-colors duration-300">
+                Documentation
+              </Link>
+              <Link to="/privacy" className="text-[15px] text-ink-600 hover:text-ink transition-colors duration-300">
+                Privacy
+              </Link>
             </div>
 
-            <button 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
+            <div className="flex items-center gap-3 animate-slide-right delay-300">
+              {user ? (
+                <div className="hidden sm:flex items-center gap-4">
+                  <div className="text-right leading-tight">
+                    <div className="text-[13px] font-medium text-ink">
+                      {userDoc?.displayName || user.email?.split('@')[0]}
+                    </div>
+                    <div className="text-[12px] text-ink-400 tabular">
+                      {usageStatus.remaining} of {usageStatus.limit} remaining
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    title="Sign out"
+                    className="p-2 text-ink-400 hover:text-ink transition-colors duration-300"
+                  >
+                    <LogOut className="w-[18px] h-[18px]" strokeWidth={1.5} />
+                  </button>
+                </div>
+              ) : (
+                <div className="hidden sm:flex items-center gap-2">
+                  <button
+                    onClick={handleSignIn}
+                    className="px-4 h-10 text-[15px] text-ink-600 hover:text-ink transition-colors duration-300"
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    onClick={handleSignUp}
+                    className="px-5 h-10 rounded-field bg-ink text-white text-[15px] font-medium hover:bg-ink-800 transition-colors duration-300"
+                  >
+                    Get started
+                  </button>
+                </div>
+              )}
+
+              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden p-2 text-ink">
+                {isMenuOpen ? <X className="w-6 h-6" strokeWidth={1.5} /> : <Menu className="w-6 h-6" strokeWidth={1.5} />}
+              </button>
+            </div>
           </div>
         </div>
       </nav>
 
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)}
-        initialMode={authMode}
-      />
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-50 bg-ink/95 backdrop-blur-sm md:hidden animate-fade-in">
+          <div className="flex justify-end p-5">
+            <button onClick={() => setIsMenuOpen(false)} className="p-2 text-white">
+              <X className="w-7 h-7" strokeWidth={1.5} />
+            </button>
+          </div>
+          <div className="flex flex-col items-center justify-center gap-8 h-[70vh]">
+            <button
+              onClick={() => {
+                setIsMenuOpen(false);
+                document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="font-display text-3xl text-white tracking-display"
+            >
+              Convert
+            </button>
+            <Link to="/documentation" onClick={() => setIsMenuOpen(false)} className="font-display text-3xl text-white tracking-display">
+              Documentation
+            </Link>
+            <Link to="/privacy" onClick={() => setIsMenuOpen(false)} className="font-display text-3xl text-white tracking-display">
+              Privacy
+            </Link>
+            <div className="pt-6">
+              {user ? (
+                <button onClick={handleLogout} className="px-7 h-12 rounded-field bg-white text-ink font-medium">
+                  Sign out
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setIsMenuOpen(false); handleSignUp(); }}
+                  className="px-7 h-12 rounded-field bg-white text-ink font-medium"
+                >
+                  Get started
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} initialMode={authMode} />
     </>
   );
 };
@@ -2820,65 +2801,133 @@ const Navigation = () => {
 // HERO SECTION
 // ==========================================
 
+/*
+ * The hero carries the whole design language: one dark canvas, one accent,
+ * type doing the work. Words rise individually so the headline assembles
+ * itself rather than simply appearing.
+ */
+const HERO_FACTS = [
+  { Icon: Lock, label: 'Processed in your browser. Account data is never uploaded.' },
+  { Icon: AlertCircle, label: 'Problems are reported against the row and column they came from.' },
+  { Icon: Users, label: 'Individuals, entities, controlling persons and joint accounts.' },
+  { Icon: FileText, label: 'Output follows the OECD CRS v3.0 schema structure.' }
+];
+
 const HeroSection = () => {
   const { user } = useAuth();
   const usageStatus = getUserConversionStatus(user, null);
-  
+  const [factIndex, setFactIndex] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setFactIndex((i) => (i + 1) % HERO_FACTS.length), 3500);
+    return () => clearInterval(id);
+  }, []);
+
   if (user) return null;
 
+  const word = (text, delay, dim = false) => (
+    <span className={`reveal-line ${dim ? 'text-white/40' : 'text-white'}`}>
+      <span style={{ animationDelay: delay }}>{text}</span>
+    </span>
+  );
+
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-white to-purple-50 py-20">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center">
-          <div className="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-full text-sm font-medium mb-6">
-            <Sparkles className="w-4 h-4 mr-2" />
-            Try 3 conversions FREE • 100% CRS v3.0 XSD Compliant • No registration required
-          </div>
-          
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Transform Financial Data Into
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> 100% CRS v3.0 Compliant Reports</span> 
-            <span className="block">in Minutes</span>
-          </h1>
-          
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Convert your Excel/CSV financial data into fully compliant CRS v3.0 XML reports instantly with 100% XSD schema compliance. 
-            Try it now with <strong>{usageStatus.remaining} free conversions</strong> - no signup required!
+    <section className="relative bg-ink overflow-hidden">
+      <div className="max-w-shell mx-auto px-5 sm:px-8 lg:px-10 pt-16 sm:pt-24 lg:pt-28 pb-0">
+        <div className="animate-fade-in delay-200 flex items-center gap-2.5 text-[13px] text-white/50">
+          <span className="w-1.5 h-1.5 rounded-full bg-accent-soft" />
+          CRS v3.0 &middot; {usageStatus.remaining} free conversions, no account needed
+        </div>
+
+        <h1 className="mt-7 font-display font-normal tracking-display text-[44px] leading-[0.96] sm:text-[76px] sm:leading-[0.94] md:text-[104px] lg:text-[124px] lg:leading-[0.92]">
+          <span className="block">
+            {word('Account', '0.3s')} {word('data', '0.4s')} {word('in.', '0.5s', true)}
+          </span>
+          <span className="block">
+            {word('A', '0.6s', true)} {word('filing', '0.7s')} {word('you', '0.8s')}
+          </span>
+          <span className="block">
+            {word('can', '0.9s')} {word('defend,', '1.0s')} {word('out.', '1.1s', true)}
+          </span>
+        </h1>
+
+        <div className="mt-10 sm:mt-12 lg:mt-16 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-10 lg:gap-[50px] animate-fade-up delay-600">
+          <button
+            onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
+            className="group w-full sm:w-[260px] lg:w-[300px] h-14 lg:h-[68px] rounded-field bg-white text-ink font-medium text-base lg:text-lg tracking-tight flex items-center justify-center gap-2 hover:bg-ink-50 transition-colors duration-300"
+          >
+            Convert a file
+            <ArrowUpRight
+              className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+              strokeWidth={1.75}
+            />
+          </button>
+          <p className="max-w-[330px] text-white/60 text-[15px] lg:text-lg leading-[1.5] tracking-tight">
+            Turn an Excel or CSV extract into a CRS XML return, with every value checked before
+            anything is generated.
           </p>
+        </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-            <button 
-              onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
-              className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center text-lg font-semibold"
-            >
-              Try CRS v3.0 Converter Now ({usageStatus.remaining} conversions left)
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </button>
+        <div className="h-16 sm:h-20 lg:h-28" />
+      </div>
+
+      {/* Three panels, seated flush against the base of the hero. */}
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-[2fr_1fr_2fr]">
+        <div className="bg-ink-100 p-8 lg:p-10 animate-fade-up delay-900">
+          <p className="font-display text-2xl sm:text-[28px] lg:text-[34px] leading-[1.08] tracking-display text-ink max-w-[360px]">
+            Know what the converter expects before you start
+          </p>
+          <Link
+            to="/documentation"
+            className="mt-6 inline-flex items-center gap-1.5 text-[15px] lg:text-base text-ink underline underline-offset-4 decoration-ink-300 hover:decoration-ink transition-colors duration-300"
+          >
+            Read the field reference
+            <ArrowRight className="w-4 h-4" strokeWidth={1.75} />
+          </Link>
+        </div>
+
+        <div className="bg-white p-8 lg:p-10 flex flex-col justify-between animate-fade-up delay-1000 min-h-[210px]">
+          <div className="relative flex-1">
+            {HERO_FACTS.map((fact, i) => (
+              <div
+                key={fact.label}
+                className={`flex items-start gap-3.5 transition-all duration-700 ${
+                  i === factIndex ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3 absolute inset-0 pointer-events-none'
+                }`}
+              >
+                <span className="shrink-0 w-10 h-10 rounded-full bg-ink flex items-center justify-center">
+                  <fact.Icon className="w-[18px] h-[18px] text-white" strokeWidth={1.5} />
+                </span>
+                <span className="text-[15px] lg:text-base leading-[1.35] tracking-tight text-ink-700">
+                  {fact.label}
+                </span>
+              </div>
+            ))}
           </div>
-
-          <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 max-w-4xl mx-auto">
-            <div className="grid md:grid-cols-4 gap-6 text-center">
-              <div className="flex items-center justify-center space-x-2">
-                <Shield className="w-5 h-5 text-green-600" />
-                <span className="font-medium text-gray-700">100% XSD Schema Compliant</span>
-              </div>
-              <div className="flex items-center justify-center space-x-2">
-                <Lock className="w-5 h-5 text-blue-600" />
-                <span className="font-medium text-gray-700">GDPR Compliant Processing</span>
-              </div>
-              <div className="flex items-center justify-center space-x-2">
-                <Zap className="w-5 h-5 text-purple-600" />
-                <span className="font-medium text-gray-700">Instant XML Generation</span>
-              </div>
-              <div className="flex items-center justify-center space-x-2">
-                <Users className="w-5 h-5 text-emerald-600" />
-                <span className="font-medium text-gray-700">Joint Account Support</span>
-              </div>
-            </div>
+          <div className="flex gap-1.5 mt-7">
+            {HERO_FACTS.map((fact, i) => (
+              <span
+                key={fact.label}
+                className={`h-[3px] flex-1 rounded-full transition-colors duration-500 ${
+                  i === factIndex ? 'bg-ink' : 'bg-ink-200'
+                }`}
+              />
+            ))}
           </div>
         </div>
+
+        <div className="bg-ink-900 p-8 lg:p-10 flex items-center gap-6 lg:gap-8 animate-fade-up delay-1100">
+          <div className="shrink-0">
+            <div className="font-display text-[44px] lg:text-[56px] leading-none tracking-display text-white">
+              v3.0
+            </div>
+          </div>
+          <p className="text-white/50 text-[15px] lg:text-base leading-[1.35] tracking-tight">
+            The amended OECD Common Reporting Standard schema, published October 2024.
+          </p>
+        </div>
       </div>
-    </div>
+    </section>
   );
 };
 
@@ -2890,66 +2939,70 @@ const ValidationResultsDisplay = ({ validation }) => {
   if (!validation || Object.keys(validation).length === 0) return null;
 
   return (
-    <div className="mt-4 p-4 border rounded-lg bg-white">
-      <h4 className="font-medium mb-3 text-gray-900">100% CRS v3.0 XSD Validation Results</h4>
-      
-      {validation.canGenerate ? (
-        <div className="flex items-center text-green-600 text-sm mb-3">
-          <CheckCircle2 className="w-4 h-4 mr-2" />
-          Ready for 100% CRS v3.0 XSD compliant XML conversion!
+    <div className="mt-6 rounded-card hairline bg-white overflow-hidden">
+      <div className="px-6 py-5 hairline-b flex items-center justify-between gap-4">
+        <div>
+          <div className="text-[13px] text-ink-400">Validation</div>
+          <div className="mt-1 font-display text-xl tracking-display text-ink">
+            {validation.canGenerate ? 'Ready to generate' : 'Fix these before generating'}
+          </div>
         </div>
-      ) : (
-        <div className="flex items-center text-red-600 text-sm mb-3">
-          <AlertCircle className="w-4 h-4 mr-2" />
-          Critical errors must be fixed before CRS v3.0 XSD compliant conversion
+        <div className="text-right tabular shrink-0">
+          <div className="text-2xl font-display tracking-display text-ink">
+            {validation.summary.validRows}
+          </div>
+          <div className="text-[12px] text-ink-400">of {validation.summary.totalRows} rows ready</div>
         </div>
-      )}
+      </div>
 
-      {/* Critical Errors */}
-      {validation.missingColumns?.critical?.length > 0 && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded mb-3">
-          <p className="font-medium text-red-800 mb-2">🚫 Critical Errors (Must Fix for CRS v3.0 XSD Compliance):</p>
-          <ul className="text-sm text-red-700 space-y-1">
-            {validation.missingColumns.critical.map((col, index) => (
-              <li key={index}>• {col.description}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <div className="p-6 space-y-3">
+        {validation.missingColumns?.critical?.length > 0 && (
+          <div className="rounded-field bg-critical-wash border border-critical/15 p-4">
+            <p className="text-[13px] font-medium text-critical mb-2">
+              Required columns are missing
+            </p>
+            <ul className="space-y-1.5">
+              {validation.missingColumns.critical.map((col, index) => (
+                <li key={index} className="text-[14px] text-ink-700 leading-snug">{col.description}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-      {/* Warnings */}
-      {validation.missingColumns?.warnings?.length > 0 && (
-        <div className="p-3 bg-orange-50 border border-orange-200 rounded mb-3">
-          <p className="font-medium text-orange-800 mb-2">⚠️ CRS v3.0 XSD Compliance Warnings:</p>
-          <ul className="text-sm text-orange-700 space-y-1">
-            {validation.missingColumns.warnings.map((col, index) => (
-              <li key={index}>• {col.description}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+        {validation.missingColumns?.warnings?.length > 0 && (
+          <div className="rounded-field bg-caution-wash border border-caution/15 p-4">
+            <p className="text-[13px] font-medium text-caution mb-2">
+              Recommended for a complete return
+            </p>
+            <ul className="space-y-1.5">
+              {validation.missingColumns.warnings.map((col, index) => (
+                <li key={index} className="text-[14px] text-ink-700 leading-snug">{col.description}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-      {/* Recommendations */}
-      {validation.missingColumns?.recommendations?.length > 0 && (
-        <div className="p-3 bg-blue-50 border border-blue-200 rounded mb-3">
-          <p className="font-medium text-blue-800 mb-2">💡 Recommendations for Enhanced CRS v3.0 XSD Compliance:</p>
-          <ul className="text-sm text-blue-700 space-y-1">
-            {validation.missingColumns.recommendations.slice(0, 5).map((col, index) => (
-              <li key={index}>• {col.description}</li>
-            ))}
-            {validation.missingColumns.recommendations.length > 5 && (
-              <li className="text-blue-600">• ... and {validation.missingColumns.recommendations.length - 5} more optional XSD fields</li>
-            )}
-          </ul>
-        </div>
-      )}
+        {validation.missingColumns?.recommendations?.length > 0 && (
+          <div className="rounded-field bg-ink-50 border border-ink-100 p-4">
+            <p className="text-[13px] font-medium text-ink-500 mb-2">Optional fields</p>
+            <ul className="space-y-1.5">
+              {validation.missingColumns.recommendations.slice(0, 4).map((col, index) => (
+                <li key={index} className="text-[14px] text-ink-600 leading-snug">{col.description}</li>
+              ))}
+              {validation.missingColumns.recommendations.length > 4 && (
+                <li className="text-[14px] text-ink-400">
+                  and {validation.missingColumns.recommendations.length - 4} more
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
 
-      <div className="text-sm text-gray-600 mt-3 flex items-center justify-between">
-        <span>Summary: {validation.summary.validRows} rows ready, {validation.summary.invalidRows} with critical errors</span>
-        <div className="flex items-center space-x-2">
-          <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">CRS v3.0</span>
-          <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-medium">100% XSD</span>
-        </div>
+        {validation.canGenerate &&
+          !validation.missingColumns?.critical?.length &&
+          !validation.missingColumns?.warnings?.length && (
+          <p className="text-[14px] text-ink-500">Every required column was found.</p>
+        )}
       </div>
     </div>
   );
@@ -3227,344 +3280,298 @@ const CRSConverter = () => {
 
   return (
     <>
-      <div id="converter" className="py-20 bg-gray-50">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium mb-4">
-              <Shield className="w-4 h-4 mr-1" />
-              100% CRS v3.0 XSD Schema Compliant
-            </div>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              CRS v3.0 XML Converter
+      <div id="converter" className="bg-white">
+        <div className="max-w-shell mx-auto px-5 sm:px-8 lg:px-10 py-20 lg:py-28">
+          <div className="max-w-prose">
+            <div className="text-[13px] text-ink-400">Converter</div>
+            <h2 className="mt-3 font-display text-[38px] sm:text-[52px] lg:text-[64px] leading-[0.98] tracking-display text-ink">
+              Three steps to a return
             </h2>
-            <p className="text-xl text-gray-600">
-              Convert your Excel/CSV data to 100% compliant CRS v3.0 XML format with enhanced XSD validation, self-certification, joint account, and controlling person support
+            <p className="mt-5 text-lg text-ink-500 leading-relaxed">
+              Upload your extract, tell us who is reporting, and generate. Nothing is sent anywhere
+              &mdash; the file is read and converted on this device.
             </p>
           </div>
 
-          <div className="space-y-8">
-            {/* File Upload Section */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Step 1: Upload Your Financial Data File
-              </h3>
-              
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors"
-              >
-                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-lg font-medium text-gray-900 mb-2">
-                  {file ? file.name : 'Click to upload your Excel or CSV file'}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Supports .xlsx, .xls, and .csv files up to 10MB • 100% CRS v3.0 XSD compliant fields supported
-                </p>
-              </div>
-              
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-
-              {processing && (
-                <div className="mt-4 flex items-center justify-center space-x-2 text-blue-600">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                  <span>Processing file for 100% CRS v3.0 XSD compliance validation...</span>
+          <div className="mt-14 lg:mt-20 grid lg:grid-cols-[minmax(0,1fr)_360px] gap-10 lg:gap-16 items-start">
+            <div className="space-y-12">
+              {/* Step 1 */}
+              <section>
+                <div className="flex items-baseline gap-4 mb-5">
+                  <span className="font-display text-[13px] text-ink-300 tabular">01</span>
+                  <h3 className="font-display text-2xl tracking-display text-ink">Upload your data</h3>
                 </div>
-              )}
 
-              {data.length > 0 && (
-                <div className="mt-4">
-                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center space-x-2 text-green-800">
-                      <CheckCircle2 className="w-5 h-5" />
-                      <span className="font-medium">
-                        File processed successfully! Found {data.length} records for 100% CRS v3.0 XSD compliant conversion.
-                      </span>
-                    </div>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full rounded-card hairline bg-ink-50 hover:bg-white hover:shadow-lift transition-all duration-500 p-10 lg:p-14 text-center group"
+                >
+                  <span className="mx-auto w-12 h-12 rounded-full bg-ink flex items-center justify-center transition-transform duration-500 group-hover:scale-105">
+                    <Upload className="w-5 h-5 text-white" strokeWidth={1.5} />
+                  </span>
+                  <span className="mt-5 block font-display text-lg tracking-tight text-ink">
+                    {file ? file.name : 'Choose an Excel or CSV file'}
+                  </span>
+                  <span className="mt-1.5 block text-[14px] text-ink-400">
+                    .xlsx, .xls or .csv &middot; up to 10MB
+                  </span>
+                </button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+
+                {processing && (
+                  <div className="mt-5 flex items-center gap-3 text-[14px] text-ink-500">
+                    <span className="w-3.5 h-3.5 rounded-full border-2 border-ink-200 border-t-ink animate-spin" />
+                    Reading and checking your file
                   </div>
-                  <ValidationResultsDisplay validation={validationResults} />
-                </div>
-              )}
-            </div>
+                )}
 
-            {/* Settings Section */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Step 2: Configure 100% CRS v3.0 XSD Compliant Report Settings
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Financial Institution Name * (XSD Required)
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.reportingFI.name}
-                    onChange={(e) => handleSettingsChange('reportingFI', 'name', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Your Financial Institution Name"
-                    maxLength="200"
-                  />
-                  {settingsValidation.fiName && !settingsValidation.fiName.valid && (
-                    <p className="mt-1 text-sm text-red-600">{settingsValidation.fiName.message}</p>
-                  )}
-                  <p className="mt-1 text-xs text-gray-500">Max 200 characters (XSD constraint)</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    GIIN (Global Intermediary Identification Number) * (XSD Required)
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.reportingFI.giin}
-                    onChange={(e) => handleSettingsChange('reportingFI', 'giin', e.target.value.toUpperCase())}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="XXXXXX.XXXXX.XX.XXX"
-                    maxLength="19"
-                  />
-                  {settingsValidation.giin && !settingsValidation.giin.valid && (
-                    <p className="mt-1 text-sm text-red-600">{settingsValidation.giin.message}</p>
-                  )}
-                  <p className="mt-1 text-xs text-gray-500">Format: XXXXXX.XXXXX.XX.XXX (XSD pattern)</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Country (ISO 3166-1 Alpha-2)
-                  </label>
-                  <select
-                    value={settings.reportingFI.country}
-                    onChange={(e) => handleSettingsChange('reportingFI', 'country', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="MU">Mauritius</option>
-                    <option value="US">United States</option>
-                    <option value="GB">United Kingdom</option>
-                    <option value="FR">France</option>
-                    <option value="DE">Germany</option>
-                    <option value="SG">Singapore</option>
-                    <option value="HK">Hong Kong</option>
-                    <option value="CH">Switzerland</option>
-                    <option value="LU">Luxembourg</option>
-                    <option value="IE">Ireland</option>
-                    <option value="NL">Netherlands</option>
-                    <option value="AU">Australia</option>
-                    <option value="CA">Canada</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tax Year * (CRS Reporting Period)
-                  </label>
-                  <select
-                    value={settings.taxYear}
-                    onChange={(e) => handleSettingsChange('taxYear', null, parseInt(e.target.value))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {Array.from({ length: 10 }, (_, i) => {
-                      const year = new Date().getFullYear() - i;
-                      return (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      );
-                    })}
-                  </select>
-                  {settingsValidation.taxYear && !settingsValidation.taxYear.valid && (
-                    <p className="mt-1 text-sm text-red-600">{settingsValidation.taxYear.message}</p>
-                  )}
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Institution Address (XSD Recommended)
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.reportingFI.address}
-                    onChange={(e) => handleSettingsChange('reportingFI', 'address', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Street address for XML compliance"
-                    maxLength="200"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">Recommended for complete XSD compliance</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    City (XSD Recommended)
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.reportingFI.city}
-                    onChange={(e) => handleSettingsChange('reportingFI', 'city', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Institution city"
-                    maxLength="200"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Message Reference ID (Auto-Generated)
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.messageRefId}
-                    onChange={(e) => handleSettingsChange('messageRefId', null, e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50"
-                    maxLength="170"
-                    readOnly
-                  />
-                  <p className="mt-1 text-xs text-gray-500">Max 170 characters (XSD constraint)</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Convert Button */}
-            <div className="text-center">
-              <button
-                onClick={handleConvert}
-                disabled={processing || !usageStatus.canConvert || data.length === 0}
-                className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-lg flex items-center mx-auto"
-              >
-                {processing ? (
+                {data.length > 0 && !processing && (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Converting to 100% CRS v3.0 XSD Compliant XML...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-5 h-5 mr-2" />
-                    Convert to 100% CRS v3.0 XSD Compliant XML
+                    <div className="mt-5 flex items-center gap-2.5 text-[14px] text-affirm">
+                      <CheckCircle2 className="w-[18px] h-[18px]" strokeWidth={1.75} />
+                      {data.length} records read from {file?.name}
+                    </div>
+                    <ValidationResultsDisplay validation={validationResults} />
                   </>
                 )}
-              </button>
+              </section>
 
-              {!usageStatus.canConvert && (
-                <p className="mt-3 text-sm text-red-600 font-medium">
-                  {usageStatus.reason}
-                </p>
-              )}
+              {/* Step 2 */}
+              <section>
+                <div className="flex items-baseline gap-4 mb-5">
+                  <span className="font-display text-[13px] text-ink-300 tabular">02</span>
+                  <h3 className="font-display text-2xl tracking-display text-ink">
+                    Identify the reporting institution
+                  </h3>
+                </div>
 
-              <div className="mt-3 flex items-center justify-center space-x-4 text-sm text-gray-600">
-                <span className="flex items-center">
-                  <Shield className="w-4 h-4 mr-1 text-green-600" />
-                  100% XSD Compliant
-                </span>
-                <span className="flex items-center">
-                  <Users className="w-4 h-4 mr-1 text-blue-600" />
-                  Joint Account Support
-                </span>
-                <span className="flex items-center">
-                  <Building2 className="w-4 h-4 mr-1 text-purple-600" />
-                  Controlling Person
-                </span>
-              </div>
+                <div className="rounded-card hairline bg-white p-6 lg:p-8 grid sm:grid-cols-2 gap-5">
+                  <label className="block sm:col-span-2">
+                    <span className="block text-[13px] text-ink-500 mb-2">Financial institution name</span>
+                    <input
+                      type="text"
+                      value={settings.reportingFI.name}
+                      onChange={(e) => handleSettingsChange('reportingFI', 'name', e.target.value)}
+                      className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] text-ink transition-colors duration-300 outline-none"
+                      placeholder="Your institution"
+                      maxLength="200"
+                    />
+                    {settingsValidation.fiName && !settingsValidation.fiName.valid && (
+                      <span className="mt-2 block text-[13px] text-critical">{settingsValidation.fiName.message}</span>
+                    )}
+                  </label>
+
+                  <label className="block">
+                    <span className="block text-[13px] text-ink-500 mb-2">GIIN</span>
+                    <input
+                      type="text"
+                      value={settings.reportingFI.giin}
+                      onChange={(e) => handleSettingsChange('reportingFI', 'giin', e.target.value.toUpperCase())}
+                      className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 font-mono text-[14px] text-ink transition-colors duration-300 outline-none"
+                      placeholder="XXXXXX.XXXXX.XX.XXX"
+                      maxLength="19"
+                    />
+                    {settingsValidation.giin && !settingsValidation.giin.valid && (
+                      <span className="mt-2 block text-[13px] text-critical">{settingsValidation.giin.message}</span>
+                    )}
+                  </label>
+
+                  <label className="block">
+                    <span className="block text-[13px] text-ink-500 mb-2">Jurisdiction</span>
+                    <select
+                      value={settings.reportingFI.country}
+                      onChange={(e) => handleSettingsChange('reportingFI', 'country', e.target.value)}
+                      className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] text-ink transition-colors duration-300 outline-none appearance-none"
+                    >
+                      <option value="MU">Mauritius</option>
+                      <option value="US">United States</option>
+                      <option value="GB">United Kingdom</option>
+                      <option value="FR">France</option>
+                      <option value="DE">Germany</option>
+                      <option value="SG">Singapore</option>
+                      <option value="HK">Hong Kong</option>
+                      <option value="CH">Switzerland</option>
+                      <option value="LU">Luxembourg</option>
+                      <option value="IE">Ireland</option>
+                      <option value="NL">Netherlands</option>
+                      <option value="AU">Australia</option>
+                      <option value="CA">Canada</option>
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <span className="block text-[13px] text-ink-500 mb-2">Reporting year</span>
+                    <select
+                      value={settings.taxYear}
+                      onChange={(e) => handleSettingsChange('taxYear', null, parseInt(e.target.value))}
+                      className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] text-ink tabular transition-colors duration-300 outline-none appearance-none"
+                    >
+                      {Array.from({ length: 10 }, (_, i) => {
+                        const year = new Date().getFullYear() - i;
+                        return <option key={year} value={year}>{year}</option>;
+                      })}
+                    </select>
+                    {settingsValidation.taxYear && !settingsValidation.taxYear.valid && (
+                      <span className="mt-2 block text-[13px] text-critical">{settingsValidation.taxYear.message}</span>
+                    )}
+                  </label>
+
+                  <label className="block">
+                    <span className="block text-[13px] text-ink-500 mb-2">City</span>
+                    <input
+                      type="text"
+                      value={settings.reportingFI.city}
+                      onChange={(e) => handleSettingsChange('reportingFI', 'city', e.target.value)}
+                      className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] text-ink transition-colors duration-300 outline-none"
+                      placeholder="Port Louis"
+                      maxLength="200"
+                    />
+                  </label>
+
+                  <label className="block sm:col-span-2">
+                    <span className="block text-[13px] text-ink-500 mb-2">Street address</span>
+                    <input
+                      type="text"
+                      value={settings.reportingFI.address}
+                      onChange={(e) => handleSettingsChange('reportingFI', 'address', e.target.value)}
+                      className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] text-ink transition-colors duration-300 outline-none"
+                      placeholder="Registered office address"
+                      maxLength="200"
+                    />
+                  </label>
+                </div>
+              </section>
+
+              {/* Step 3 */}
+              <section>
+                <div className="flex items-baseline gap-4 mb-5">
+                  <span className="font-display text-[13px] text-ink-300 tabular">03</span>
+                  <h3 className="font-display text-2xl tracking-display text-ink">Generate</h3>
+                </div>
+
+                <button
+                  onClick={handleConvert}
+                  disabled={processing || !usageStatus.canConvert || data.length === 0}
+                  className="group w-full sm:w-auto sm:min-w-[300px] h-14 lg:h-16 px-8 rounded-field bg-accent text-white font-medium text-base lg:text-lg tracking-tight inline-flex items-center justify-center gap-2.5 hover:bg-accent-soft disabled:bg-ink-200 disabled:text-ink-400 disabled:cursor-not-allowed transition-colors duration-300"
+                >
+                  {processing ? (
+                    <>
+                      <span className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      Generating
+                    </>
+                  ) : (
+                    <>
+                      Generate CRS XML
+                      <ArrowRight
+                        className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1"
+                        strokeWidth={1.75}
+                      />
+                    </>
+                  )}
+                </button>
+
+                {!usageStatus.canConvert && usageStatus.reason && (
+                  <p className="mt-4 text-[14px] text-critical">{usageStatus.reason}</p>
+                )}
+
+                {error && (
+                  <div className="mt-5 rounded-field bg-critical-wash border border-critical/15 p-4 flex gap-3">
+                    <AlertCircle className="w-[18px] h-[18px] text-critical shrink-0 mt-0.5" strokeWidth={1.75} />
+                    <p className="text-[14px] text-ink-700 leading-snug">{error}</p>
+                  </div>
+                )}
+
+                {result && (
+                  <div className="mt-8 rounded-card bg-ink text-white overflow-hidden animate-fade-up">
+                    <div className="p-6 lg:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+                      <div>
+                        <div className="text-[13px] text-white/50">Generated</div>
+                        <div className="mt-1.5 font-display text-2xl tracking-display">
+                          {result.recordCount} account reports
+                        </div>
+                        <div className="mt-1 text-[13px] text-white/50 tabular">
+                          Tax year {settings.taxYear} &middot; {Math.round(result.xml.length / 1024)}KB &middot;{' '}
+                          {result.processingTime}ms
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleDownload}
+                        className="group shrink-0 h-12 px-6 rounded-field bg-white text-ink font-medium text-[15px] inline-flex items-center justify-center gap-2 hover:bg-ink-50 transition-colors duration-300"
+                      >
+                        <Download className="w-[18px] h-[18px]" strokeWidth={1.75} />
+                        Download XML
+                      </button>
+                    </div>
+                    <pre className="hairline-invert border-l-0 border-r-0 border-b-0 px-6 lg:px-8 py-5 font-mono text-[11.5px] leading-relaxed text-white/60 overflow-x-auto scroll-quiet">
+{result.xml.substring(0, 420)}...
+                    </pre>
+                  </div>
+                )}
+              </section>
             </div>
 
-            {/* Error Display */}
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2 text-red-800">
-                  <AlertCircle className="w-5 h-5" />
-                  <span className="font-medium">Error: {error}</span>
+            {/* Aside: usage + assurances */}
+            <aside className="lg:sticky lg:top-28 space-y-4">
+              <div className="rounded-card hairline bg-white p-6">
+                <div className="text-[13px] text-ink-400">
+                  {usageStatus.userType === 'anonymous' ? 'Free trial' : `${userDoc?.plan || 'Free'} plan`}
                 </div>
+                <div className="mt-2 flex items-baseline gap-1.5">
+                  <span className="font-display text-[40px] leading-none tracking-display text-ink tabular">
+                    {usageStatus.remaining}
+                  </span>
+                  <span className="text-[14px] text-ink-400">of {usageStatus.limit} left</span>
+                </div>
+                <div className="mt-4 h-1 rounded-full bg-ink-100 overflow-hidden">
+                  <div
+                    className="h-full bg-ink rounded-full transition-all duration-700"
+                    style={{ width: `${Math.min(100, usageStatus.percentUsed)}%` }}
+                  />
+                </div>
+                {usageStatus.userType === 'anonymous' && (
+                  <button
+                    onClick={() => { setAuthMode('register'); setShowAuthModal(true); }}
+                    className="mt-5 w-full h-11 rounded-field bg-ink text-white text-[15px] font-medium hover:bg-ink-800 transition-colors duration-300"
+                  >
+                    Create an account
+                  </button>
+                )}
               </div>
-            )}
 
-            {/* Results Display */}
-            {result && (
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  100% CRS v3.0 XSD Compliant Conversion Successful!
-                </h3>
-                
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-green-800">
-                        Generated 100% CRS v3.0 XSD Compliant XML Report
-                      </p>
-                      <p className="text-sm text-green-600">
-                        {result.recordCount} records • Tax Year {settings.taxYear} • CRS v{result.crsVersion} • 100% XSD Schema Compliant • Generated {new Date(result.timestamp).toLocaleString()}
-                      </p>
-                      <p className="text-xs text-green-600 mt-1">
-                        Processing time: {result.processingTime}ms • File size: {Math.round(result.xml.length / 1024)}KB
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleDownload}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center"
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      Download XML
-                    </button>
+              <div className="rounded-card hairline bg-ink-50 p-6 space-y-4">
+                {[
+                  { Icon: Lock, text: 'Your file is read in this browser. It is never uploaded to us.' },
+                  { Icon: Shield, text: 'Values are checked before anything is generated.' },
+                  { Icon: FileText, text: 'Output follows the OECD CRS v3.0 schema structure.' }
+                ].map(({ Icon, text }) => (
+                  <div key={text} className="flex gap-3">
+                    <Icon className="w-[18px] h-[18px] text-ink-400 shrink-0 mt-0.5" strokeWidth={1.5} />
+                    <p className="text-[14px] text-ink-600 leading-snug">{text}</p>
                   </div>
-                </div>
-
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-sm font-medium text-gray-700 mb-2">100% CRS v3.0 XSD Compliant XML Preview (first 500 characters):</p>
-                  <pre className="text-xs text-gray-600 bg-white p-3 rounded border overflow-x-auto">
-                    {result.xml.substring(0, 500)}...
-                  </pre>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                  <div className="bg-blue-50 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-blue-800">XSD Compliance</p>
-                    <p className="text-lg font-bold text-blue-600">100%</p>
-                  </div>
-                  <div className="bg-green-50 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-green-800">CRS Version</p>
-                    <p className="text-lg font-bold text-green-600">v3.0</p>
-                  </div>
-                  <div className="bg-purple-50 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-purple-800">Records</p>
-                    <p className="text-lg font-bold text-purple-600">{result.recordCount}</p>
-                  </div>
-                  <div className="bg-orange-50 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-orange-800">File Size</p>
-                    <p className="text-lg font-bold text-orange-600">{Math.round(result.xml.length / 1024)}KB</p>
-                  </div>
-                </div>
+                ))}
               </div>
-            )}
+            </aside>
           </div>
         </div>
       </div>
 
-      {/* Registration Prompt Modal */}
       {showRegistrationPrompt && (
         <RegistrationPrompt
-          onRegister={() => {
-            setShowRegistrationPrompt(false);
-            setAuthMode('register');
-            setShowAuthModal(true);
-          }}
-          onLogin={() => {
-            setShowRegistrationPrompt(false);
-            setAuthMode('login');
-            setShowAuthModal(true);
-          }}
+          onRegister={() => { setShowRegistrationPrompt(false); setAuthMode('register'); setShowAuthModal(true); }}
+          onLogin={() => { setShowRegistrationPrompt(false); setAuthMode('login'); setShowAuthModal(true); }}
           onClose={() => setShowRegistrationPrompt(false)}
         />
       )}
 
-      {/* Auth Modal */}
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)}
-        initialMode={authMode}
-      />
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} initialMode={authMode} />
     </>
   );
 };
@@ -3575,29 +3582,46 @@ const CRSConverter = () => {
 
 const Footer = () => {
   return (
-    <footer className="bg-gray-900 text-white py-12">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center">
-          <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-red-400 bg-clip-text text-transparent mb-4">
-            Evologics
+    <footer className="bg-ink text-white">
+      <div className="max-w-shell mx-auto px-5 sm:px-8 lg:px-10 py-16 lg:py-20">
+        <div className="grid gap-12 md:grid-cols-[2fr_1fr_1fr]">
+          <div>
+            <div className="font-display font-medium text-[30px] tracking-display leading-none">Evologics</div>
+            <p className="mt-4 text-[15px] leading-relaxed text-white/50 max-w-sm">
+              CRS and AEOI reporting for financial institutions. Account data is processed in your
+              browser and is never uploaded.
+            </p>
           </div>
-          <p className="text-gray-400 mb-4">
-            Professional 100% CRS v3.0 XSD compliant solutions for financial institutions worldwide.
+          <div>
+            <div className="text-[13px] text-white/40 mb-4">Product</div>
+            <div className="flex flex-col gap-3 text-[15px]">
+              <button
+                onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-left text-white/80 hover:text-white transition-colors duration-300"
+              >
+                Convert
+              </button>
+              <Link to="/documentation" className="text-white/80 hover:text-white transition-colors duration-300">Documentation</Link>
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="text-white/80 hover:text-white transition-colors duration-300">Support</a>
+            </div>
+          </div>
+          <div>
+            <div className="text-[13px] text-white/40 mb-4">Legal</div>
+            <div className="flex flex-col gap-3 text-[15px]">
+              <Link to="/privacy" className="text-white/80 hover:text-white transition-colors duration-300">Privacy Policy</Link>
+              <Link to="/terms" className="text-white/80 hover:text-white transition-colors duration-300">Terms of Service</Link>
+              <Link to="/data-request" className="text-white/80 hover:text-white transition-colors duration-300">Data Requests</Link>
+              <Link to="/cookie-settings" className="text-white/80 hover:text-white transition-colors duration-300">Cookie Settings</Link>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-16 pt-8 hairline-invert border-l-0 border-r-0 border-b-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <p className="text-[13px] text-white/40">
+            &copy; {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.
           </p>
-          <div className="flex justify-center space-x-6 mb-4 text-sm">
-            <Link to="/privacy" className="text-gray-400 hover:text-white">Privacy Policy</Link>
-            <Link to="/terms" className="text-gray-400 hover:text-white">Terms of Service</Link>
-            <Link to="/documentation" className="text-gray-400 hover:text-white">Documentation</Link>
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="text-gray-400 hover:text-white">Support</a>
-          </div>
-          <div className="flex justify-center space-x-4 mb-4 text-xs">
-            <span className="bg-blue-600 text-white px-2 py-1 rounded">CRS v3.0</span>
-            <span className="bg-green-600 text-white px-2 py-1 rounded">100% XSD Compliant</span>
-            <span className="bg-purple-600 text-white px-2 py-1 rounded">Joint Account Support</span>
-            <span className="bg-orange-600 text-white px-2 py-1 rounded">GDPR Compliant</span>
-          </div>
-          <p className="text-sm text-gray-500">
-            © 2025 {COMPANY_NAME}. All rights reserved. 100% CRS v3.0 XSD Schema Compliant.
+          <p className="text-[13px] text-white/40">
+            OECD Common Reporting Standard &middot; Schema v3.0
           </p>
         </div>
       </div>

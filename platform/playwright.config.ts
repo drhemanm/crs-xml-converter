@@ -12,6 +12,10 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: process.env["CI"] ? "line" : "list",
+  // The app loads a ~1 MB WebAssembly chunk on first generate. On a loaded
+  // machine the default 5s assertion timeout produced occasional false
+  // failures; 10s is still short enough to catch a genuine hang.
+  expect: { timeout: 10_000 },
   use: {
     baseURL: "http://127.0.0.1:4173",
     trace: "retain-on-failure",

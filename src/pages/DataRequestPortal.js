@@ -113,33 +113,33 @@ const DataRequestPortal = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'submitted': return <Clock className="w-4 h-4 text-amber-400" />;
-      case 'processing': return <Clock className="w-4 h-4 text-blue-400" />;
-      case 'completed': return <CheckCircle className="w-4 h-4 text-green-400" />;
-      case 'requires_verification': return <AlertTriangle className="w-4 h-4 text-orange-400" />;
-      default: return <Clock className="w-4 h-4 text-gray-400" />;
+      case 'submitted': return <Clock className="w-4 h-4 text-caution" />;
+      case 'processing': return <Clock className="w-4 h-4 text-ink" />;
+      case 'completed': return <CheckCircle className="w-4 h-4 text-affirm" />;
+      case 'requires_verification': return <AlertTriangle className="w-4 h-4 text-caution" />;
+      default: return <Clock className="w-4 h-4 text-ink-500" />;
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'submitted': return 'text-amber-400';
-      case 'processing': return 'text-blue-400';
-      case 'completed': return 'text-green-400';
-      case 'requires_verification': return 'text-orange-400';
-      default: return 'text-gray-400';
+      case 'submitted': return 'text-caution';
+      case 'processing': return 'text-ink';
+      case 'completed': return 'text-affirm';
+      case 'requires_verification': return 'text-caution';
+      default: return 'text-ink-500';
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
+    <div className="min-h-screen bg-white">
       <div className="max-w-4xl mx-auto px-4 py-16">
         
         {/* Back Button */}
         <div className="mb-8">
           <Link 
             to="/privacy" 
-            className="inline-flex items-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors duration-200 backdrop-blur-sm border border-white/20"
+            className="inline-flex items-center px-4 py-2 bg-ink-50 hover:bg-white/20 text-ink rounded-card transition-colors duration-200 backdrop-blur-sm border border-ink-100"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Privacy Policy
@@ -149,33 +149,33 @@ const DataRequestPortal = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center mb-4">
-            <Shield className="w-12 h-12 text-emerald-400 mr-3" />
-            <h1 className="text-4xl font-bold text-white">Data Request Portal</h1>
+            <Shield className="w-12 h-12 text-accent mr-3" />
+            <h1 className="text-4xl font-bold text-ink">Data Request Portal</h1>
           </div>
-          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+          <p className="text-xl text-ink-600 max-w-2xl mx-auto">
             Exercise your GDPR rights easily and securely. Submit requests to access, correct, or delete your personal data.
           </p>
         </div>
 
         {/* Tab Navigation */}
         <div className="flex justify-center mb-8">
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-1">
+          <div className="bg-ink-50 backdrop-blur-sm rounded-card p-1">
             <button
               onClick={() => setActiveTab('request')}
-              className={`px-6 py-2 rounded-md transition-colors ${
+              className={`px-6 py-2 rounded-field transition-colors ${
                 activeTab === 'request'
-                  ? 'bg-emerald-600 text-white'
-                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+                  ? 'bg-accent text-ink'
+                  : 'text-ink-600 hover:text-ink hover:bg-ink-50'
               }`}
             >
               Make a Request
             </button>
             <button
               onClick={() => setActiveTab('status')}
-              className={`px-6 py-2 rounded-md transition-colors ${
+              className={`px-6 py-2 rounded-field transition-colors ${
                 activeTab === 'status'
-                  ? 'bg-emerald-600 text-white'
-                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+                  ? 'bg-accent text-ink'
+                  : 'text-ink-600 hover:text-ink hover:bg-ink-50'
               }`}
             >
               Check Status
@@ -185,13 +185,13 @@ const DataRequestPortal = () => {
 
         {/* Make a Request Tab */}
         {activeTab === 'request' && (
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8">
+          <div className="bg-ink-50 backdrop-blur-sm rounded-card p-8">
             
             {!submitted ? (
               <>
                 {/* Request Types */}
                 <div className="mb-8">
-                  <h2 className="text-2xl font-bold text-white mb-6">Choose Your Request Type</h2>
+                  <h2 className="text-2xl font-bold text-ink mb-6">Choose Your Request Type</h2>
                   <div className="grid md:grid-cols-2 gap-4">
                     {requestTypes.map((type) => {
                       const IconComponent = type.icon;
@@ -202,20 +202,20 @@ const DataRequestPortal = () => {
                             setRequestType(type.id);
                             setFormData(prev => ({ ...prev, requestType: type.id }));
                           }}
-                          className={`cursor-pointer p-4 rounded-lg border-2 transition-all duration-200 ${
+                          className={`cursor-pointer p-4 rounded-card border-2 transition-all duration-200 ${
                             requestType === type.id
-                              ? 'border-emerald-500 bg-emerald-500/10'
-                              : 'border-gray-600 bg-white/5 hover:border-gray-500'
+                              ? 'border-accent bg-accent/10'
+                              : 'border-gray-600 bg-ink-50 hover:border-gray-500'
                           }`}
                         >
                           <div className="flex items-start space-x-3">
                             <IconComponent className={`w-6 h-6 mt-1 ${
-                              requestType === type.id ? 'text-emerald-400' : 'text-gray-400'
+                              requestType === type.id ? 'text-accent' : 'text-ink-500'
                             }`} />
                             <div className="flex-1">
-                              <h3 className="font-semibold text-white mb-1">{type.title}</h3>
-                              <p className="text-gray-300 text-sm mb-2">{type.description}</p>
-                              <div className="flex items-center text-xs text-gray-400">
+                              <h3 className="font-semibold text-ink mb-1">{type.title}</h3>
+                              <p className="text-ink-600 text-sm mb-2">{type.description}</p>
+                              <div className="flex items-center text-xs text-ink-500">
                                 <Calendar className="w-3 h-3 mr-1" />
                                 Response time: {type.timeline}
                               </div>
@@ -230,9 +230,9 @@ const DataRequestPortal = () => {
                 {/* Request Details */}
                 {requestType && (
                   <div className="mb-8">
-                    <h3 className="text-xl font-semibold text-white mb-4">Request Details</h3>
-                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                      <p className="text-blue-100 text-sm">
+                    <h3 className="text-xl font-semibold text-ink mb-4">Request Details</h3>
+                    <div className="bg-ink/10 border border-ink-200/20 rounded-card p-4">
+                      <p className="text-ink text-sm">
                         {requestTypes.find(type => type.id === requestType)?.details}
                       </p>
                     </div>
@@ -245,10 +245,10 @@ const DataRequestPortal = () => {
                     
                     {/* Personal Information */}
                     <div>
-                      <h3 className="text-xl font-semibold text-white mb-4">Your Information</h3>
+                      <h3 className="text-xl font-semibold text-ink mb-4">Your Information</h3>
                       <div className="grid md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                          <label className="block text-sm font-medium text-ink-600 mb-2">
                             Email Address *
                           </label>
                           <input
@@ -257,12 +257,12 @@ const DataRequestPortal = () => {
                             value={formData.email}
                             onChange={handleInputChange}
                             required
-                            className="w-full px-4 py-3 bg-white/10 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                            className="w-full px-4 py-3 bg-ink-50 border border-gray-600 rounded-card text-ink placeholder-gray-400 focus:outline-none focus:border-accent"
                             placeholder="your@email.com"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
+                          <label className="block text-sm font-medium text-ink-600 mb-2">
                             First Name *
                           </label>
                           <input
@@ -271,13 +271,13 @@ const DataRequestPortal = () => {
                             value={formData.firstName}
                             onChange={handleInputChange}
                             required
-                            className="w-full px-4 py-3 bg-white/10 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                            className="w-full px-4 py-3 bg-ink-50 border border-gray-600 rounded-card text-ink placeholder-gray-400 focus:outline-none focus:border-accent"
                             placeholder="John"
                           />
                         </div>
                       </div>
                       <div className="mt-4">
-                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                        <label className="block text-sm font-medium text-ink-600 mb-2">
                           Last Name *
                         </label>
                         <input
@@ -286,7 +286,7 @@ const DataRequestPortal = () => {
                           value={formData.lastName}
                           onChange={handleInputChange}
                           required
-                          className="w-full px-4 py-3 bg-white/10 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                          className="w-full px-4 py-3 bg-ink-50 border border-gray-600 rounded-card text-ink placeholder-gray-400 focus:outline-none focus:border-accent"
                           placeholder="Doe"
                         />
                       </div>
@@ -294,7 +294,7 @@ const DataRequestPortal = () => {
 
                     {/* Request Description */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-ink-600 mb-2">
                         Additional Details
                       </label>
                       <textarea
@@ -302,21 +302,21 @@ const DataRequestPortal = () => {
                         value={formData.description}
                         onChange={handleInputChange}
                         rows={4}
-                        className="w-full px-4 py-3 bg-white/10 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-emerald-500"
+                        className="w-full px-4 py-3 bg-ink-50 border border-gray-600 rounded-card text-ink placeholder-gray-400 focus:outline-none focus:border-accent"
                         placeholder="Please provide any additional information that might help us process your request..."
                       />
                     </div>
 
                     {/* Urgency */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-ink-600 mb-2">
                         Urgency Level
                       </label>
                       <select
                         name="urgency"
                         value={formData.urgency}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 bg-white/10 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                        className="w-full px-4 py-3 bg-ink-50 border border-gray-600 rounded-card text-ink focus:outline-none focus:border-accent"
                       >
                         <option value="low">Low - Standard processing time</option>
                         <option value="normal">Normal - Within 30 days</option>
@@ -326,29 +326,29 @@ const DataRequestPortal = () => {
 
                     {/* Verification Method */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                      <label className="block text-sm font-medium text-ink-600 mb-2">
                         Identity Verification Method
                       </label>
                       <select
                         name="verificationMethod"
                         value={formData.verificationMethod}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 bg-white/10 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-emerald-500"
+                        className="w-full px-4 py-3 bg-ink-50 border border-gray-600 rounded-card text-ink focus:outline-none focus:border-accent"
                       >
                         <option value="email">Email verification (recommended)</option>
                         <option value="account">Account login verification</option>
                         <option value="document">Document verification (for high-risk requests)</option>
                       </select>
-                      <p className="text-xs text-gray-400 mt-2">
+                      <p className="text-xs text-ink-500 mt-2">
                         We may require additional verification for certain types of requests to protect your privacy.
                       </p>
                     </div>
 
                     {/* Legal Information */}
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
+                    <div className="bg-caution/10 border border-caution/20 rounded-card p-4">
                       <div className="flex items-start">
-                        <AlertTriangle className="w-5 h-5 text-amber-400 mr-2 mt-0.5 flex-shrink-0" />
-                        <div className="text-amber-100 text-sm">
+                        <AlertTriangle className="w-5 h-5 text-caution mr-2 mt-0.5 flex-shrink-0" />
+                        <div className="text-caution text-sm">
                           <p className="font-medium mb-2">Important Legal Information:</p>
                           <ul className="space-y-1 text-xs">
                             <li>• We will respond to your request within 30 days (may be extended by 2 months for complex requests)</li>
@@ -365,7 +365,7 @@ const DataRequestPortal = () => {
                       <button
                         type="submit"
                         disabled={loading}
-                        className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+                        className="px-8 py-3 bg-accent hover:bg-accent disabled:bg-gray-600 text-ink rounded-card font-medium transition-colors"
                       >
                         {loading ? 'Submitting...' : 'Submit Request'}
                       </button>
@@ -376,14 +376,14 @@ const DataRequestPortal = () => {
             ) : (
               /* Success Message */
               <div className="text-center py-12">
-                <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-6" />
-                <h2 className="text-2xl font-bold text-white mb-4">Request Submitted Successfully</h2>
-                <p className="text-gray-300 mb-6 max-w-2xl mx-auto">
+                <CheckCircle className="w-16 h-16 text-affirm mx-auto mb-6" />
+                <h2 className="text-2xl font-bold text-ink mb-4">Request Submitted Successfully</h2>
+                <p className="text-ink-600 mb-6 max-w-2xl mx-auto">
                   Your data request has been received and is being processed. You will receive an email confirmation 
                   shortly with your request ID and next steps.
                 </p>
-                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 max-w-md mx-auto mb-6">
-                  <p className="text-green-100 text-sm">
+                <div className="bg-affirm/10 border border-affirm/20 rounded-card p-4 max-w-md mx-auto mb-6">
+                  <p className="text-affirm text-sm">
                     <strong>What happens next?</strong><br />
                     1. Email confirmation sent<br />
                     2. Identity verification (if required)<br />
@@ -405,7 +405,7 @@ const DataRequestPortal = () => {
                       verificationMethod: 'email'
                     });
                   }}
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+                  className="px-6 py-2 bg-accent hover:bg-accent text-ink rounded-card transition-colors"
                 >
                   Submit Another Request
                 </button>
@@ -416,16 +416,16 @@ const DataRequestPortal = () => {
 
         {/* Check Status Tab */}
         {activeTab === 'status' && (
-          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8">
-            <h2 className="text-2xl font-bold text-white mb-6">Your Data Requests</h2>
+          <div className="bg-ink-50 backdrop-blur-sm rounded-card p-8">
+            <h2 className="text-2xl font-bold text-ink mb-6">Your Data Requests</h2>
             
             {getStoredRequests().length === 0 ? (
               <div className="text-center py-12">
-                <Mail className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-300">No data requests found.</p>
+                <Mail className="w-16 h-16 text-ink-500 mx-auto mb-4" />
+                <p className="text-ink-600">No data requests found.</p>
                 <button
                   onClick={() => setActiveTab('request')}
-                  className="mt-4 px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors"
+                  className="mt-4 px-6 py-2 bg-accent hover:bg-accent text-ink rounded-card transition-colors"
                 >
                   Make Your First Request
                 </button>
@@ -433,7 +433,7 @@ const DataRequestPortal = () => {
             ) : (
               <div className="space-y-4">
                 {getStoredRequests().map((request) => (
-                  <div key={request.id} className="bg-white/5 rounded-lg p-4 border border-gray-600">
+                  <div key={request.id} className="bg-ink-50 rounded-card p-4 border border-gray-600">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-3">
                         <div className="flex items-center">
@@ -442,28 +442,28 @@ const DataRequestPortal = () => {
                             {request.status.replace('_', ' ').toUpperCase()}
                           </span>
                         </div>
-                        <span className="text-gray-400">•</span>
-                        <span className="text-gray-300 font-mono text-sm">{request.id}</span>
+                        <span className="text-ink-500">•</span>
+                        <span className="text-ink-600 font-mono text-sm">{request.id}</span>
                       </div>
-                      <span className="text-gray-400 text-sm">
+                      <span className="text-ink-500 text-sm">
                         {new Date(request.submittedAt).toLocaleDateString()}
                       </span>
                     </div>
                     
                     <div className="grid md:grid-cols-3 gap-4 text-sm">
                       <div>
-                        <span className="text-gray-400">Request Type:</span>
-                        <p className="text-white">
+                        <span className="text-ink-500">Request Type:</span>
+                        <p className="text-ink">
                           {requestTypes.find(type => type.id === request.requestType)?.title}
                         </p>
                       </div>
                       <div>
-                        <span className="text-gray-400">Email:</span>
-                        <p className="text-white">{request.email}</p>
+                        <span className="text-ink-500">Email:</span>
+                        <p className="text-ink">{request.email}</p>
                       </div>
                       <div>
-                        <span className="text-gray-400">Estimated Completion:</span>
-                        <p className="text-white">
+                        <span className="text-ink-500">Estimated Completion:</span>
+                        <p className="text-ink">
                           {new Date(request.estimatedCompletion).toLocaleDateString()}
                         </p>
                       </div>
@@ -471,8 +471,8 @@ const DataRequestPortal = () => {
 
                     {request.description && (
                       <div className="mt-3 pt-3 border-t border-gray-600">
-                        <span className="text-gray-400 text-sm">Additional Details:</span>
-                        <p className="text-gray-300 text-sm mt-1">{request.description}</p>
+                        <span className="text-ink-500 text-sm">Additional Details:</span>
+                        <p className="text-ink-600 text-sm mt-1">{request.description}</p>
                       </div>
                     )}
                   </div>
@@ -484,8 +484,8 @@ const DataRequestPortal = () => {
 
         {/* Footer Information */}
         <div className="text-center mt-12">
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 max-w-2xl mx-auto">
-            <p className="text-blue-100 text-sm">
+          <div className="bg-ink/10 border border-ink-200/20 rounded-card p-4 max-w-2xl mx-auto">
+            <p className="text-ink text-sm">
               <strong>Need Help?</strong><br />
               If you have questions about your data request or need assistance, contact our Data Protection Officer at{' '}
               <a href="mailto:contacts@evologics.ai" className="underline">contacts@evologics.ai</a>
