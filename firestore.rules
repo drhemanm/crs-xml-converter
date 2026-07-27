@@ -173,6 +173,58 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------------
+    // The filing ledger
+    // ------------------------------------------------------------------
+    //
+    // What the institution filed and under which DocRefIds. It is the reason a
+    // correction is possible at all, so it is also the thing an attacker would
+    // want to tamper with: rewriting a DocRefId here makes the next correction
+    // reference a record the authority has never seen, and the filing is
+    // rejected. Entries are therefore append-only, exactly like the audit
+    // trail.
+    //
+    // It carries no account numbers, names or balances -- only hashes and
+    // references. The create rules below enforce that: a client cannot add
+    // fields, so it cannot smuggle customer data into this collection even by
+    // accident.
+    function filingFields() {
+      return [
+        'userId', 'country', 'giin', 'institutionName', 'taxYear',
+        'schemaVersion', 'filingMode', 'messageRefId', 'reportingFiDocRefId',
+        'recordCount', 'createdAt'
+      ];
+    }
+
+    function filingRecordFields() {
+      return [
+        'userId', 'accountKey', 'docRefId', 'docTypeIndic', 'corrDocRefId',
+        'sequence', 'createdAt'
+      ];
+    }
+
+    match /filings/{filingId} {
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.keys().hasOnly(filingFields())
+        && request.resource.data.createdAt == request.time;
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      // A filing already submitted to an authority cannot be un-submitted, so
+      // the record of it does not change either.
+      allow update, delete: if false;
+
+      match /records/{recordId} {
+        allow create: if isSignedIn()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.keys().hasOnly(filingRecordFields())
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.accountKey is string
+          && request.resource.data.docRefId is string;
+        allow read: if isOwner(resource.data.userId) || isAdmin();
+        allow update, delete: if false;
+      }
+    }
+
+    // ------------------------------------------------------------------
     // Server-only collections
     // ------------------------------------------------------------------
     //

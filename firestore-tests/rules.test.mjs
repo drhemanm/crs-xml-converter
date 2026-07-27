@@ -118,7 +118,47 @@ await t('accepts the payload the portal sends', () => assertSucceeds(addDoc(coll
 })));
 await t('cannot back-date a request', () => assertFails(addDoc(collection(alice(), 'data_requests'), { userId: 'alice', status: 'received', submittedAt: new Date('2020-01-01'), requestType: 'access' })));
 
+console.log('\nthe filing ledger');
+await env.clearFirestore();
+const filing = () => ({
+  userId: 'alice', country: 'MU', giin: 'ABC123.00000.MU.480',
+  institutionName: 'Test Bank Ltd', taxYear: 2024, schemaVersion: '2.0',
+  filingMode: 'new', messageRefId: 'MU2024MSG1', reportingFiDocRefId: 'MU2024FI1',
+  recordCount: 2, createdAt: serverTimestamp(),
+});
+const filingRecord = () => ({
+  userId: 'alice', accountKey: 'a'.repeat(64), docRefId: 'MU2024REC1',
+  docTypeIndic: 'OECD1', corrDocRefId: null, sequence: 1, createdAt: serverTimestamp(),
+});
+
+await t('owner can record a filing', () => assertSucceeds(setDoc(doc(alice(), 'filings/f1'), filing())));
+await t('...and its records', () => assertSucceeds(setDoc(doc(alice(), 'filings/f1/records/r1'), filingRecord())));
+await t('can read their own filing back', () => assertSucceeds(getDoc(doc(alice(), 'filings/f1'))));
+await t('can read their own filing records', () => assertSucceeds(getDoc(doc(alice(), 'filings/f1/records/r1'))));
+await t('cannot read another user\'s filing', () => assertFails(getDoc(doc(bob(), 'filings/f1'))));
+await t('cannot read another user\'s filing records', () => assertFails(getDoc(doc(bob(), 'filings/f1/records/r1'))));
+await t('cannot file under another user id', () => assertFails(setDoc(doc(alice(), 'filings/f2'), { ...filing(), userId: 'bob' })));
+await t('anonymous cannot record a filing', () => assertFails(setDoc(doc(anon(), 'filings/f3'), filing())));
+
+// The ledger is what a correction references. Rewriting a DocRefId would make
+// the next correction point at a record the authority has never seen.
+await t('cannot rewrite a filing', () => assertFails(updateDoc(doc(alice(), 'filings/f1'), { messageRefId: 'tampered' })));
+await t('cannot delete a filing', () => assertFails(deleteDoc(doc(alice(), 'filings/f1'))));
+await t('cannot rewrite a filed record', () => assertFails(updateDoc(doc(alice(), 'filings/f1/records/r1'), { docRefId: 'tampered' })));
+await t('cannot delete a filed record', () => assertFails(deleteDoc(doc(alice(), 'filings/f1/records/r1'))));
+await t('cannot back-date a filing', () => assertFails(setDoc(doc(alice(), 'filings/f4'), { ...filing(), createdAt: new Date('2020-01-01') })));
+
+// The whole privacy claim rests on customer data never reaching the server.
+// hasOnly() means an extra field is refused, so it cannot arrive by accident.
+await t('cannot smuggle an account number into a filing', () => assertFails(
+  setDoc(doc(alice(), 'filings/f5'), { ...filing(), accountNumber: 'MU00112233' })));
+await t('cannot smuggle customer data into a filing record', () => assertFails(
+  setDoc(doc(alice(), 'filings/f1/records/r2'), { ...filingRecord(), holderName: 'Jean Dupont' })));
+await t('cannot store an account number in place of the hash', () => assertFails(
+  setDoc(doc(alice(), 'filings/f1/records/r3'), { ...filingRecord(), accountKey: 12345 })));
+
 console.log('\nserver-only collections');
+await env.clearFirestore();
 await env.clearFirestore();
 for (const c of ['paypal_events', 'subscription_history', 'payment_history', 'pending_subscriptions', 'system_events']) {
   await t(`client cannot write ${c}`, () => assertFails(addDoc(collection(alice(), c), { x: 1 })));

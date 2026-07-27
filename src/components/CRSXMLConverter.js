@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext, useRef } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
 // Firebase imports
@@ -38,9 +38,17 @@ import * as XLSX from 'xlsx';
 import {
   FilingMode,
   DocTypeIndic,
+  FILING_MODE_LABELS,
   messageTypeIndicFor,
+  buildAccountKeys,
+  buildLedgerIndex,
+  planRecords,
+  planReportingFi,
+  validateFiling,
+  describeFiling,
 } from '../crs/lifecycle';
 import { createRefMinter, resolveMessageRefId } from '../crs/refs';
+import { recordFiling, loadPeriodRecords, nextSequenceStart } from '../crs/ledger';
 
 // ==========================================
 // FIREBASE CONFIGURATION
@@ -3701,6 +3709,9 @@ const CRSConverter = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [settingsValidation, setSettingsValidation] = useState({});
+  // Filing lifecycle: what this submission is, and what was filed before.
+  const [filingMode, setFilingMode] = useState(FilingMode.New);
+  const [period, setPeriod] = useState({ loading: false, records: [], filings: [], reportingFiDocRefId: null, error: null });
 
   const [settings, setSettings] = useState({
     reportingFI: {
@@ -3718,6 +3729,34 @@ const CRSConverter = () => {
   });
 
   const usageStatus = getUserConversionStatus(user, userDoc);
+
+  // What has already been filed for this institution and year. Corrections
+  // reference it; a new return is checked against it for duplicates. Signed-out
+  // users have no ledger, so they get the plain converter and are told why.
+  const loadPeriod = useCallback(async () => {
+    if (!user || !settings.reportingFI.country || !settings.taxYear) {
+      setPeriod({ loading: false, records: [], filings: [], reportingFiDocRefId: null, error: null });
+      return;
+    }
+    setPeriod((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const loaded = await loadPeriodRecords(db, {
+        userId: user.uid,
+        country: settings.reportingFI.country,
+        taxYear: settings.taxYear,
+      });
+      setPeriod({ loading: false, ...loaded, error: null });
+    } catch (err) {
+      // A ledger we cannot read must not look like an empty one -- that would
+      // turn a correction into a duplicate filing at the authority.
+      setPeriod({
+        loading: false, records: [], filings: [], reportingFiDocRefId: null,
+        error: err.message,
+      });
+    }
+  }, [user, settings.reportingFI.country, settings.taxYear]);
+
+  useEffect(() => { loadPeriod(); }, [loadPeriod]);
 
   const handleFileSelect = (event) => {
     const selectedFile = event.target.files[0];
@@ -3855,13 +3894,33 @@ const CRSConverter = () => {
       return;
     }
 
-    if (!validationResults.canGenerate) {
+    const isNil = filingMode === FilingMode.Nil;
+
+    if (!isNil && !validationResults.canGenerate) {
       setError('Please fix the critical errors above before generating XML');
       return;
     }
 
-    if (!data || data.length === 0) {
+    if (!isNil && (!data || data.length === 0)) {
       setError('Please upload a file first');
+      return;
+    }
+
+    // A correction has to reference what was filed before, and only a
+    // signed-in account has a filing ledger to reference.
+    if (filingMode !== FilingMode.New && !user) {
+      setError(
+        `Sign in to file a ${FILING_MODE_LABELS[filingMode].toLowerCase()}. ` +
+        'It has to reference the return it amends, and that record belongs to your account.'
+      );
+      return;
+    }
+
+    if (period.error) {
+      setError(
+        `Your filing history could not be read (${period.error}), so this ` +
+        'submission cannot be planned safely. Try again before filing.'
+      );
       return;
     }
 
@@ -3872,13 +3931,89 @@ const CRSConverter = () => {
       void logAuditEvent('xml_conversion_started', {
         recordCount: data.length,
         taxYear: settings.taxYear,
-        crsVersion: settings.schemaVersion
+        crsVersion: settings.schemaVersion,
+        filingMode
       }, user);
 
       const startTime = Date.now();
-      const generated = generateCRSXML(data, settings, validationResults);
+
+      // ---- Plan the filing -------------------------------------------------
+      const minter = createRefMinter({
+        country: settings.reportingFI.country,
+        taxYear: settings.taxYear,
+      });
+
+      const accountNumbers = isNil ? [] : data.map(
+        (row) => String(row[validationResults.columnMappings.account_number] ?? '').trim()
+      );
+
+      // Hashes, computed here in the browser. The account numbers themselves
+      // never leave it.
+      const accountKeys = user
+        ? await buildAccountKeys(accountNumbers, {
+            giin: settings.reportingFI.giin,
+            country: settings.reportingFI.country,
+            period: settings.taxYear,
+          })
+        : new Map();
+
+      const ledgerIndex = buildLedgerIndex(period.records);
+      const planRows = accountNumbers.map((accountNumber, i) => ({
+        accountKey: accountKeys.get(accountNumber) || `local:${accountNumber}`,
+        accountLabel: accountNumber || `(row ${i + 1})`,
+        accountNumber,
+        sourceRow: i + 1,
+      }));
+
+      const { planned, rejected } = planRecords(filingMode, planRows, ledgerIndex, minter);
+
+      const reportingFi = planReportingFi(
+        filingMode,
+        period.reportingFiDocRefId ? { reportingFiDocRefId: period.reportingFiDocRefId } : null,
+        minter
+      );
+      if (reportingFi.error) throw new Error(reportingFi.error);
+
+      const filingProblems = validateFiling(filingMode, planned);
+      if (filingProblems.length > 0) throw new Error(filingProblems[0]);
+
+      const docSpecByAccount = new Map(planned.map((entry) => [entry.accountNumber, {
+        docTypeIndic: entry.docTypeIndic,
+        docRefId: entry.docRefId,
+        corrDocRefId: entry.corrDocRefId,
+      }]));
+
+      // ---- Generate --------------------------------------------------------
+      const generated = generateCRSXML(data, settings, validationResults, {
+        mode: filingMode,
+        reportingFi,
+        docSpecByAccount,
+        rejected,
+        minter,
+      });
       const xml = generated.xml;
       const processingTime = Date.now() - startTime;
+
+      // ---- Record it -------------------------------------------------------
+      //
+      // Only after the XML exists. A filing that failed to generate must not
+      // leave DocRefIds in the ledger that no submitted file ever used, or the
+      // next correction references a record the authority has never seen.
+      let ledgerError = null;
+      if (user) {
+        try {
+          await recordFiling(db, {
+            userId: user.uid,
+            settings,
+            result: generated,
+            accountKeys,
+            periodSequenceStart: nextSequenceStart(period.records),
+          });
+          await loadPeriod();
+        } catch (err) {
+          ledgerError = err.message;
+        }
+      }
 
       if (user && userDoc) {
         await updateUserUsage();
@@ -3913,6 +4048,10 @@ const CRSConverter = () => {
         timestamp: new Date().toISOString(),
         crsVersion: generated.schemaVersion,
         schemaLabel: generated.schemaLabel,
+        filingMode: generated.filingMode,
+        summary: describeFiling(generated.filingMode, generated.accountReportCount),
+        recorded: Boolean(user) && !ledgerError,
+        ledgerError,
         processingTime
       });
 
@@ -4017,11 +4156,92 @@ const CRSConverter = () => {
 
           <div className="mt-14 lg:mt-20 grid lg:grid-cols-[minmax(0,1fr)_360px] gap-10 lg:gap-16 items-start">
             <div className="space-y-12">
-              {/* Step 1 */}
+              {/* Step 0 — what kind of filing this is */}
               <section>
                 <div className="flex items-baseline gap-4 mb-5">
                   <span className="font-display text-[13px] text-ink-300 tabular">01</span>
-                  <h3 className="font-display text-2xl tracking-display text-ink">Upload your data</h3>
+                  <h3 className="font-display text-2xl tracking-display text-ink">
+                    What are you filing?
+                  </h3>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {[
+                    { mode: FilingMode.New, blurb: 'A return for accounts not yet filed for this period.' },
+                    { mode: FilingMode.Correction, blurb: 'Replace records already filed. Upload only the rows that changed.' },
+                    { mode: FilingMode.Void, blurb: 'Withdraw records filed in error. Upload only those rows.' },
+                    { mode: FilingMode.Nil, blurb: 'Declare that there is nothing to report. No file needed.' },
+                  ].map(({ mode, blurb }) => {
+                    const selected = filingMode === mode;
+                    const needsLedger = mode !== FilingMode.New;
+                    const blocked = needsLedger && !user;
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        disabled={blocked}
+                        onClick={() => { setFilingMode(mode); setResult(null); setError(null); }}
+                        className={`text-left rounded-card p-5 border transition-colors duration-300 ${
+                          selected
+                            ? 'border-accent bg-accent-wash'
+                            : blocked
+                              ? 'border-ink-100 bg-ink-50 cursor-not-allowed opacity-60'
+                              : 'border-ink-200 bg-white hover:border-ink-300'
+                        }`}
+                      >
+                        <span className="block font-medium text-[15px] text-ink">
+                          {FILING_MODE_LABELS[mode]}
+                        </span>
+                        <span className="mt-1 block text-[13px] text-ink-500 leading-snug">
+                          {blocked ? 'Sign in — this references your previous filing.' : blurb}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {user && (
+                  <div className="mt-4 text-[13px] text-ink-500">
+                    {period.loading ? (
+                      'Reading your filing history…'
+                    ) : period.error ? (
+                      <span className="text-critical">
+                        Filing history unavailable ({period.error}). Corrections are
+                        unsafe until this is readable.
+                      </span>
+                    ) : period.filings.length === 0 ? (
+                      `Nothing filed yet for ${settings.reportingFI.country} ${settings.taxYear}.`
+                    ) : (
+                      <>
+                        {period.filings.length} filing{period.filings.length === 1 ? '' : 's'} on
+                        record for {settings.reportingFI.country} {settings.taxYear}
+                        {' '}&middot; {period.records.length} record
+                        {period.records.length === 1 ? '' : 's'} available to correct
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {!user && (
+                  <p className="mt-4 text-[13px] text-ink-500 leading-snug max-w-prose">
+                    Corrections, voids and nil returns need a record of what you filed
+                    before &mdash; a correction has to name the exact record it replaces.
+                    Sign in and this tool keeps that record for you. It stores references
+                    and hashes only; account numbers, names and balances never leave
+                    this browser.
+                  </p>
+                )}
+              </section>
+
+              {/* Step 1 */}
+              <section className={filingMode === FilingMode.Nil ? 'opacity-50 pointer-events-none' : ''}>
+                <div className="flex items-baseline gap-4 mb-5">
+                  <span className="font-display text-[13px] text-ink-300 tabular">02</span>
+                  <h3 className="font-display text-2xl tracking-display text-ink">
+                    {filingMode === FilingMode.New ? 'Upload your data'
+                      : filingMode === FilingMode.Nil ? 'No file needed'
+                      : `Upload the rows to ${filingMode === FilingMode.Void ? 'void' : 'correct'}`}
+                  </h3>
                 </div>
 
                 <button
@@ -4088,7 +4308,7 @@ const CRSConverter = () => {
               {/* Step 2 */}
               <section>
                 <div className="flex items-baseline gap-4 mb-5">
-                  <span className="font-display text-[13px] text-ink-300 tabular">02</span>
+                  <span className="font-display text-[13px] text-ink-300 tabular">03</span>
                   <h3 className="font-display text-2xl tracking-display text-ink">
                     Identify the reporting institution
                   </h3>
@@ -4211,13 +4431,16 @@ const CRSConverter = () => {
               {/* Step 3 */}
               <section>
                 <div className="flex items-baseline gap-4 mb-5">
-                  <span className="font-display text-[13px] text-ink-300 tabular">03</span>
+                  <span className="font-display text-[13px] text-ink-300 tabular">04</span>
                   <h3 className="font-display text-2xl tracking-display text-ink">Generate</h3>
                 </div>
 
                 <button
                   onClick={handleConvert}
-                  disabled={processing || !usageStatus.canConvert || data.length === 0}
+                  disabled={
+                    processing || !usageStatus.canConvert ||
+                    (filingMode !== FilingMode.Nil && data.length === 0)
+                  }
                   className="group w-full sm:w-auto sm:min-w-[300px] h-14 lg:h-16 px-8 rounded-field bg-accent text-white font-medium text-base lg:text-lg tracking-tight inline-flex items-center justify-center gap-2.5 hover:bg-accent-soft disabled:bg-ink-200 disabled:text-ink-400 disabled:cursor-not-allowed transition-colors duration-300"
                 >
                   {processing ? (
@@ -4227,7 +4450,8 @@ const CRSConverter = () => {
                     </>
                   ) : (
                     <>
-                      Generate CRS XML
+                      {filingMode === FilingMode.New ? 'Generate CRS XML'
+                        : `Generate ${FILING_MODE_LABELS[filingMode].toLowerCase()}`}
                       <ArrowRight
                         className="w-5 h-5 transition-transform duration-500 group-hover:translate-x-1"
                         strokeWidth={1.75}
@@ -4317,14 +4541,36 @@ const CRSConverter = () => {
                   <div className="mt-8 rounded-card bg-ink text-white overflow-hidden animate-fade-up">
                     <div className="p-6 lg:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
                       <div>
-                        <div className="text-[13px] text-white/50">Generated</div>
+                        <div className="text-[13px] text-white/50">
+                          {FILING_MODE_LABELS[result.filingMode] || 'Generated'}
+                        </div>
                         <div className="mt-1.5 font-display text-2xl tracking-display">
-                          {result.recordCount} account reports
+                          {result.summary}
                         </div>
                         <div className="mt-1 text-[13px] text-white/50 tabular">
                           CRS v{result.crsVersion} &middot; Tax year {settings.taxYear} &middot;{' '}
                           {Math.round(result.xml.length / 1024)}KB &middot; {result.processingTime}ms
                         </div>
+                        {/* Whether this filing can be corrected later depends
+                            entirely on whether its references were recorded. */}
+                        {result.recorded && (
+                          <div className="mt-2 text-[13px] text-white/60">
+                            Recorded &mdash; you can correct or void these records later.
+                          </div>
+                        )}
+                        {result.ledgerError && (
+                          <div className="mt-2 text-[13px] text-white/80">
+                            The XML is fine, but this filing was not recorded
+                            ({result.ledgerError}). You will not be able to correct
+                            it from here later.
+                          </div>
+                        )}
+                        {!user && (
+                          <div className="mt-2 text-[13px] text-white/50">
+                            Not recorded &mdash; sign in to keep a filing history you can
+                            correct against.
+                          </div>
+                        )}
                       </div>
                       <button
                         onClick={handleDownload}
