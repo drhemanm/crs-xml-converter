@@ -261,3 +261,70 @@ Single `WriteBatch` for all active users (`functions/index.js:250-265`); Firesto
 | 8 | Make the GDPR portal real; align retention policy (90d vs 7y) everywhere | H2, H3 |
 | 9 | Add CSP/HSTS/Referrer-Policy headers on both hosts | H7 |
 | 10 | Add unit tests for validation + XML generation; real XSD validation step; fix XML metadata issues | M2, M3, M4, L3 |
+
+---
+
+## Additions since the original audit
+
+### A1. Firestore rules, indexes and functions were never deployed
+Vercel deploys the web app and nothing else. `firestore.rules`,
+`firestore.indexes.json` and `functions/` ship only via `firebase deploy`, which
+nothing and nobody was running — so C1, C3 and H1 were fixed in the repository
+while production kept the holes they closed, and the GDPR portal wrote to a
+collection the deployed rules denied.
+
+**Fixed:** `.github/workflows/firebase-deploy.yml` deploys them on any change to
+those paths, after running the rules suite. It needs a `FIREBASE_SERVICE_ACCOUNT`
+secret and a `FIREBASE_PROJECT_ID` variable; until those exist it stops with an
+explanation rather than failing obscurely. **Someone still has to add them.**
+
+### A2. The app had no CI
+The tests existed and nothing ran them. Two deploys went red on lint errors a
+local build could not catch, because `react-scripts build` aborts before linting
+in this toolchain and the workaround (`DISABLE_ESLINT_PLUGIN=true`) skips exactly
+the gating check.
+
+**Fixed:** `.github/workflows/app.yml` runs the deploy's real lint, the unit
+tests, a production build and the Firestore rules suite. `npm run verify` does
+the same locally. `.eslintrc.ci.js` reproduces the deploy ruleset.
+
+### A3. No filing lifecycle — the product could not do the job it exists for
+A stateless converter cannot file a correction, a void or a nil return, and
+every reporting FI needs all three. Corrections in particular are impossible
+without remembering the DocRefId of the record being replaced.
+
+**Fixed:** `src/crs/lifecycle.js`, `src/crs/refs.js` and `src/crs/ledger.js`
+implement the four filing modes with the OECD correction rules — CorrDocRefId
+referencing the latest version, ReportingFI resent as OECD0 under its original
+DocRefId, CorrMessageRefId never emitted, voided records not correctable,
+duplicate filings refused. The ledger stores references and hashes only; rules
+tests assert that customer data cannot be written into it.
+
+### A4. Dividends were dropped from every return
+The mapper derived its source column as `${type}_amount`, giving
+`dividends_amount`, while the column mapping only ever produced
+`dividend_amount`. Every dividend figure read as zero and vanished from the
+file — under-reporting income to a tax authority with no error shown.
+
+**Fixed**, with the source column and CRS code now listed together rather than
+derived from each other.
+
+### A5. Column matching could hand a header to the wrong field
+Substring containment was tested in both directions, so a longer field name
+swallowed a shorter header: a `controlling_person_address` column was claimed by
+`controlling_person_address_country`, and a street address was then validated as
+a country code.
+
+**Fixed:** three passes — exact, punctuation-insensitive, then containment
+against the canonical field name only — each claiming its header so one column
+feeds one field, with an ambiguous match reported as a missing column rather
+than guessed.
+
+### A6. The promised template did not exist
+Documentation told filers to "download our sample template" since launch and no
+such download existed; the sample data structure shown in the docs used columns
+the converter does not read and would have been rejected on upload.
+
+**Fixed:** template and field guide generated from the converter's own field
+list, with tests asserting they round-trip through the real mapper under both
+schema versions.
