@@ -6,11 +6,14 @@
  * periods filed from 1 January 2027. That second case is why the sentinel
  * gating below exists.
  *
- * Note on namespaces: the `stf` prefix is bound to `urn:oecd:ties:crsstf:v5`.
- * That matches the legacy implementation and one corroborating source, but a
- * second source suggested `urn:oecd:ties:stf:v5`. It is a one-line change once
- * the official XSD is vendored into packages/schema, and the golden tests will
- * catch it immediately.
+ * Namespace bindings are VERIFIED against the OECD Amended CRS XML Schema User
+ * Guide (October 2024), which declares the schema as:
+ *   xmlns:crs="urn:oecd:ties:crs:v3"  xmlns:stf="urn:oecd:ties:crsstf:v5"
+ *   xmlns:cfc="urn:oecd:ties:commontypesfatcacrs:v2"
+ *   xmlns:iso="urn:oecd:ties:isocrstypes:v1"
+ * Note that `targetNamespace` appears on the *schema* there, not on instance
+ * documents — which is why emitting it on the root, as the legacy generator
+ * did, is invalid.
  */
 import { el, serialize, text, type XmlElement, type XmlNode } from "../xml.js";
 import {
@@ -19,7 +22,6 @@ import {
   ControllingPersonType,
   DueDiligence,
   SelfCert,
-  sentinelsPermitted,
   valueOf,
   type AccountRecord,
   type ControllingPerson,
@@ -237,7 +239,7 @@ export const v3Emitter: Emitter = {
 
   emit(plan: FilingPlan, options: EmitOptions = {}): EmitResult {
     const diagnostics: Diagnostic[] = [];
-    const allowSentinel = sentinelsPermitted(plan.reportingPeriod);
+    const allowSentinel = plan.sentinelsPermitted;
 
     const sendingCompanyIn = plan.reportingFi.identifiers[0]?.value;
     const timestamp = plan.generatedAt;

@@ -73,6 +73,7 @@ function context(ledger: InMemoryLedger, periodEnd: string, filingDate: string):
     sendingCountry: MU.code,
     receivingCountry: MU.receivingCountry,
     senderId: "MU10203040",
+    sentinelsPermitted: MU.sentinelsPermitted(unsafeBrand.isoDate(periodEnd)),
     reportingFi: {
       name: "Banque des Mascareignes Ltd",
       residenceCountry: MU.code,

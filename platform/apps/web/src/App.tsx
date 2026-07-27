@@ -155,6 +155,7 @@ export default function App() {
       sendingCountry: p.code,
       receivingCountry: p.receivingCountry,
       senderId: settings.fiId,
+      sentinelsPermitted: p.sentinelsPermitted(unsafeBrand.isoDate(settings.periodEnd)),
       reportingFi: {
         name: settings.fiName,
         residenceCountry: p.code,
@@ -315,7 +316,7 @@ export default function App() {
     <div className="shell">
       <header className="masthead">
         <h1>CRS filing</h1>
-        <p>Prepare, validate and correct CRS/AEOI returns.</p>
+        <p>Prepare, validate and correct CRS/AEOI returns. By Evologics Ltd.</p>
         <div className="privacy-note">
           <strong>Account data stays in this browser.</strong> Spreadsheets are parsed, mapped and converted
           locally; the generated XML is produced on this device and never uploaded. You can verify this — open

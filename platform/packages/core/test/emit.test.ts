@@ -3,6 +3,7 @@ import {
   InMemoryLedger,
   notReported,
   planNewFiling,
+  planNilReturn,
   v2Emitter,
   v3Emitter,
   findCharsetViolations,
@@ -65,7 +66,11 @@ describe("fabricated data", () => {
    * obtained". Institutions filed attestations they may never have held.
    */
   it("refuses to assert a self-certification that was never supplied", () => {
-    const { xml, diagnostics } = v3Emitter.emit(planFor([recordWithoutSelfCert()]));
+    // Where the jurisdiction does not permit the transitional sentinel, an
+    // unsupplied self-certification has to be a hard error.
+    const { xml, diagnostics } = v3Emitter.emit(
+      planFor([recordWithoutSelfCert()], { sentinelsPermitted: false }),
+    );
 
     expect(xml).not.toContain("CRS901");
     const errors = diagnostics.filter((d) => d.severity === "error");
@@ -74,7 +79,9 @@ describe("fabricated data", () => {
   });
 
   it("attaches the offending spreadsheet row to the diagnostic", () => {
-    const { diagnostics } = v3Emitter.emit(planFor([recordWithoutSelfCert()]));
+    const { diagnostics } = v3Emitter.emit(
+      planFor([recordWithoutSelfCert()], { sentinelsPermitted: false }),
+    );
     const d = diagnostics.find((x) => /Self-certification/i.test(x.message));
     expect(d?.provenance).toEqual({ sheet: "Accounts", row: 2 });
   });
@@ -84,8 +91,17 @@ describe("fabricated data", () => {
    * after. That gating is exactly what allows a v3.0 correction to an older
    * period.
    */
-  it("uses the not-reported sentinel for periods that still permit it", () => {
-    const plan = planFor([recordWithoutSelfCert()], { reportingPeriod: period2025 });
+  /**
+   * The OECD describes the sentinels as a transitional measure for
+   * interoperability with the previous schema version, "particularly in
+   * respect of corrections", and states no cut-off date. Whether they may be
+   * used is therefore a jurisdiction decision, carried on the plan.
+   */
+  it("uses the not-reported sentinel where the jurisdiction permits it", () => {
+    const plan = planFor([recordWithoutSelfCert()], {
+      reportingPeriod: period2025,
+      sentinelsPermitted: true,
+    });
     const { xml, diagnostics } = v3Emitter.emit(plan);
 
     expect(xml).toContain("<SelfCert>CRS900</SelfCert>");
@@ -210,5 +226,26 @@ describe("XML escaping", () => {
     const { xml } = v3Emitter.emit(planFor([record]));
     expect(xml).toContain("A &amp; &lt;B&gt;");
     expect(xml).not.toContain("A & <B>");
+  });
+});
+
+describe("nil returns", () => {
+  /**
+   * Verified against OECD User Guide v4.0: for a domestic FI nil return the
+   * AccountReport is omitted "while the CrsBody and ReportingFI will be
+   * provided". Omitting CrsBody entirely is only correct for Competent
+   * Authority to Competent Authority messages.
+   */
+  it("retains CrsBody and ReportingFI, omitting only the account reports", () => {
+    const ledger = new InMemoryLedger();
+    const plan = planNilReturn(planContext(ledger));
+    if (Array.isArray(plan)) throw new Error("expected a plan");
+    const { xml } = v3Emitter.emit(plan);
+
+    expect(xml).toContain("<MessageTypeIndic>CRS703</MessageTypeIndic>");
+    expect(xml).toContain("<CrsBody>");
+    expect(xml).toContain("<ReportingFI>");
+    expect(xml).not.toContain("<AccountReport>");
+    expect(xml).not.toContain("<ReportingGroup>");
   });
 });

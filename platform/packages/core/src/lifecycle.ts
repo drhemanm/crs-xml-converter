@@ -97,6 +97,12 @@ export interface FilingPlan {
   readonly messageRefId: MessageRefId;
   /** When this plan was produced. Emitted as MessageSpec/Timestamp. */
   readonly generatedAt: string;
+  /**
+   * Whether the "not reported" sentinels may be used for this filing. Decided
+   * by the jurisdiction pack, because the OECD sets no cut-off but individual
+   * authorities do.
+   */
+  readonly sentinelsPermitted: boolean;
   readonly messageTypeIndic: MessageTypeIndic;
   readonly environment: Environment;
   readonly schemaTarget: SchemaTarget;
@@ -123,6 +129,8 @@ export interface PlanContext {
   readonly receivingCountry: Iso3166Alpha2;
   readonly reportingFi: ReportingFinancialInstitution;
   readonly senderId: string;
+  /** From the jurisdiction pack; see FilingPlan.sentinelsPermitted. */
+  readonly sentinelsPermitted: boolean;
   /** Injected so plans are reproducible in tests and audits. */
   readonly now: () => string;
   /** Stable per-tenant identity for an account; production uses a keyed HMAC. */
@@ -261,6 +269,7 @@ export function planNewFiling(ctx: PlanContext, records: readonly AccountRecord[
   return {
     messageRefId: msgRef.value,
     generatedAt: ctx.now(),
+    sentinelsPermitted: ctx.sentinelsPermitted,
     messageTypeIndic: MessageTypeIndic.New,
     environment: ctx.environment,
     schemaTarget: ctx.schemaTarget,
@@ -475,6 +484,7 @@ export function planCorrection(
   return {
     messageRefId: msgRef.value,
     generatedAt: ctx.now(),
+    sentinelsPermitted: ctx.sentinelsPermitted,
     messageTypeIndic: MessageTypeIndic.Corrections,
     environment: ctx.environment,
     schemaTarget: ctx.schemaTarget,
@@ -569,6 +579,7 @@ export function planReportingFiDeletion(
   return {
     messageRefId: msgRef.value,
     generatedAt: ctx.now(),
+    sentinelsPermitted: ctx.sentinelsPermitted,
     messageTypeIndic: MessageTypeIndic.Corrections,
     environment: ctx.environment,
     schemaTarget: ctx.schemaTarget,
@@ -602,6 +613,7 @@ export function planNilReturn(ctx: PlanContext): FilingPlan | Diagnostic[] {
   return {
     messageRefId: msgRef.value,
     generatedAt: ctx.now(),
+    sentinelsPermitted: ctx.sentinelsPermitted,
     messageTypeIndic: MessageTypeIndic.NilReturn,
     environment: ctx.environment,
     schemaTarget: ctx.schemaTarget,

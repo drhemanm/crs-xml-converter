@@ -73,6 +73,17 @@ export interface JurisdictionPack {
   /** Whether a nil return is required when there is nothing to report. */
   readonly nilReturnRequired: boolean;
 
+  /**
+   * Whether the "not reported" sentinels (CRS900, CRS1000, CRS1100, CRS1200,
+   * CRS800) may be used for a given reporting period.
+   *
+   * The OECD sets no cut-off — User Guide v4.0 describes them as a transitional
+   * measure for interoperability with the previous schema version, especially
+   * for corrections. Individual authorities do impose cut-offs, so this is a
+   * per-jurisdiction decision rather than a universal rule.
+   */
+  sentinelsPermitted(periodEnd: IsoDate): boolean;
+
   readonly verification: readonly Verification[];
   readonly notes: readonly string[];
 }

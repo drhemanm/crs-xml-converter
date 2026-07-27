@@ -30,7 +30,7 @@ const PayPalCheckout = ({ plan, onSuccess, onError, onCancel }) => {
               custom_id: `plan_${plan}_${Date.now()}`
             }],
             application_context: {
-              brand_name: 'iAfrica CRS Converter',
+              brand_name: 'Evologics CRS Converter',
               user_action: 'PAY_NOW'
             }
           });

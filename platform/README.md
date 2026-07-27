@@ -99,6 +99,26 @@ what makes the product defensible.
 Each rule is enforced in `lifecycle.ts` and annotated with the OECD CTS error
 code it prevents.
 
+All of the above are **verified against the OECD *Amended Common Reporting Standard XML Schema: User Guide for Tax Administrations*, October 2024**, which states them
+directly — including that `CorrDocRefID` "must always refer to the latest
+reference of this Account-report (DocRefID) that was sent", that "a series of
+corrections … each correction completely replaces the previous version", that
+`OECD0` is "only to be used for resending the Reporting FI element", and that
+`CorrMessageRefID` "is not used for CRS at the DocSpec level".
+
+### Transitional sentinels are a jurisdiction decision
+
+The guide describes `CRS900` / `CRS1000` / `CRS1100` / `CRS1200` / `CRS800` as
+"available as a transitional measure, in order to facilitate interoperability
+with the previous version of the schema, particularly in respect of
+corrections" — and sets **no cut-off date**. Some authorities do: HMRC rejects
+them for reporting periods after 2025-12-31.
+
+So `sentinelsPermitted` lives on the jurisdiction pack, not in the core. An
+earlier version of this code applied the HMRC cut-off universally, which would
+have blocked legitimate corrections of older periods in every other
+jurisdiction.
+
 ## Try it
 
 ```bash
@@ -156,15 +176,14 @@ correct; emitting a guessed shape would be worse.
    OECD Tax Transparency Resource Centre). Confirm the OECD's terms of use for
    redistribution. Until then nothing is schema-validated.
 2. **Verify the rules marked `secondary` / `unverified`** in the jurisdiction
-   packs against primary sources. Start with `mra.mu/download/CRSFAQ.pdf` — the
+   packs against primary sources. The OECD-level rules are now verified against
+   the User Guide (see below); the outstanding ones are jurisdiction-specific. Start with `mra.mu/download/CRSFAQ.pdf` — the
    home market — and validate output against MRA's published `Sample-Valid.xml`.
-3. **Confirm the `stf` namespace** (`urn:oecd:ties:crsstf:v5` vs
-   `urn:oecd:ties:stf:v5`). One-line change; golden tests will catch it.
-4. **Add golden-file tests** against the OECD's published sample instance
+3. **Add golden-file tests** against the OECD's published sample instance
    documents once the schemas are available.
 5. **XLSX ingestion.** Only CSV is wired up (`pnpm cli template` generates a
    conforming file, and a test asserts it round-trips). `xlsx@0.18.5` has known
    CVEs and is unmaintained on npm — use a patched SheetJS build or a vetted
    alternative.
-6. **Replace the in-memory ledger** with a database, and implement the
+5. **Replace the in-memory ledger** with a database, and implement the
    client-side-encrypted payload vault described in `CONCEPT.md` §6.1.

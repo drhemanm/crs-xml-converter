@@ -488,7 +488,7 @@ const DataRequestPortal = () => {
             <p className="text-blue-100 text-sm">
               <strong>Need Help?</strong><br />
               If you have questions about your data request or need assistance, contact our Data Protection Officer at{' '}
-              <a href="mailto:dpo@iafrica.solutions" className="underline">dpo@iafrica.solutions</a>
+              <a href="mailto:contacts@evologics.ai" className="underline">contacts@evologics.ai</a>
             </p>
           </div>
         </div>

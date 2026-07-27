@@ -38,7 +38,7 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">1. Introduction</h2>
             <p className="text-gray-300 mb-4">
-              iAfrica Compliance ("we," "our," or "us") is committed to protecting your privacy and personal data. 
+              Evologics Ltd ("we," "our," or "us") is committed to protecting your privacy and personal data. 
               This Privacy Policy explains how we collect, use, process, and protect your information when you use 
               our CRS XML Converter service, in compliance with the General Data Protection Regulation (GDPR) and 
               other applicable data protection laws.
@@ -58,10 +58,10 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-2xl font-bold text-white mb-4">2. Data Controller</h2>
             <div className="bg-white/5 rounded-lg p-4">
-              <p className="text-gray-300 mb-2"><strong>Data Controller:</strong> iAfrica Compliance</p>
+              <p className="text-gray-300 mb-2"><strong>Data Controller:</strong> Evologics Ltd</p>
               <p className="text-gray-300 mb-2"><strong>Address:</strong> [Your Business Address]</p>
-              <p className="text-gray-300 mb-2"><strong>Email:</strong> privacy@iafrica.solutions</p>
-              <p className="text-gray-300 mb-2"><strong>DPO Contact:</strong> dpo@iafrica.solutions</p>
+              <p className="text-gray-300 mb-2"><strong>Email:</strong> contacts@evologics.ai</p>
+              <p className="text-gray-300 mb-2"><strong>DPO Contact:</strong> contacts@evologics.ai</p>
               <p className="text-gray-300"><strong>EU Representative:</strong> [If applicable]</p>
             </div>
           </section>
@@ -241,7 +241,7 @@ const PrivacyPolicy = () => {
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4 mt-4">
               <p className="text-emerald-100 font-medium mb-2">How to Exercise Your Rights:</p>
               <p className="text-emerald-100 text-sm mb-2">
-                Contact us at <a href="mailto:privacy@iafrica.solutions" className="underline">privacy@iafrica.solutions</a> 
+                Contact us at <a href="mailto:contacts@evologics.ai" className="underline">contacts@evologics.ai</a> 
                 or use our <Link to="/data-request" className="underline">Data Request Portal</Link>
               </p>
               <p className="text-emerald-100 text-sm">
@@ -295,7 +295,7 @@ const PrivacyPolicy = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-white font-medium mb-2">Privacy Inquiries:</h3>
-                  <p className="text-gray-300 text-sm mb-1">Email: privacy@iafrica.solutions</p>
+                  <p className="text-gray-300 text-sm mb-1">Email: contacts@evologics.ai</p>
                   <p className="text-gray-300 text-sm">Response time: Within 72 hours</p>
                 </div>
                 <div>

@@ -33,7 +33,7 @@ const Documentation = () => {
             <h1 className="text-4xl font-bold text-white">Documentation</h1>
           </div>
           <p className="text-xl text-gray-300">
-            Complete guide to using the iAfrica CRS XML Converter
+            Complete guide to using the Evologics CRS XML Converter
           </p>
         </div>
 
@@ -75,7 +75,7 @@ const Documentation = () => {
                       <h2 className="text-3xl font-bold text-white">Getting Started</h2>
                     </div>
                     <p className="text-gray-300 text-lg">
-                      Welcome to the iAfrica CRS XML Converter! This guide will help you get started with converting your financial data to CRS OECD XML format.
+                      Welcome to the Evologics CRS XML Converter! This guide will help you get started with converting your financial data to CRS OECD XML format.
                     </p>
                   </div>
 
@@ -542,7 +542,7 @@ const Documentation = () => {
                           Contact Support
                         </Link>
                         <a 
-                          href="mailto:contact@iafrica.solutions"
+                          href="mailto:contacts@evologics.ai"
                           className="inline-flex items-center px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
                         >
                           <Mail className="w-4 h-4 mr-2" />
@@ -652,7 +652,7 @@ const Documentation = () => {
 
         <div className="text-center">
           <p className="text-gray-400">
-            © 2024 iAfrica Compliance. All rights reserved.
+            © 2026 Evologics Ltd. All rights reserved.
           </p>
         </div>
       </div>

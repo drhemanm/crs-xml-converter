@@ -289,6 +289,8 @@ const ACCOUNT_NUMBER_TYPE_TABLE: Record<string, AccountNumberType> = {
   isin: AccountNumberType.Isin,
   osin: AccountNumberType.Osin,
   other: AccountNumberType.Other,
+  electronic_money: AccountNumberType.SpecifiedElectronicMoneyProduct,
+  specified_electronic_money_product: AccountNumberType.SpecifiedElectronicMoneyProduct,
 };
 
 // --- mapping ----------------------------------------------------------------

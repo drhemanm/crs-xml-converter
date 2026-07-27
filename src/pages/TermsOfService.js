@@ -42,7 +42,7 @@ const TermsOfService = () => {
               <h2 className="text-2xl font-semibold text-white">Agreement to Terms</h2>
             </div>
             <p className="text-gray-300 leading-relaxed">
-              By accessing and using iAfrica Compliance services at iafrica-compliance.com ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of these terms, you may not access the Service.
+              By accessing and using Evologics Ltd services at evologics.ai ("Service"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of these terms, you may not access the Service.
             </p>
           </section>
 
@@ -50,7 +50,7 @@ const TermsOfService = () => {
           <section>
             <h2 className="text-2xl font-semibold text-white mb-4">Service Description</h2>
             <div className="space-y-4 text-gray-300">
-              <p>iAfrica Compliance provides:</p>
+              <p>Evologics Ltd provides:</p>
               <ul className="list-disc list-inside space-y-2 ml-4">
                 <li>CRS OECD XML conversion services</li>
                 <li>FATCA compliance reporting tools</li>
@@ -140,7 +140,7 @@ const TermsOfService = () => {
               <p><strong>Cancellation:</strong> You may cancel your subscription at any time through your account settings.</p>
               <p><strong>Service Continuation:</strong> Paid services continue until the end of the current billing period.</p>
               <p><strong>Refund Eligibility:</strong> Refunds may be provided within 7 days of initial purchase for legitimate service issues.</p>
-              <p><strong>Refund Process:</strong> Contact support at contact@iafrica.solutions to request a refund.</p>
+              <p><strong>Refund Process:</strong> Contact support at contacts@evologics.ai to request a refund.</p>
               <p><strong>No Partial Refunds:</strong> We do not provide partial refunds for unused conversions.</p>
             </div>
           </section>
@@ -192,7 +192,7 @@ const TermsOfService = () => {
           <section>
             <h2 className="text-2xl font-semibold text-white mb-4">Intellectual Property</h2>
             <div className="space-y-4 text-gray-300">
-              <p><strong>Our Property:</strong> The Service and its original content, features, and functionality are owned by iAfrica Compliance.</p>
+              <p><strong>Our Property:</strong> The Service and its original content, features, and functionality are owned by Evologics Ltd.</p>
               <p><strong>Your Data:</strong> You retain all rights to data you upload to our Service.</p>
               <p><strong>License to Use:</strong> We grant you a limited, non-exclusive license to use our Service according to these Terms.</p>
               <p><strong>Restrictions:</strong> You may not copy, modify, distribute, or reverse engineer our Service.</p>
@@ -218,7 +218,7 @@ const TermsOfService = () => {
           <section>
             <h2 className="text-2xl font-semibold text-white mb-4">Indemnification</h2>
             <p className="text-gray-300">
-              You agree to indemnify and hold harmless iAfrica Compliance from any claims, damages, or expenses arising from your use of the Service, violation of these Terms, or infringement of any third-party rights.
+              You agree to indemnify and hold harmless Evologics Ltd from any claims, damages, or expenses arising from your use of the Service, violation of these Terms, or infringement of any third-party rights.
             </p>
           </section>
 
@@ -255,7 +255,7 @@ const TermsOfService = () => {
             <div className="text-gray-300">
               <p>For questions about these Terms of Service, contact us:</p>
               <div className="mt-4 p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
-                <p><strong>Email:</strong> <a href="mailto:contact@iafrica.solutions" className="text-emerald-400 hover:text-emerald-300">contact@iafrica.solutions</a></p>
+                <p><strong>Email:</strong> <a href="mailto:contacts@evologics.ai" className="text-emerald-400 hover:text-emerald-300">contacts@evologics.ai</a></p>
                 <p><strong>Subject:</strong> Terms of Service Inquiry</p>
                 <p><strong>Response Time:</strong> Within 48 hours</p>
               </div>
@@ -278,7 +278,7 @@ const TermsOfService = () => {
         {/* Footer */}
         <div className="text-center">
           <p className="text-gray-400">
-            © 2024 iAfrica Compliance. All rights reserved.
+            © 2026 Evologics Ltd. All rights reserved.
           </p>
         </div>
       </div>

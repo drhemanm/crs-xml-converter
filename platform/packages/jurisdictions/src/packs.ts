@@ -27,6 +27,12 @@ const AMENDED_SCHEMA_CUTOVER: IsoDate = unsafeBrand.isoDate("2027-01-01");
  * regardless of which period it covers; before that, periods from RY2026
  * onward are v3.0 and everything earlier is v2.0.
  */
+/**
+ * The OECD position: sentinels are a transitional measure with no stated
+ * cut-off date. Jurisdictions that publish a cut-off override this.
+ */
+const oecdSentinels = (_periodEnd: IsoDate): boolean => true;
+
 function standardSchemaFor(periodEnd: IsoDate, filingDate: IsoDate): SchemaTarget {
   if (filingDate >= AMENDED_SCHEMA_CUTOVER) return "crs-v3.0";
   return periodEnd >= "2026-01-01" ? "crs-v3.0" : "crs-v2.0";
@@ -47,6 +53,7 @@ export const MU: JurisdictionPack = {
   singleConsolidatedFile: true,
   deadline: { month: 7, day: 31 },
   nilReturnRequired: true,
+  sentinelsPermitted: oecdSentinels,
   verification: [
     {
       source: "MRA CRS guidance: 'As from 1 February 2021, the CRS User Guide Version 3.0 and CRS XML Schema Version 2.0 are applicable.'",
@@ -100,6 +107,7 @@ export const KY: JurisdictionPack = {
   singleConsolidatedFile: false,
   deadline: { month: 7, day: 31 },
   nilReturnRequired: true,
+  sentinelsPermitted: oecdSentinels,
   verification: [
     {
       source: "DITC hard-validates ReceivingCountry to 'KY' regardless of the reporting entity's country of residence; any other value is an error.",
@@ -154,6 +162,7 @@ export const SG: JurisdictionPack = {
   singleConsolidatedFile: false,
   deadline: { month: 5, day: 31 },
   nilReturnRequired: true,
+  sentinelsPermitted: oecdSentinels,
   verification: [
     {
       source: "IRAS XML Schema User Guide for CRS Return: DocRefId must start with the Reporting SGFI's Singapore Tax Reference Number and be unique in time and space.",
@@ -187,6 +196,7 @@ export const IE: JurisdictionPack = {
   singleConsolidatedFile: false,
   deadline: { month: 6, day: 30 },
   nilReturnRequired: true,
+  sentinelsPermitted: oecdSentinels,
   verification: [
     {
       source: "Revenue TDM Part 38-03-26 §7.5 (added 7 July 2025): CRS 2.0 effective 1 January 2027, to be used for all filings — New, Amended and Void — from that date for all periods.",
@@ -230,6 +240,10 @@ export const GB: JurisdictionPack = {
   singleConsolidatedFile: false,
   deadline: { month: 5, day: 31 },
   nilReturnRequired: true,
+  // HMRC rejects the transitional sentinels for reporting periods after
+  // 2025-12-31 (business rule codes 52, 61, 62, 67, 68). This is stricter than
+  // the OECD, which states no cut-off.
+  sentinelsPermitted: (periodEnd: IsoDate) => periodEnd <= "2025-12-31",
   verification: [
     {
       source: "IEIM404500: UK FIs uploading directly must submit using the UK submission schema (combined CRS/FATCA).",
@@ -243,6 +257,12 @@ export const GB: JurisdictionPack = {
     },
     { source: "The online system accepts only Latin character set 1 (ISO-8859-1).", confidence: "verified", checkedOn: CHECKED },
     { source: "Filing deadline is 31 May for each year ending 31 December.", confidence: "verified", checkedOn: CHECKED },
+    {
+      source: "HMRC business rules 52/61/62/67/68 forbid the transitional sentinels for reporting periods after 2025-12-31.",
+      confidence: "secondary",
+      checkedOn: CHECKED,
+      note: "Stricter than the OECD, which sets no cut-off. Confirm against the HMRC AEOI user guide.",
+    },
     {
       source: "AEOI MessageRefId/DocRefId format rules could not be retrieved.",
       confidence: "unverified",

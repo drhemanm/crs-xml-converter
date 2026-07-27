@@ -120,6 +120,7 @@ export function planContext(
     receivingCountry: MU,
     reportingFi,
     senderId: "MU10203040",
+    sentinelsPermitted: true,
     now: () => "2027-05-01T00:00:00.000Z",
     businessKeyOf: (r) => r.businessKey,
     payloadDigestOf: (r) => `${r.accountNumber}:${r.balance.amount}:${r.holder.kind}`,

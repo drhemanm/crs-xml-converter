@@ -138,7 +138,7 @@ const ACCEPTS: Partial<Record<CanonicalField, string>> = {
   account_holder_type: "passive_nfe_reportable | reportable_person | passive_nfe_crs_reportable",
   cp_type:
     "ownership | other_means | senior_managing | trust_settlor | trust_trustee | trust_protector | trust_beneficiary | trust_other | other_settlor_eq | other_trustee_eq | other_protector_eq | other_beneficiary_eq | other_equivalent",
-  account_number_type: "iban | oban | isin | osin | other",
+  account_number_type: "iban | oban | isin | osin | other | electronic_money (OECD606, v3.0 only)",
   closed_account: "true | false",
   dormant_account: "true | false",
   undocumented_account: "true | false",

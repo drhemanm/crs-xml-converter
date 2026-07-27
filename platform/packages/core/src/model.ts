@@ -113,6 +113,8 @@ export const AccountNumberType = {
   Isin: "OECD603",
   Osin: "OECD604",
   Other: "OECD605",
+  /** Added by the amended schema; absent from CRS v2.0. */
+  SpecifiedElectronicMoneyProduct: "OECD606",
 } as const;
 export type AccountNumberType = (typeof AccountNumberType)[keyof typeof AccountNumberType];
 
@@ -250,8 +252,18 @@ export interface ReportingPeriod {
 export const reportingYear = (p: ReportingPeriod): number => Number(p.end.slice(0, 4));
 
 /**
- * Sentinels became invalid for periods after 2025-12-31 when CRS 2.0 took
- * effect. This is what makes it possible to correct a 2023 record in 2027
- * using the v3.0 schema: the older period still accepts "not reported".
+ * Whether the "not reported" sentinels may be used, per the OECD.
+ *
+ * User Guide v4.0 (October 2024) describes each sentinel as "available as a
+ * transitional measure, in order to facilitate interoperability with the
+ * previous version of the schema, particularly in respect of corrections".
+ * It states **no cut-off date**, which is what makes it possible to correct a
+ * 2023 record in 2027 under the v3.0 schema. [VERIFIED against the guide.]
+ *
+ * Individual jurisdictions do impose cut-offs — HMRC, for one, rejects these
+ * values for reporting periods after 2025-12-31. That is a jurisdiction rule
+ * and lives in the jurisdiction pack, not here. Callers should pass
+ * `sentinelsPermitted` explicitly from the pack; this is only the OECD default
+ * for callers that have no pack.
  */
-export const sentinelsPermitted = (p: ReportingPeriod): boolean => p.end <= "2025-12-31";
+export const oecdSentinelsPermitted = (_p: ReportingPeriod): boolean => true;

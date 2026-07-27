@@ -160,6 +160,7 @@ function buildContext(
     receivingCountry: pack.receivingCountry,
     reportingFi: fi,
     senderId,
+    sentinelsPermitted: pack.sentinelsPermitted(periodEnd),
     now: () => new Date().toISOString(),
     businessKeyOf: (r) => createHmac("sha256", tenantKey).update(r.accountNumber).digest("hex").slice(0, 32),
     payloadDigestOf: (r) => createHmac("sha256", tenantKey).update(JSON.stringify(r)).digest("hex"),

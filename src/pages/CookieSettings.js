@@ -393,7 +393,7 @@ const CookieSettings = () => {
                 <Link to="/privacy" className="underline hover:text-blue-200">Privacy Policy</Link> or{' '}
                 <Link to="/data-request" className="underline hover:text-blue-200">submit a data request</Link>.
               </p>
-              <p>If you have questions, contact our Data Protection Officer at dpo@iafrica.solutions</p>
+              <p>If you have questions, contact our Data Protection Officer at contacts@evologics.ai</p>
             </div>
           </div>
         </div>

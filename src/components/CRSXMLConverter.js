@@ -66,8 +66,8 @@ googleProvider.setCustomParameters({
 // BUSINESS CONFIGURATION
 // ==========================================
 
-const SUPPORT_EMAIL = 'contact@iafrica.solutions';
-const COMPANY_NAME = 'Intelligent Africa Solutions Ltd';
+const SUPPORT_EMAIL = 'contacts@evologics.ai';
+const COMPANY_NAME = 'Evologics Ltd';
 const ANONYMOUS_USAGE_KEY = 'crs_anonymous_usage';
 const ANONYMOUS_LIMIT = 3;
 
@@ -2738,7 +2738,7 @@ const Navigation = () => {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
               <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-red-500 bg-clip-text text-transparent">
-                iAfrica
+                Evologics
               </div>
               <div className="hidden md:block">
                 <span className="text-lg font-semibold text-gray-900">CRS v3.0 Converter</span>
@@ -3579,7 +3579,7 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center">
           <div className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-red-400 bg-clip-text text-transparent mb-4">
-            iAfrica
+            Evologics
           </div>
           <p className="text-gray-400 mb-4">
             Professional 100% CRS v3.0 XSD compliant solutions for financial institutions worldwide.
