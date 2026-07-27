@@ -1,9 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { onAuthStateChanged } from 'firebase/auth';
+import {
+  addDoc, collection, getDocs, limit, orderBy, query, serverTimestamp, where,
+} from 'firebase/firestore';
 import { Download, Trash2, Edit, Eye, ArrowLeft, Shield, Calendar, AlertTriangle, CheckCircle, Clock, Mail } from 'lucide-react';
+import { auth, db } from '../components/CRSXMLConverter';
+
+const SUPPORT_EMAIL = 'contacts@evologics.ai';
 
 const DataRequestPortal = () => {
   const [activeTab, setActiveTab] = useState('request');
+  // Requests are stored server-side, keyed on the authenticated account.
+  // They used to be written to localStorage in the requester's own browser
+  // after a fake two-second delay, so nobody at Evologics was ever told a
+  // statutory request had been made -- while the page displayed a 30-day
+  // response deadline. Being signed in is also how identity is verified: we
+  // hold personal data only for registered accounts.
+  const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [requests, setRequests] = useState([]);
+  const [requestsError, setRequestsError] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
+  const [submittedId, setSubmittedId] = useState(null);
   const [requestType, setRequestType] = useState('');
   const [formData, setFormData] = useState({
     email: '',
@@ -76,44 +95,94 @@ const DataRequestPortal = () => {
     }));
   };
 
+  useEffect(() => onAuthStateChanged(auth, (u) => {
+    setUser(u);
+    setAuthReady(true);
+    if (u?.email) setFormData(prev => ({ ...prev, email: u.email }));
+  }), []);
+
+  const loadRequests = useCallback(async () => {
+    if (!user) { setRequests([]); return; }
+    setRequestsError(null);
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'data_requests'),
+        where('userId', '==', user.uid),
+        orderBy('submittedAt', 'desc'),
+        limit(50),
+      ));
+      setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (error) {
+      // Surfaced rather than swallowed: a request the user believes was
+      // lodged and that we cannot show them is worse than an error message.
+      setRequestsError(error.message);
+    }
+  }, [user]);
+
+  useEffect(() => { loadRequests(); }, [loadRequests]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!user) return;
     setLoading(true);
-    
-    // Simulate API call
+    setSubmitError(null);
+
     try {
-      // In real implementation, this would be an API call to your backend
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Store request in localStorage for demo purposes
-      const requestId = 'DR-' + Date.now();
-      const request = {
-        id: requestId,
-        ...formData,
-        status: 'submitted',
-        submittedAt: new Date().toISOString(),
-        estimatedCompletion: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-      };
-      
-      const existingRequests = JSON.parse(localStorage.getItem('dataRequests') || '[]');
-      existingRequests.push(request);
-      localStorage.setItem('dataRequests', JSON.stringify(existingRequests));
-      
+      const ref = await addDoc(collection(db, 'data_requests'), {
+        userId: user.uid,
+        accountEmail: user.email || null,
+        contactEmail: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        requestType: formData.requestType,
+        description: formData.description,
+        urgency: formData.urgency,
+        status: 'received',
+        submittedAt: serverTimestamp(),
+      });
+      setSubmittedId(ref.id);
       setSubmitted(true);
+      loadRequests();
     } catch (error) {
-      console.error('Error submitting request:', error);
+      setSubmitError(
+        `We could not record your request (${error.message}). ` +
+        `Please email ${SUPPORT_EMAIL} instead so it is not lost.`
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const getStoredRequests = () => {
-    return JSON.parse(localStorage.getItem('dataRequests') || '[]');
+  // For anyone not signed in. A request made this way lands in a real inbox,
+  // which is the whole point.
+  const mailtoHref = () => {
+    const type = requestTypes.find(t => t.id === requestType);
+    const subject = `GDPR request: ${type ? type.title : 'data request'}`;
+    const name = `${formData.firstName} ${formData.lastName}`.trim();
+    const body = [
+      `Request type: ${type ? type.title : requestType}`,
+      name ? `Name: ${name}` : null,
+      formData.email ? `Email: ${formData.email}` : null,
+      '',
+      formData.description || '(please add any detail that helps us identify your data)',
+    ].filter(line => line !== null).join('\n');
+    return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const formatDate = (value) => {
+    const d = value?.toDate ? value.toDate() : (value ? new Date(value) : null);
+    return d && !isNaN(d.getTime()) ? d.toLocaleDateString() : '—';
+  };
+
+  const dueDate = (value) => {
+    const d = value?.toDate ? value.toDate() : (value ? new Date(value) : null);
+    if (!d || isNaN(d.getTime())) return '—';
+    return new Date(d.getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString();
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'submitted': return <Clock className="w-4 h-4 text-caution" />;
+      case 'received': return <Clock className="w-4 h-4 text-caution" />;
       case 'processing': return <Clock className="w-4 h-4 text-ink" />;
       case 'completed': return <CheckCircle className="w-4 h-4 text-affirm" />;
       case 'requires_verification': return <AlertTriangle className="w-4 h-4 text-caution" />;
@@ -123,7 +192,7 @@ const DataRequestPortal = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'submitted': return 'text-caution';
+      case 'received': return 'text-caution';
       case 'processing': return 'text-ink';
       case 'completed': return 'text-affirm';
       case 'requires_verification': return 'text-caution';
@@ -184,9 +253,55 @@ const DataRequestPortal = () => {
         </div>
 
         {/* Make a Request Tab */}
-        {activeTab === 'request' && (
+        {activeTab === 'request' && !authReady && (
+          <div className="bg-ink-50 rounded-card p-8 text-center text-ink-500">Loading…</div>
+        )}
+
+        {/* Not signed in: route to a real inbox rather than pretend to file
+            something. We hold personal data only for registered accounts, and
+            an email is a request a person actually receives. */}
+        {activeTab === 'request' && authReady && !user && (
+          <div className="bg-ink-50 rounded-card p-8">
+            <h2 className="text-2xl font-bold text-ink mb-3">Sign in, or email us</h2>
+            <p className="text-ink-600 mb-6 max-w-2xl">
+              Requests submitted here are tied to your account, which is how we
+              confirm the request comes from you. If you do not have an account
+              &mdash; or cannot sign in &mdash; send the request by email instead
+              and we will handle it the same way, within the same 30 days.
+            </p>
+
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-ink mb-3">Choose your request type</h3>
+              <div className="grid md:grid-cols-2 gap-3">
+                {requestTypes.map((type) => (
+                  <button
+                    key={type.id}
+                    type="button"
+                    onClick={() => { setRequestType(type.id); setFormData(prev => ({ ...prev, requestType: type.id })); }}
+                    className={`text-left p-4 rounded-card border transition-colors ${
+                      requestType === type.id ? 'border-accent bg-accent/5' : 'border-ink-200 bg-white hover:border-ink-300'
+                    }`}
+                  >
+                    <span className="block font-medium text-ink">{type.title}</span>
+                    <span className="block text-sm text-ink-600 mt-1">{type.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <a
+              href={requestType ? mailtoHref() : `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('GDPR request')}`}
+              className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent-soft text-white rounded-card font-medium transition-colors"
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              Email {SUPPORT_EMAIL}
+            </a>
+          </div>
+        )}
+
+        {activeTab === 'request' && authReady && user && (
           <div className="bg-ink-50 backdrop-blur-sm rounded-card p-8">
-            
+
             {!submitted ? (
               <>
                 {/* Request Types */}
@@ -327,21 +442,14 @@ const DataRequestPortal = () => {
                     {/* Verification Method */}
                     <div>
                       <label className="block text-sm font-medium text-ink-600 mb-2">
-                        Identity Verification Method
+                        Identity verification
                       </label>
-                      <select
-                        name="verificationMethod"
-                        value={formData.verificationMethod}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 bg-ink-50 border border-gray-600 rounded-card text-ink focus:outline-none focus:border-accent"
-                      >
-                        <option value="email">Email verification (recommended)</option>
-                        <option value="account">Account login verification</option>
-                        <option value="document">Document verification (for high-risk requests)</option>
-                      </select>
-                      <p className="text-xs text-ink-500 mt-2">
-                        We may require additional verification for certain types of requests to protect your privacy.
-                      </p>
+                      <div className="bg-ink-50 rounded-card p-4 text-sm text-ink-600">
+                        Your request is tied to the account you are signed in as
+                        (<span className="text-ink">{user?.email}</span>), which is
+                        how we verify who is asking. If we need anything further to
+                        act on it, we will contact you at that address.
+                      </div>
                     </div>
 
                     {/* Legal Information */}
@@ -365,11 +473,17 @@ const DataRequestPortal = () => {
                       <button
                         type="submit"
                         disabled={loading}
-                        className="px-8 py-3 bg-accent hover:bg-accent disabled:bg-gray-600 text-ink rounded-card font-medium transition-colors"
+                        className="px-8 py-3 bg-accent hover:bg-accent-soft disabled:bg-ink-200 disabled:text-ink-400 text-white rounded-card font-medium transition-colors"
                       >
-                        {loading ? 'Submitting...' : 'Submit Request'}
+                        {loading ? 'Submitting…' : 'Submit request'}
                       </button>
                     </div>
+
+                    {submitError && (
+                      <div className="rounded-card bg-critical-wash border border-critical/15 p-4 text-[14px] text-ink-700">
+                        {submitError}
+                      </div>
+                    )}
                   </form>
                 )}
               </>
@@ -377,23 +491,27 @@ const DataRequestPortal = () => {
               /* Success Message */
               <div className="text-center py-12">
                 <CheckCircle className="w-16 h-16 text-affirm mx-auto mb-6" />
-                <h2 className="text-2xl font-bold text-ink mb-4">Request Submitted Successfully</h2>
-                <p className="text-ink-600 mb-6 max-w-2xl mx-auto">
-                  Your data request has been received and is being processed. You will receive an email confirmation 
-                  shortly with your request ID and next steps.
+                <h2 className="text-2xl font-bold text-ink mb-4">Request recorded</h2>
+                <p className="text-ink-600 mb-2 max-w-2xl mx-auto">
+                  Your request is logged against your account and visible under
+                  &ldquo;Check status&rdquo;. We will respond within 30 days.
                 </p>
+                {submittedId && (
+                  <p className="text-ink-500 text-sm font-mono mb-6">Reference {submittedId}</p>
+                )}
                 <div className="bg-affirm/10 border border-affirm/20 rounded-card p-4 max-w-md mx-auto mb-6">
                   <p className="text-affirm text-sm">
-                    <strong>What happens next?</strong><br />
-                    1. Email confirmation sent<br />
-                    2. Identity verification (if required)<br />
-                    3. Request processing (up to 30 days)<br />
-                    4. Response delivered via email
+                    <strong>What happens next</strong><br />
+                    1. We review the request<br />
+                    2. We contact you at {user?.email} if we need more from you<br />
+                    3. We respond within 30 days
                   </p>
                 </div>
                 <button
                   onClick={() => {
                     setSubmitted(false);
+                    setSubmittedId(null);
+                    setSubmitError(null);
                     setRequestType('');
                     setFormData({
                       email: '',
@@ -417,61 +535,75 @@ const DataRequestPortal = () => {
         {/* Check Status Tab */}
         {activeTab === 'status' && (
           <div className="bg-ink-50 backdrop-blur-sm rounded-card p-8">
-            <h2 className="text-2xl font-bold text-ink mb-6">Your Data Requests</h2>
-            
-            {getStoredRequests().length === 0 ? (
+            <h2 className="text-2xl font-bold text-ink mb-6">Your data requests</h2>
+
+            {!authReady ? (
+              <p className="text-ink-500">Loading…</p>
+            ) : !user ? (
+              <div className="text-center py-12">
+                <Mail className="w-16 h-16 text-ink-500 mx-auto mb-4" />
+                <p className="text-ink-600 max-w-lg mx-auto">
+                  Sign in to see requests logged against your account. Requests
+                  sent by email are tracked in your correspondence with us at{' '}
+                  <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">{SUPPORT_EMAIL}</a>.
+                </p>
+              </div>
+            ) : requestsError ? (
+              <div className="rounded-card bg-critical-wash border border-critical/15 p-4 text-[14px] text-ink-700">
+                We could not load your requests ({requestsError}). Nothing has been
+                lost &mdash; email {SUPPORT_EMAIL} and we will confirm what we hold.
+              </div>
+            ) : requests.length === 0 ? (
               <div className="text-center py-12">
                 <Mail className="w-16 h-16 text-ink-500 mx-auto mb-4" />
                 <p className="text-ink-600">No data requests found.</p>
                 <button
                   onClick={() => setActiveTab('request')}
-                  className="mt-4 px-6 py-2 bg-accent hover:bg-accent text-ink rounded-card transition-colors"
+                  className="mt-4 px-6 py-2 bg-accent hover:bg-accent-soft text-white rounded-card transition-colors"
                 >
-                  Make Your First Request
+                  Make your first request
                 </button>
               </div>
             ) : (
               <div className="space-y-4">
-                {getStoredRequests().map((request) => (
-                  <div key={request.id} className="bg-ink-50 rounded-card p-4 border border-gray-600">
+                {requests.map((request) => (
+                  <div key={request.id} className="bg-white rounded-card p-4 border border-ink-200">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-3">
                         <div className="flex items-center">
                           {getStatusIcon(request.status)}
                           <span className={`ml-2 font-medium ${getStatusColor(request.status)}`}>
-                            {request.status.replace('_', ' ').toUpperCase()}
+                            {String(request.status || 'received').replace('_', ' ').toUpperCase()}
                           </span>
                         </div>
-                        <span className="text-ink-500">•</span>
+                        <span className="text-ink-500">&bull;</span>
                         <span className="text-ink-600 font-mono text-sm">{request.id}</span>
                       </div>
                       <span className="text-ink-500 text-sm">
-                        {new Date(request.submittedAt).toLocaleDateString()}
+                        {formatDate(request.submittedAt)}
                       </span>
                     </div>
-                    
+
                     <div className="grid md:grid-cols-3 gap-4 text-sm">
                       <div>
-                        <span className="text-ink-500">Request Type:</span>
+                        <span className="text-ink-500">Request type:</span>
                         <p className="text-ink">
-                          {requestTypes.find(type => type.id === request.requestType)?.title}
+                          {requestTypes.find(type => type.id === request.requestType)?.title || request.requestType}
                         </p>
                       </div>
                       <div>
-                        <span className="text-ink-500">Email:</span>
-                        <p className="text-ink">{request.email}</p>
+                        <span className="text-ink-500">Contact email:</span>
+                        <p className="text-ink">{request.contactEmail || request.accountEmail}</p>
                       </div>
                       <div>
-                        <span className="text-ink-500">Estimated Completion:</span>
-                        <p className="text-ink">
-                          {new Date(request.estimatedCompletion).toLocaleDateString()}
-                        </p>
+                        <span className="text-ink-500">Response due by:</span>
+                        <p className="text-ink">{dueDate(request.submittedAt)}</p>
                       </div>
                     </div>
 
                     {request.description && (
-                      <div className="mt-3 pt-3 border-t border-gray-600">
-                        <span className="text-ink-500 text-sm">Additional Details:</span>
+                      <div className="mt-3 pt-3 border-t border-ink-200">
+                        <span className="text-ink-500 text-sm">Additional details:</span>
                         <p className="text-ink-600 text-sm mt-1">{request.description}</p>
                       </div>
                     )}

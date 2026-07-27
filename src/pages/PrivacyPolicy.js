@@ -193,8 +193,8 @@ const PrivacyPolicy = () => {
               <div className="bg-ink-50 rounded-card p-4">
                 <h3 className="text-lg font-semibold text-ink mb-3">Processing Data</h3>
                 <ul className="text-ink-600 text-sm space-y-1">
-                  <li>• Uploaded files: Deleted within 24 hours</li>
-                  <li>• Conversion logs: 12 months</li>
+                  <li>• Uploaded files: never leave your browser &mdash; nothing to delete</li>
+                  <li>• Conversion logs (metadata only): 12 months</li>
                   <li>• Technical logs: 30 days (anonymized)</li>
                 </ul>
               </div>

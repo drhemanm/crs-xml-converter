@@ -560,7 +560,8 @@ const logAuditEvent = async (eventType, eventData, user = null) => {
       compliance: {
         dataClassification: 'CONFIDENTIAL',
         regulatoryScope: 'CRS_OECD_v3',
-        retentionPeriod: '7_YEARS'
+        // Must match the privacy policy and cleanupAuditLogs in functions/.
+        retentionPeriod: '12_MONTHS'
       },
       browserInfo: {
         language: navigator.language,

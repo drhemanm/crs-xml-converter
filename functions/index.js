@@ -286,7 +286,13 @@ exports.resetMonthlyLimits = functions.pubsub
     return null;
   });
 
-// Clean up old audit logs (keep only last 90 days)
+// Clean up old audit logs.
+//
+// The window is 12 months because that is what the published privacy policy
+// commits to for conversion logs. It used to be 90 days here while audit
+// entries were stamped '7_YEARS' and the policy said 12 months -- three
+// different numbers for one retention period. If this changes, the privacy
+// policy and the metadata stamp in CRSXMLConverter.js change with it.
 exports.cleanupAuditLogs = functions.pubsub
   .schedule('0 2 * * 0')  // Runs at 2 AM every Sunday
   .timeZone('UTC')
@@ -294,7 +300,8 @@ exports.cleanupAuditLogs = functions.pubsub
     console.log('Starting audit log cleanup...');
     
     const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 90);
+    const RETENTION_DAYS = 365;
+    cutoffDate.setDate(cutoffDate.getDate() - RETENTION_DAYS);
     
     const collections = [
       'audit_user_actions',

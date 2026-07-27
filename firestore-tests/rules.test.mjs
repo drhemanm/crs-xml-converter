@@ -108,6 +108,15 @@ await t('can lodge a request about themselves', () => assertSucceeds(addDoc(coll
 await t('cannot lodge one as somebody else', () => assertFails(addDoc(collection(alice(), 'data_requests'), { userId: 'bob', status: 'received', submittedAt: serverTimestamp(), type: 'access' })));
 await t('cannot mark their own request completed', () => assertFails(addDoc(collection(alice(), 'data_requests'), { userId: 'alice', status: 'completed', submittedAt: serverTimestamp(), type: 'access' })));
 await t('anonymous cannot lodge a request', () => assertFails(addDoc(collection(anon(), 'data_requests'), { userId: 'alice', status: 'received', submittedAt: serverTimestamp() })));
+// The exact payload DataRequestPortal sends, so the rules are checked against
+// the shape the app actually writes rather than a convenient minimal one.
+await t('accepts the payload the portal sends', () => assertSucceeds(addDoc(collection(alice(), 'data_requests'), {
+  userId: 'alice', accountEmail: 'alice@example.com', contactEmail: 'alice@example.com',
+  firstName: 'Alice', lastName: 'Smith', requestType: 'erasure',
+  description: 'Please delete my account data.', urgency: 'normal',
+  status: 'received', submittedAt: serverTimestamp(),
+})));
+await t('cannot back-date a request', () => assertFails(addDoc(collection(alice(), 'data_requests'), { userId: 'alice', status: 'received', submittedAt: new Date('2020-01-01'), requestType: 'access' })));
 
 console.log('\nserver-only collections');
 await env.clearFirestore();

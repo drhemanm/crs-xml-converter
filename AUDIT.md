@@ -121,9 +121,25 @@ Every audit `create` rule tests `resource.data.userId` (`firestore.rules:10-42`)
 **Fix:** Use `request.resource.data.userId == request.auth.uid` (create-only, no client read/update/delete), or better: write audit entries from a Cloud Function so clients can't forge them at all. Add an integration test against the Firestore emulator.
 
 ### H2. Retention claims contradict the code
+
+> **Status: fixed.** One number now, everywhere: 12 months. That is what the
+> privacy policy already published, so the code moved to match it rather than
+> the other way round. `cleanupAuditLogs` uses a 365-day window and the audit
+> metadata stamp reads `12_MONTHS`. The policy's "uploaded files deleted
+> within 24 hours" line was also wrong in the other direction -- files never
+> leave the browser, so there is nothing to delete.
 Audit entries are stamped `retentionPeriod: '7_YEARS'` (`CRSXMLConverter.js:475`), while `cleanupAuditLogs` deletes anything older than **90 days** (`functions/index.js:284-333`). For a CRS compliance product, misstating audit retention is a serious legal exposure. Pick one policy and make code, privacy policy, and metadata agree.
 
 ### H3. GDPR Data Request Portal is a façade
+
+> **Status: fixed.** Signed-in users lodge requests into `data_requests` in
+> Firestore, with a real reference, a server timestamp, and a status list that
+> reads back from the database. Everyone else gets a pre-filled mailto to
+> `contacts@evologics.ai` rather than a fake success screen: we hold personal
+> data only for registered accounts, and being signed in is what verifies the
+> requester's identity. The verification-method picker, which offered
+> processes that did not exist, is gone. Write failures are shown with the
+> support address instead of being swallowed.
 `DataRequestPortal.js:79-108` "submits" access/erasure/rectification requests to `localStorage` in the requester's own browser after a fake 2-second delay. No one at the company is ever notified. Users are led to believe they exercised statutory rights (30-day deadlines are displayed). **Fix:** persist requests to a backend (Firestore collection + email notification via a Cloud Function) or replace the portal with a mailto flow until one exists.
 
 ### H4. Known-vulnerable and end-of-life dependencies
