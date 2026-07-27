@@ -31,7 +31,11 @@ export default defineConfig({
   webServer: {
     command: "pnpm --filter @crs/web build && pnpm --filter @crs/web preview --port 4173 --strictPort",
     url: "http://127.0.0.1:4173",
-    reuseExistingServer: !process.env["CI"],
+    // Never reuse a running server. A stale preview left over from an earlier
+    // build silently serves an old bundle, so the suite reports green on code
+    // that is not the code under test — which is exactly how this config was
+    // caught producing one spurious failure.
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });
