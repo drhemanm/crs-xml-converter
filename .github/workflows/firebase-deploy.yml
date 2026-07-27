@@ -101,6 +101,85 @@ jobs:
           FIREBASE_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: printf '%s' "$FIREBASE_KEY" > "$GITHUB_WORKSPACE/service-account.json"
 
+      # firebase-tools reports every credential problem as "Failed to
+      # authenticate, have you run firebase login?", which is the same message
+      # for a malformed key, a revoked key, a mismatched client_email and a
+      # deleted service account. This asks Google directly and prints what it
+      # actually says, so a failure here names its own cause.
+      - name: Check the credentials actually authenticate
+        if: steps.creds.outputs.configured == 'true'
+        run: |
+          cat > /tmp/preflight.mjs <<'SCRIPT'
+          import { createSign } from 'node:crypto';
+          import { readFileSync } from 'node:fs';
+
+          let key;
+          try {
+            key = JSON.parse(readFileSync(process.env.GOOGLE_APPLICATION_CREDENTIALS, 'utf8'));
+          } catch (e) {
+            console.error('The secret is not valid JSON: ' + e.message);
+            process.exit(1);
+          }
+
+          for (const field of ['client_email', 'private_key', 'project_id']) {
+            if (!key[field]) {
+              console.error(`The key is missing "${field}". Copy the whole downloaded .json file into the secret, not part of it.`);
+              process.exit(1);
+            }
+          }
+          if (/XXXXX|PASTE_FROM/.test(key.client_email + key.private_key_id + (key.client_id || ''))) {
+            console.error('The key still contains placeholder text (XXXXX or PASTE_FROM_YOUR_FILE). Copy the whole downloaded .json file.');
+            process.exit(1);
+          }
+
+          const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+          const now = Math.floor(Date.now() / 1000);
+          const claim = {
+            iss: key.client_email,
+            scope: 'https://www.googleapis.com/auth/cloud-platform',
+            aud: 'https://oauth2.googleapis.com/token',
+            exp: now + 300,
+            iat: now,
+          };
+          const unsigned = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64(claim)}`;
+
+          let signature;
+          try {
+            signature = createSign('RSA-SHA256').update(unsigned).sign(key.private_key, 'base64url');
+          } catch (e) {
+            console.error('The private_key could not be used to sign: ' + e.message);
+            console.error('The \\n sequences were probably converted to real line breaks, or the key is truncated.');
+            process.exit(1);
+          }
+
+          const res = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+              assertion: `${unsigned}.${signature}`,
+            }),
+          });
+          const body = await res.json();
+
+          if (res.ok) {
+            console.log(`Authenticated as ${key.client_email} on project ${key.project_id}.`);
+            process.exit(0);
+          }
+
+          console.error(`Google rejected the credentials: ${body.error} — ${body.error_description || '(no detail)'}`);
+          if (body.error === 'invalid_grant') {
+            console.error('That means the signature did not match the account. Most likely the private_key belongs to a different key than the client_email and private_key_id alongside it — which happens when the file is assembled by hand rather than copied whole. Download a fresh key and paste the entire file.');
+          }
+          if (body.error === 'invalid_client') {
+            console.error('That means the service account in client_email does not exist, or its key was deleted.');
+          }
+          process.exit(1);
+          SCRIPT
+          node /tmp/preflight.mjs
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/service-account.json
+
       # Rules and indexes are the security-critical half and deploy on their
       # own. They are separated from functions deliberately: a key generated
       # from the Firebase console carries the Firebase permissions but not
