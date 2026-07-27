@@ -4588,8 +4588,45 @@ const CRSConverter = () => {
               </section>
             </div>
 
-            {/* Aside: usage + assurances */}
+            {/* Aside: usage, filing history, assurances */}
             <aside className="lg:sticky lg:top-28 space-y-4">
+              {/* What has been filed for this period. The ledger is what makes
+                  a correction possible, so it is worth showing rather than
+                  leaving as something the app knows and the filer does not. */}
+              {user && !period.loading && period.filings.length > 0 && (
+                <div className="rounded-card hairline bg-white p-6">
+                  <div className="text-[13px] text-ink-400">
+                    Filed for {settings.reportingFI.country} {settings.taxYear}
+                  </div>
+                  <ol className="mt-4 space-y-3">
+                    {period.filings.slice().reverse().slice(0, 6).map((f) => (
+                      <li key={f.id} className="flex items-baseline justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[14px] text-ink">
+                            {FILING_MODE_LABELS[f.filingMode] || f.filingMode}
+                          </div>
+                          <div className="text-[12px] text-ink-400 font-mono truncate">
+                            {f.messageRefId}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-[13px] text-ink-500 tabular">
+                          {f.recordCount} rec
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                  {period.filings.length > 6 && (
+                    <div className="mt-3 text-[13px] text-ink-400">
+                      and {period.filings.length - 6} earlier
+                    </div>
+                  )}
+                  <div className="mt-4 pt-4 hairline-t text-[13px] text-ink-500 leading-snug">
+                    {period.records.length} record{period.records.length === 1 ? '' : 's'} can be
+                    corrected or voided. References only &mdash; no account data is stored.
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-card hairline bg-white p-6">
                 <div className="text-[13px] text-ink-400">
                   {usageStatus.userType === 'anonymous' ? 'Free trial' : `${userDoc?.plan || 'Free'} plan`}
