@@ -143,6 +143,38 @@ Audit entries are stamped `retentionPeriod: '7_YEARS'` (`CRSXMLConverter.js:475`
 `DataRequestPortal.js:79-108` "submits" access/erasure/rectification requests to `localStorage` in the requester's own browser after a fake 2-second delay. No one at the company is ever notified. Users are led to believe they exercised statutory rights (30-day deadlines are displayed). **Fix:** persist requests to a backend (Firestore collection + email notification via a Cloud Function) or replace the portal with a mailto flow until one exists.
 
 ### H4. Known-vulnerable and end-of-life dependencies
+
+> **Status: partially fixed. The `xlsx` swap needs a network this environment
+> does not have and is the one item left for you.**
+>
+> - **`package-lock.json` did not exist.** Every deploy resolved dependency
+>   versions fresh, so builds were not reproducible and a compromised
+>   transitive package would land silently. A lockfile is now committed.
+> - **`xlsx@0.18.5` — still vulnerable, now defended at the boundary.** npm
+>   reports "No fix available": SheetJS stopped publishing to npm and ships
+>   fixed builds from its own CDN, which this environment's network policy
+>   blocks, so the upgrade could not be made *or verified* here. The fix is one
+>   line in `package.json`, on a machine that can reach `cdn.sheetjs.com`:
+>
+>   ```
+>   "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+>   ```
+>
+>   Until then the parse boundary defends itself: uploads capped at 15 MB,
+>   parser options cut to only what the converter reads (styles, formulas,
+>   number formats and cell stubs were all being parsed and none are used),
+>   rows rebuilt on a null prototype with `__proto__`/`constructor`/`prototype`
+>   keys dropped, and an explicit check that `Object.prototype` was not
+>   modified during the parse — if it was, the file is rejected and the
+>   addition removed. Covered by tests in `crsGeneration.test.js`.
+> - **Cloud Functions Node 18 → 22.** 18 is decommissioned; deploys were
+>   blocked.
+> - **`firebase-functions@4` / `functions.config()`** — still open. The only
+>   consumer is the PayPal webhook ID, so this moves with the payment work.
+> - **`react-scripts@5` (CRA) is unmaintained** — still open. Most of what
+>   `npm audit` reports is its dev toolchain (webpack-dev-server, sockjs),
+>   which never reaches a browser. Migrating to Vite is a real piece of work
+>   and not a security fix; it should be scheduled on its own.
 - `xlsx@0.18.5` — known prototype-pollution (CVE-2023-30533) and ReDoS (CVE-2024-22363) advisories; the npm package is abandoned (SheetJS distributes fixed builds from its own registry). This library parses untrusted uploaded files — the single most exposed code path in the app.
 - Cloud Functions pinned to **Node 18** (`functions/package.json:12`) — deprecated/decommissioned on Cloud Functions; deploys will be blocked.
 - `firebase-functions@4` with `functions.config()` — the `functions.config()` API is shut down (March 2026 deadline); `resetMonthlyLimits`/`pubsub.schedule` v1 style also needs migration to v2.

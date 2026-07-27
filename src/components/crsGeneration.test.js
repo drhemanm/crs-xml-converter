@@ -385,3 +385,64 @@ describe('document structure', () => {
     expect(rowNotices.map((n) => n.message).join(' ')).not.toContain('Controlling person');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Spreadsheet parse hardening (AUDIT.md H4)
+//
+// xlsx 0.18.5 carries unfixed prototype-pollution and ReDoS advisories on npm
+// and the fixed builds are not published there, so the parse boundary defends
+// itself. These tests cover that defence, not the library.
+// ---------------------------------------------------------------------------
+const { sanitizeParsedRows, detectPrototypePollution, MAX_UPLOAD_BYTES } = require('./CRSXMLConverter');
+
+describe('parsed rows are sanitised', () => {
+  it('drops keys that could reach Object.prototype', () => {
+    const rows = sanitizeParsedRows([
+      JSON.parse('{"account_number":"A1","__proto__":{"polluted":true},"constructor":"x","prototype":"y"}'),
+    ]);
+    expect(Object.keys(rows[0])).toEqual(['account_number']);
+    expect({}.polluted).toBeUndefined();
+  });
+
+  it('rebuilds rows without a prototype, so a key cannot be inherited', () => {
+    const rows = sanitizeParsedRows([{ account_number: 'A1' }]);
+    expect(Object.getPrototypeOf(rows[0])).toBeNull();
+    expect(rows[0].toString).toBeUndefined();
+  });
+
+  it('keeps ordinary values intact', () => {
+    const rows = sanitizeParsedRows([{ a: 'x', b: 0, c: '', d: false }]);
+    expect(rows[0]).toEqual(expect.objectContaining({ a: 'x', b: 0, c: '', d: false }));
+  });
+
+  it('still supports the reads the converter performs', () => {
+    const [row] = sanitizeParsedRows([{ account_number: 'MU1', holder_type: 'individual' }]);
+    expect(Object.keys(row)).toEqual(['account_number', 'holder_type']);
+    expect(row['account_number']).toBe('MU1');
+  });
+});
+
+describe('prototype pollution is detected and undone', () => {
+  it('reports nothing when the prototype is untouched', () => {
+    const before = Object.getOwnPropertyNames(Object.prototype);
+    expect(detectPrototypePollution(before)).toEqual([]);
+  });
+
+  it('reports and removes a property added during parsing', () => {
+    const before = Object.getOwnPropertyNames(Object.prototype);
+    // eslint-disable-next-line no-extend-native
+    Object.prototype.pwned = 'yes';
+    try {
+      expect(detectPrototypePollution(before)).toEqual(['pwned']);
+      expect({}.pwned).toBeUndefined();
+    } finally {
+      delete Object.prototype.pwned;
+    }
+  });
+});
+
+describe('upload size cap', () => {
+  it('is bounded', () => {
+    expect(MAX_UPLOAD_BYTES).toBe(15 * 1024 * 1024);
+  });
+});

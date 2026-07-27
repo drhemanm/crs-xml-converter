@@ -497,6 +497,63 @@ const canAnonymousUserConvert = () => {
 };
 
 // ==========================================
+// SPREADSHEET PARSING SAFETY
+// ==========================================
+//
+// The uploaded file is the only untrusted input this app handles, and the
+// parser that reads it (xlsx 0.18.5) carries two unfixed advisories on npm:
+// prototype pollution (GHSA-4r6h-8v6p-xvw6) and ReDoS (GHSA-5pgg-2g8v-p4x9).
+// SheetJS publishes fixed builds from its own CDN rather than npm, so there is
+// no `npm update` that resolves this -- see AUDIT.md H4 for the upgrade path.
+//
+// Until that swap happens, the parse boundary is defended directly: bounded
+// input, minimum parser surface, keys that could reach Object.prototype
+// removed, and an explicit check that the prototype was not modified while
+// parsing.
+
+// Generous for a CRS return -- a 200k-account file is well under this -- and
+// small enough that a pathological file cannot occupy the tab indefinitely.
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+
+const POLLUTING_KEYS = ['__proto__', 'constructor', 'prototype'];
+
+/**
+ * Rebuild parsed rows on a null prototype, dropping any key that could be used
+ * to reach Object.prototype. Downstream code only ever does Object.keys() and
+ * property reads, both of which work unchanged on a null-prototype object.
+ */
+const sanitizeParsedRows = (rows) =>
+  rows.map((row) => {
+    const clean = Object.create(null);
+    for (const key of Object.keys(row)) {
+      if (POLLUTING_KEYS.includes(key)) continue;
+      const value = row[key];
+      // Nested objects are not expected from sheet_to_json; if one appears,
+      // it is not something this converter reads, so it is dropped.
+      clean[key] = (value !== null && typeof value === 'object') ? '' : value;
+    }
+    return clean;
+  });
+
+/**
+ * Detect a prototype-pollution attempt around the parse.
+ *
+ * Object.prototype has a fixed set of own properties. If parsing a spreadsheet
+ * added one, the file is hostile and nothing downstream should trust it.
+ * Returns the names added, and removes them, so the page is not left poisoned.
+ */
+const detectPrototypePollution = (before) => {
+  const after = Object.getOwnPropertyNames(Object.prototype);
+  const added = after.filter((k) => !before.includes(k));
+  for (const key of added) {
+    try { delete Object.prototype[key]; } catch (e) { /* non-configurable */ }
+  }
+  return added;
+};
+
+export { sanitizeParsedRows, detectPrototypePollution, MAX_UPLOAD_BYTES };
+
+// ==========================================
 // ENVIRONMENT VALIDATION
 // ==========================================
 
@@ -3404,6 +3461,16 @@ const CRSConverter = () => {
       setData([]);
       setResult(null);
       setError(null);
+
+      if (selectedFile.size > MAX_UPLOAD_BYTES) {
+        setError(
+          `That file is ${(selectedFile.size / 1024 / 1024).toFixed(1)}MB. ` +
+          `The limit is ${MAX_UPLOAD_BYTES / 1024 / 1024}MB — split the return into ` +
+          `several files, or remove columns the converter does not read.`
+        );
+        return;
+      }
+
       
       logAuditEvent('file_upload', {
         filename: selectedFile.name,
@@ -3420,14 +3487,19 @@ const CRSConverter = () => {
 
     try {
       const arrayBuffer = await file.arrayBuffer();
+      const prototypeBefore = Object.getOwnPropertyNames(Object.prototype);
+
+      // Styles, formulas, number formats and empty-cell stubs were all being
+      // parsed and none of them are read by the converter. Asking for less is
+      // both faster and less parser surface exposed to a hostile file.
       const workbook = XLSX.read(arrayBuffer, {
-        cellStyles: true,    // Colors and formatting
-        cellFormulas: true,  // Formulas
-        cellDates: true,     // Date handling
-        cellNF: true,        // Number formatting
-        sheetStubs: true     // Empty cells
+        cellDates: true,
+        cellStyles: false,
+        cellFormula: false,
+        cellNF: false,
+        sheetStubs: false
       });
-      
+
       let jsonData = [];
       for (const sheetName of workbook.SheetNames) {
         const worksheet = workbook.Sheets[sheetName];
@@ -3435,11 +3507,19 @@ const CRSConverter = () => {
           defval: '',
           raw: false
         });
-        
+
         if (sheetData.length > 0) {
-          jsonData = sheetData;
+          jsonData = sanitizeParsedRows(sheetData);
           break;
         }
+      }
+
+      const polluted = detectPrototypePollution(prototypeBefore);
+      if (polluted.length > 0) {
+        throw new Error(
+          `This file tried to modify the JavaScript environment while being read ` +
+          `(${polluted.join(', ')}). It has not been converted. Do not use it.`
+        );
       }
 
       if (jsonData.length === 0) {
