@@ -1973,11 +1973,17 @@ const AuthProvider = ({ children }) => {
   const [userDoc, setUserDoc] = useState(null);
   const [authError, setAuthError] = useState(null);
 
+  // onAuthStateChanged always fires once on load, with null when nobody is
+  // signed in. Without this we reported a logout on every single page view.
+  // Only a signed-in -> signed-out transition is actually a logout.
+  const wasSignedIn = useRef(false);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setAuthError(null);
       try {
         if (firebaseUser) {
+          wasSignedIn.current = true;
           await loadUserData(firebaseUser);
           trackEvent('user_authenticated', {
             auth_method: firebaseUser.providerData[0]?.providerId || 'email'
@@ -1985,7 +1991,10 @@ const AuthProvider = ({ children }) => {
         } else {
           setUser(null);
           setUserDoc(null);
-          trackEvent('user_logged_out');
+          if (wasSignedIn.current) {
+            wasSignedIn.current = false;
+            trackEvent('user_logged_out');
+          }
         }
       } catch (error) {
         console.error('Auth state change error:', error);
@@ -2194,11 +2203,9 @@ const AuthProvider = ({ children }) => {
         crsVersion: '3.0'
       }, user);
       
+      // The logout event itself is reported by the auth-state listener above,
+      // which is the only place that sees the signed-in -> signed-out edge.
       await signOut(auth);
-      
-      trackEvent('user_logged_out', {
-        crs_version: '3.0'
-      });
     } catch (error) {
       throw error;
     }
