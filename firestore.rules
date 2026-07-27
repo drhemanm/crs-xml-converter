@@ -178,7 +178,12 @@ service cloud.firestore {
     //
     // paypal_events, subscription_history, payment_history,
     // pending_subscriptions and system_events are written by the Admin SDK.
-    // They are covered by the implicit default deny; noted here so it is clear
-    // the omission is deliberate rather than an oversight.
+    //
+    // The default deny already covers them. This catch-all makes it explicit
+    // and, more usefully, means a future rule added carelessly above has to be
+    // added deliberately rather than inheriting access from a gap.
+    match /{document=**} {
+      allow read, write: if false;
+    }
   }
 }

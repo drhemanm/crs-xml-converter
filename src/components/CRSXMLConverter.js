@@ -138,7 +138,7 @@ const PRICING_PLANS = {
 };
 
 // ==========================================
-// CRS v3.0 100% COMPLIANT MAPPINGS AND CONSTANTS
+// CRS CODE TABLES
 // ==========================================
 
 // CRS v3.0 compliant payment type mappings (exact match with XSD)
@@ -354,7 +354,7 @@ const SCHEMA_GATED_NOTICE_FIELDS = {
 };
 
 // ==========================================
-// ENHANCED FIELD MAPPINGS WITH CRS v3.0 100% SUPPORT
+// SOURCE COLUMN MAPPINGS
 // ==========================================
 
 const ENHANCED_FIELD_MAPPINGS = {
@@ -476,7 +476,7 @@ const updateAnonymousUsage = () => {
 const clearAnonymousUsage = () => {
   try {
     localStorage.removeItem(ANONYMOUS_USAGE_KEY);
-    console.log('Anonymous usage cleared');
+    if (process.env.NODE_ENV !== 'production') console.log('Anonymous usage cleared');
   } catch (error) {
     console.error('Error clearing anonymous usage:', error);
   }
@@ -605,7 +605,6 @@ const logAuditEvent = async (eventType, eventData, user = null) => {
       timestamp: serverTimestamp(),
       eventType,
       userId: user.uid,
-      userEmail: user.email || null,
       sessionId: getSessionId(),
       userAgent: navigator.userAgent.substring(0, 200),
       ipAddress: 'masked_for_privacy',
@@ -628,7 +627,7 @@ const logAuditEvent = async (eventType, eventData, user = null) => {
     };
 
     await addDoc(collection(db, AUDIT_COLLECTIONS.USER_ACTIONS), auditEntry);
-    console.log(`Audit Event Logged: ${eventType}`);
+    if (process.env.NODE_ENV !== 'production') console.log(`Audit event logged: ${eventType}`);
   } catch (error) {
     console.error('Audit logging failed:', error);
   }
@@ -791,7 +790,7 @@ const getFirebaseErrorMessage = (errorCode) => {
 };
 
 // ==========================================
-// ENHANCED CRS v3.0 100% COMPLIANT VALIDATION FUNCTIONS
+// FIELD VALIDATION
 // ==========================================
 
 const validateGIIN = (giin) => {
@@ -1031,7 +1030,7 @@ const getFieldDescription = (field) => {
 };
 
 // ==========================================
-// ENHANCED CRS v3.0 100% COMPLIANT DATA VALIDATION FUNCTION
+// DATA VALIDATION
 // ==========================================
 
 const validateCRSData = (data) => {
@@ -1063,7 +1062,7 @@ const validateCRSData = (data) => {
   const headers = Object.keys(firstRow).map(h => h.toLowerCase().trim());
   const requiredFields = ENHANCED_FIELD_MAPPINGS;
 
-  // CRS v3.0 100% compliant field classification
+  // Field classification
   // residence_country and city are critical because no row can be converted
   // without them: ResCountryCode identifies the reportable jurisdiction and
   // City is mandatory inside the OECD address type. If the column is absent
@@ -1094,7 +1093,7 @@ const validateCRSData = (data) => {
   const columnMappings = {};
   const missingColumns = { critical: [], warnings: [], recommendations: [] };
 
-  // Enhanced column mapping with 100% CRS v3.0 XSD awareness
+  // Column mapping
   Object.entries(requiredFields).forEach(([field, alternatives]) => {
     let found = false;
     let matchedHeader = null;
@@ -1148,7 +1147,7 @@ const validateCRSData = (data) => {
     }
   });
 
-  // Enhanced CRS v3.0 100% compliant row validation with XSD constraints
+  // Row validation
   const dataIssues = { critical: [], warnings: [], recommendations: [] };
   let validRows = 0;
   let invalidRows = 0;
@@ -1425,9 +1424,7 @@ const validateCRSData = (data) => {
       totalRows: data.length, 
       validRows, 
       invalidRows,
-      processingDate: new Date().toISOString(),
-      crsVersion: '3.0',
-      xsdCompliant: true
+      processingDate: new Date().toISOString()
     }
   };
 };
@@ -1556,7 +1553,7 @@ const mapDataToCRS = (rowData, columnMappings) => {
     Boolean(safeGet('controlling_person_first_name')) &&
     Boolean(safeGet('controlling_person_last_name'));
 
-  // Enhanced data mapping with 100% CRS v3.0 XSD compliance
+  // Canonical record for one account
   const mappedData = {
     // Account details with XSD compliance
     accountNumber: safeGet('account_number'),
@@ -1743,7 +1740,7 @@ const mapDataToCRS = (rowData, columnMappings) => {
 };
 
 // ==========================================
-// CRS v3.0 100% COMPLIANT XML GENERATION FUNCTION
+// XML GENERATION
 // ==========================================
 
 const generateCRSXML = (data, settings, validationResults) => {
@@ -1770,36 +1767,55 @@ const generateCRSXML = (data, settings, validationResults) => {
   // them is the failure mode this exists to prevent.
   const droppedBySchema = new Set();
 
-  // Enhanced utility functions with 100% XSD compliance
-  const formatDate = (date) => {
+  // Serialisation helpers
+  /**
+   * Dates.
+   *
+   * This used to try DD/MM/YYYY and then fall back to MM/DD/YYYY, so
+   * `03/04/1980` silently became either 3 April or 4 March depending on which
+   * parse happened to succeed -- and both succeed. A birth date is identifying
+   * information on a tax return; guessing which one the filer meant is not an
+   * option, so an ambiguous value is rejected and the row is reported.
+   *
+   * Accepted without complaint: a real Date (Excel date cells, which is why
+   * the reader is given cellDates), ISO YYYY-MM-DD, and unambiguous
+   * day-first or month-first forms where one component exceeds 12.
+   */
+  const formatDate = (date, fieldLabel = 'Date') => {
     if (!date) return '';
-    
-    try {
-      let dateObj;
-      if (date instanceof Date) {
-        dateObj = date;
-      } else if (typeof date === 'string') {
-        dateObj = new Date(date);
-        if (isNaN(dateObj.getTime())) {
-          const parts = date.split(/[/\-.]/);
-          if (parts.length === 3) {
-            dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
-            if (isNaN(dateObj.getTime())) {
-              dateObj = new Date(parts[2], parts[0] - 1, parts[1]);
-            }
-          }
-        }
-      } else {
-        return '';
+
+    const iso = (y, m, d) => {
+      const dt = new Date(Date.UTC(y, m - 1, d));
+      if (isNaN(dt.getTime()) || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
+        throw new Error(`${fieldLabel}: "${date}" is not a real calendar date.`);
       }
-      
-      if (isNaN(dateObj.getTime())) return '';
-      
-      return dateObj.toISOString().split('T')[0];
-    } catch (error) {
-      console.error('Date formatting error:', error);
-      return '';
+      return dt.toISOString().split('T')[0];
+    };
+
+    if (date instanceof Date) {
+      if (isNaN(date.getTime())) throw new Error(`${fieldLabel}: invalid date value.`);
+      return iso(date.getFullYear(), date.getMonth() + 1, date.getDate());
     }
+
+    const raw = String(date).trim();
+
+    const isoMatch = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (isoMatch) return iso(+isoMatch[1], +isoMatch[2], +isoMatch[3]);
+
+    const parts = raw.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+    if (parts) {
+      const a = +parts[1], b = +parts[2], year = +parts[3];
+      if (a > 12 && b <= 12) return iso(year, b, a);   // unambiguously day-first
+      if (b > 12 && a <= 12) return iso(year, a, b);   // unambiguously month-first
+      throw new Error(
+        `${fieldLabel}: "${raw}" could be ${a}/${b} or ${b}/${a} — day-first and ` +
+        `month-first both read as a valid date. Use YYYY-MM-DD so there is no doubt.`
+      );
+    }
+
+    throw new Error(
+      `${fieldLabel}: "${raw}" is not a date this converter will guess at. Use YYYY-MM-DD.`
+    );
   };
 
   const formatCurrency = (amount) => {
@@ -1818,17 +1834,30 @@ const generateCRSXML = (data, settings, validationResults) => {
       .replace(/'/g, '&#39;');
   };
 
-  const generateUniqueRefId = (prefix = 'MU2024MU') => {
-    const timestamp = Date.now().toString(36);
-    const random = Math.random().toString(36).substring(2, 15);
-    return prefix + timestamp + random;
+  /**
+   * Reference identifiers.
+   *
+   * The OECD user guide requires a DocRefId to be globally unique and to begin
+   * with the transmitting jurisdiction's country code; jurisdictions validate
+   * the prefix on upload. These were previously `DOC` + a base36 timestamp,
+   * which starts with no country code at all and is rejected before the file
+   * is even read.
+   *
+   * Format: <CC><YYYY><timestamp36><random36><sequence>, capped at the 200
+   * character schema limit.
+   */
+  const refCountry = (reportingFI.country || '').toUpperCase();
+  const refBatch = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`.toUpperCase();
+  let refSequence = 0;
+
+  const generateUniqueRefId = () => {
+    refSequence += 1;
+    return `${refCountry}${taxYear}${refBatch}${refSequence}`.slice(0, 200);
   };
 
-  const generateDocRefId = () => {
-    return generateUniqueRefId('DOC');
-  };
+  const generateDocRefId = () => generateUniqueRefId();
 
-  // 100% XSD compliant person name generation
+  // Person name
   const generatePersonName = (personData, nameType = 'OECD202') => {
     if (!personData.firstName || !personData.lastName) {
       throw new Error('First name and last name are required for person names');
@@ -1875,19 +1904,19 @@ const generateCRSXML = (data, settings, validationResults) => {
         </Address>`;
   };
 
-  // 100% XSD compliant TIN generation
+  // TIN
   const generateTIN = (tin, issuedBy) => {
     if (!tin) return '';
     return `<TIN issuedBy="${escapeXML(issuedBy || 'XX')}">${escapeXML(tin)}</TIN>`;
   };
 
-  // 100% XSD compliant Organization IN generation
+  // Organisation identification number
   const generateOrganisationIN = (tin, issuedBy, inType = 'GIIN') => {
     if (!tin) return '';
     return `<IN issuedBy="${escapeXML(issuedBy || 'XX')}" INType="${escapeXML(inType)}">${escapeXML(tin)}</IN>`;
   };
 
-  // 100% XSD compliant birth info generation
+  // Birth information
   const generateBirthInfo = (personData) => {
     if (!personData.birthDate && !personData.birthCity && !personData.birthCountry) {
       return '';
@@ -1895,7 +1924,7 @@ const generateCRSXML = (data, settings, validationResults) => {
     
     return `
             <BirthInfo>
-              ${personData.birthDate ? `<BirthDate>${formatDate(personData.birthDate)}</BirthDate>` : ''}
+              ${personData.birthDate ? `<BirthDate>${formatDate(personData.birthDate, 'Birth date')}</BirthDate>` : ''}
               ${personData.birthCity ? `<City>${escapeXML(personData.birthCity)}</City>` : ''}
               ${personData.birthCountry ? `
               <CountryInfo>
@@ -2038,7 +2067,7 @@ const generateCRSXML = (data, settings, validationResults) => {
         </ControllingPerson>`;
     };
 
-    // Generate payment sections with 100% CRS v3.0 XSD compliance
+    // Payments
     const generatePayments = () => {
       if (!mappedAccount.payments || mappedAccount.payments.length === 0) {
         return '';
@@ -2153,7 +2182,13 @@ const generateCRSXML = (data, settings, validationResults) => {
   const accountReports = serialisedReports.join('');
 
   // Generate message reference ID and other required elements
-  const messageRef = messageRefId || generateUniqueRefId('CRS');
+  // A MessageRefId carries the same country-code requirement. An override from
+  // settings is honoured only if it already satisfies it -- the default
+  // `CRS_<timestamp>` seeded at component construction does not, because the
+  // jurisdiction is not known that early.
+  const messageRef = (messageRefId && messageRefId.toUpperCase().startsWith(refCountry))
+    ? messageRefId
+    : generateUniqueRefId();
   const reportingPeriod = `${taxYear}-12-31`;
   const timestamp = new Date().toISOString();
   const fiDocRefId = generateDocRefId();
@@ -2243,7 +2278,6 @@ const logFileProcessing = async (fileData, validationResults, user = null) => {
     const auditEntry = {
       timestamp: serverTimestamp(),
       userId: user.uid,
-      userEmail: user.email || null,
       sessionId: getSessionId(),
       fileMetadata: {
         filename: fileData.name,
@@ -2261,8 +2295,7 @@ const logFileProcessing = async (fileData, validationResults, user = null) => {
         missingCriticalColumns: validationResults.missingColumns?.critical?.length || 0,
         missingWarningColumns: validationResults.missingColumns?.warnings?.length || 0,
         missingRecommendationColumns: validationResults.missingColumns?.recommendations?.length || 0,
-        crsVersion: '3.0',
-        xsdCompliant: validationResults.summary?.xsdCompliant || true
+        xsdValidated: false
       },
       complianceFlags: {
         containsPII: true,
@@ -2278,7 +2311,7 @@ const logFileProcessing = async (fileData, validationResults, user = null) => {
     };
 
     await addDoc(collection(db, AUDIT_COLLECTIONS.FILE_PROCESSING), auditEntry);
-    console.log('File processing audit logged');
+    if (process.env.NODE_ENV !== 'production') console.log('File processing audit logged');
   } catch (error) {
     console.error('File processing audit failed:', error);
   }
@@ -2296,7 +2329,6 @@ const logXMLGeneration = async (conversionData, settingsUsed, user = null) => {
     const auditEntry = {
       timestamp: serverTimestamp(),
       userId: user.uid,
-      userEmail: user.email || null,
       sessionId: getSessionId(),
       conversionDetails: {
         recordCount: conversionData.recordCount,
@@ -2305,8 +2337,7 @@ const logXMLGeneration = async (conversionData, settingsUsed, user = null) => {
         messageRefId: settingsUsed.messageRefId,
         xmlSizeBytes: conversionData.xml ? conversionData.xml.length : 0,
         generationTimeMs: conversionData.processingTime || 0,
-        crsVersion: '3.0',
-        xsdCompliant: true
+        crsVersion: settingsUsed.schemaVersion || DEFAULT_SCHEMA_VERSION
       },
       institutionData: {
         giinProvided: !!settingsUsed.reportingFI.giin,
@@ -2315,12 +2346,14 @@ const logXMLGeneration = async (conversionData, settingsUsed, user = null) => {
         addressProvided: !!settingsUsed.reportingFI.address
       },
       complianceMetadata: {
-        crsStandard: 'OECD_CRS_v3.0',
-        xmlValidation: 'PASSED',
+        crsStandard: `OECD_CRS_v${settingsUsed.schemaVersion || DEFAULT_SCHEMA_VERSION}`,
+        // No XSD validation is performed: the schemas are not bundled and the
+        // browser cannot fetch them. This used to record 'PASSED' regardless,
+        // which put a false assertion of validation into the audit trail --
+        // exactly the record a regulator would rely on.
+        xmlValidation: 'NOT_PERFORMED',
         dataMinimization: true,
-        purposeLimitation: 'CRS_REGULATORY_REPORTING',
-        schemaCompliance: 'CrsXML_v3.0.xsd',
-        xsdCompliant: true
+        purposeLimitation: 'CRS_REGULATORY_REPORTING'
       },
       qualityMetrics: {
         accountsProcessed: conversionData.recordCount,
@@ -2332,7 +2365,7 @@ const logXMLGeneration = async (conversionData, settingsUsed, user = null) => {
     };
 
     await addDoc(collection(db, AUDIT_COLLECTIONS.XML_GENERATION), auditEntry);
-    console.log('XML generation audit logged');
+    if (process.env.NODE_ENV !== 'production') console.log('XML generation audit logged');
   } catch (error) {
     console.error('XML generation audit failed:', error);
   }
@@ -2456,7 +2489,7 @@ const AuthProvider = ({ children }) => {
           metadata: {
             signupSource: 'web_app',
             initialUserAgent: navigator.userAgent.substring(0, 200),
-            crsComplianceLevel: '100_percent'
+            crsSchemaDefault: DEFAULT_SCHEMA_VERSION
           }
         };
         
@@ -2518,7 +2551,7 @@ const AuthProvider = ({ children }) => {
         metadata: {
           signupSource: 'web_app',
           initialUserAgent: navigator.userAgent.substring(0, 200),
-          crsComplianceLevel: '100_percent'
+          crsSchemaDefault: DEFAULT_SCHEMA_VERSION
         }
       };
       
@@ -2772,10 +2805,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
       setIsLogin(initialMode === 'login');
       setShowResetForm(false);
       setMessage('');
-      trackEvent('auth_modal_opened', {
-        mode: initialMode,
-        crs_version: '3.0'
-      });
+      trackEvent('auth_modal_opened', { mode: initialMode });
     }
   }, [isOpen, initialMode]);
 
@@ -2795,23 +2825,18 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
       if (isLogin) {
         await login(formData.email, formData.password);
         setMessage('Successfully signed in!');
-        trackEvent('login_success', { method: 'email', crs_version: '3.0' });
-        setTimeout(() => {
-          onClose();
-          window.location.reload();
-        }, 1000);
+        trackEvent('login_success', { method: 'email' });
+        // No reload: onAuthStateChanged propagates the new session, and a
+        // reload would discard an already-uploaded file and its validation.
+        setTimeout(onClose, 800);
       } else {
         await register(formData.email, formData.password, formData.displayName, formData.company);
         setMessage('Account created! Please verify your email.');
-        trackEvent('registration_success', { 
+        trackEvent('registration_success', {
           method: 'email',
-          has_company: !!formData.company,
-          crs_version: '3.0'
+          has_company: !!formData.company
         });
-        setTimeout(() => {
-          onClose();
-          window.location.reload();
-        }, 2000);
+        setTimeout(onClose, 1800);
       }
     } catch (error) {
       setMessage(error.message);
@@ -2827,11 +2852,8 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
     try {
       await signInWithGoogle();
       setMessage('Successfully signed in with Google!');
-      trackEvent('login_success', { method: 'google', crs_version: '3.0' });
-      setTimeout(() => {
-        onClose();
-        window.location.reload();
-      }, 1000);
+      trackEvent('login_success', { method: 'google' });
+      setTimeout(onClose, 800);
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -3497,7 +3519,13 @@ const CRSConverter = () => {
         cellStyles: false,
         cellFormula: false,
         cellNF: false,
-        sheetStubs: false
+        sheetStubs: false,
+        // Render date cells as ISO. Without this the reader applies the
+        // sheet's own display format, so a source date of 1980-05-12 arrives
+        // as "5/12/80" -- ambiguous, two-digit year, and rejected downstream
+        // for exactly that reason. The ambiguity was introduced by the reader,
+        // not by the filer, so it is fixed here rather than guessed at later.
+        dateNF: 'yyyy-mm-dd'
       });
 
       let jsonData = [];
@@ -3505,7 +3533,8 @@ const CRSConverter = () => {
         const worksheet = workbook.Sheets[sheetName];
         const sheetData = XLSX.utils.sheet_to_json(worksheet, {
           defval: '',
-          raw: false
+          raw: false,
+          dateNF: 'yyyy-mm-dd'
         });
 
         if (sheetData.length > 0) {
@@ -3536,9 +3565,7 @@ const CRSConverter = () => {
         file_type: file.type,
         record_count: jsonData.length,
         is_valid: validation.canGenerate,
-        user_type: user ? 'registered' : 'anonymous',
-        crs_version: '3.0',
-        xsd_compliant: validation.summary?.xsdCompliant || true
+        user_type: user ? 'registered' : 'anonymous'
       });
 
     } catch (err) {

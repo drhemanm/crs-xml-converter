@@ -446,3 +446,72 @@ describe('upload size cap', () => {
     expect(MAX_UPLOAD_BYTES).toBe(15 * 1024 * 1024);
   });
 });
+
+describe('reference identifiers (AUDIT.md M3)', () => {
+  it('starts DocRefId and MessageRefId with the transmitting country code', () => {
+    const settings = { ...SETTINGS, messageRefId: '' };
+    const { xml } = gen([individualRow()], settings);
+    const doc = parse(xml);
+    const refs = [...doc.getElementsByTagName('stf:DocRefId')].map(n => n.textContent);
+    expect(refs.length).toBeGreaterThan(0);
+    refs.forEach(r => expect(r.startsWith('MU2024')).toBe(true));
+    expect(doc.getElementsByTagName('MessageRefId')[0].textContent.startsWith('MU2024')).toBe(true);
+  });
+
+  it('never repeats a DocRefId within one file', () => {
+    const { xml } = gen([individualRow(), individualRow({ account_number: 'MU2' }), individualRow({ account_number: 'MU3' })]);
+    const refs = [...parse(xml).getElementsByTagName('stf:DocRefId')].map(n => n.textContent);
+    expect(new Set(refs).size).toBe(refs.length);
+  });
+
+  it('keeps a supplied MessageRefId that already carries the country code', () => {
+    const { xml } = gen([individualRow()]);
+    expect(parse(xml).getElementsByTagName('MessageRefId')[0].textContent).toBe('MU2024TESTMSG001');
+  });
+
+  it('replaces one that does not', () => {
+    const { xml } = gen([individualRow()], { ...SETTINGS, messageRefId: 'CRS_1699999999999' });
+    expect(parse(xml).getElementsByTagName('MessageRefId')[0].textContent.startsWith('MU2024')).toBe(true);
+  });
+
+  it('respects the 200-character schema limit', () => {
+    const { xml } = gen([individualRow()], { ...SETTINGS, messageRefId: '' });
+    [...parse(xml).getElementsByTagName('stf:DocRefId')].forEach(n =>
+      expect(n.textContent.length).toBeLessThanOrEqual(200));
+  });
+});
+
+describe('dates are never guessed at (AUDIT.md M3)', () => {
+  const withBirthDate = (v) => generateCRSXML(
+    [individualRow(), { ...individualRow({ account_number: 'MU2' }), birth_date: v }],
+    { ...SETTINGS, schemaVersion: '3.0' },
+    { columnMappings: { ...COLUMN_MAPPINGS, birth_date: 'birth_date' } },
+  );
+
+  it('accepts ISO dates', () => {
+    expect(withBirthDate('1980-05-12').xml).toContain('<BirthDate>1980-05-12</BirthDate>');
+  });
+
+  it('accepts an unambiguous day-first date', () => {
+    expect(withBirthDate('25/12/1980').xml).toContain('<BirthDate>1980-12-25</BirthDate>');
+  });
+
+  it('accepts an unambiguous month-first date', () => {
+    expect(withBirthDate('12/25/1980').xml).toContain('<BirthDate>1980-12-25</BirthDate>');
+  });
+
+  it('rejects the row when day-first and month-first both read as valid', () => {
+    const { rejectedRows, accountReportCount } = withBirthDate('03/04/1980');
+    expect(accountReportCount).toBe(1);
+    expect(rejectedRows).toHaveLength(1);
+    expect(rejectedRows[0].message).toMatch(/could be 3\/4 or 4\/3/);
+  });
+
+  it('rejects a date that is not a real calendar date', () => {
+    expect(withBirthDate('1980-02-31').rejectedRows[0].message).toMatch(/not a real calendar date/);
+  });
+
+  it('rejects free text', () => {
+    expect(withBirthDate('circa 1980').rejectedRows[0].message).toMatch(/will guess at/);
+  });
+});
