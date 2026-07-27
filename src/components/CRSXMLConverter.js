@@ -497,6 +497,16 @@ const clearAnonymousUsage = () => {
   }
 };
 
+/**
+ * The calendar month, in the form the security rules compute from the server
+ * clock. The client proposes it; the rules verify it, so a wrong or optimistic
+ * value here is refused rather than believed.
+ */
+const currentUsagePeriod = () => {
+  const now = new Date();
+  return `${now.getUTCFullYear()}-${now.getUTCMonth() + 1}`;
+};
+
 const canAnonymousUserConvert = () => {
   const usage = getAnonymousUsage();
   const remaining = Math.max(0, ANONYMOUS_LIMIT - usage.count);
@@ -2696,9 +2706,32 @@ const AuthProvider = ({ children }) => {
       const userDocSnap = await getDoc(userDocRef);
       
       if (userDocSnap.exists()) {
-        const userData = userDocSnap.data();
+        let userData = userDocSnap.data();
+
+        // Monthly quota reset.
+        //
+        // This was a Cloud Function, and Cloud Functions need the Blaze plan,
+        // so it had never run once -- "3 conversions per month" had silently
+        // been "3 conversions ever" for every account since launch.
+        //
+        // The client proposes the reset and the rules decide: they compare the
+        // stored period against the server clock and allow it exactly once per
+        // calendar month. A client that asks early, asks twice, or claims a
+        // future month is refused. No scheduled job, no billing.
+        const period = currentUsagePeriod();
+        if (userData.usagePeriod !== period) {
+          try {
+            await updateDoc(userDocRef, { conversionsUsed: 0, usagePeriod: period });
+            userData = { ...userData, conversionsUsed: 0, usagePeriod: period };
+          } catch (resetError) {
+            // Refused, or offline. The stale count stands until next load,
+            // which is the safe direction to fail in.
+            console.warn('Monthly quota reset was not applied:', resetError.message);
+          }
+        }
+
         setUserDoc(userData);
-        
+
         // Update last login
         await updateDoc(userDocRef, {
           lastLogin: serverTimestamp(),
@@ -2720,6 +2753,9 @@ const AuthProvider = ({ children }) => {
           plan: 'free',
           conversionsUsed: 0,
           conversionsLimit: 3,
+          // Recorded at signup so the first reset falls in the next calendar
+          // month rather than immediately.
+          usagePeriod: currentUsagePeriod(),
           subscriptionStatus: 'active',
           createdAt: serverTimestamp(),
           lastLogin: serverTimestamp(),
@@ -2782,6 +2818,7 @@ const AuthProvider = ({ children }) => {
         plan: 'free',
         conversionsUsed: 0,
         conversionsLimit: 3,
+        usagePeriod: currentUsagePeriod(),
         subscriptionStatus: 'active',
         createdAt: serverTimestamp(),
         lastLogin: serverTimestamp(),

@@ -51,6 +51,32 @@ service cloud.firestore {
       ];
     }
 
+    // The calendar month, as the client must record it.
+    //
+    // request.time is the server's clock, so a client cannot claim a month
+    // that has not arrived, and cannot replay last month's reset.
+    function currentPeriod() {
+      return string(request.time.year()) + '-' + string(request.time.month());
+    }
+
+    // Monthly quota reset, performed by the client rather than a scheduled job.
+    //
+    // resetMonthlyLimits was a Cloud Function, Cloud Functions require the
+    // Blaze plan, and this project is on Spark -- so it had never run once, and
+    // "3 conversions per month" had silently been "3 conversions ever" for
+    // every account since launch.
+    //
+    // A client may zero its own counter exactly when the stored period is not
+    // the current one, and only by writing the current period alongside. That
+    // is the entitlement expressed directly: once per calendar month, no more
+    // often, with no infrastructure and no billing behind it.
+    function isMonthlyReset() {
+      return changedKeys().hasOnly(['conversionsUsed', 'usagePeriod'])
+        && request.resource.data.conversionsUsed == 0
+        && request.resource.data.usagePeriod == currentPeriod()
+        && (!('usagePeriod' in resource.data) || resource.data.usagePeriod != currentPeriod());
+    }
+
     // Entitlements and identity, restated as an explicit deny. Redundant while
     // ownerWritableKeys stays accurate -- which is the point: if somebody
     // widens that list without thinking, this still holds the line.
@@ -95,10 +121,18 @@ service cloud.firestore {
         && request.resource.data.email == request.auth.token.email
         && !('role' in request.resource.data);
 
+      // Either an ordinary profile or usage write, or a monthly reset. The
+      // reset is its own path because it is the one case that may move
+      // conversionsUsed backwards, and the one that may touch usagePeriod --
+      // which is deliberately absent from ownerWritableKeys, so it cannot be
+      // written any other way. Otherwise a client would simply write next
+      // month's label and reset whenever it liked.
       allow update: if isOwner(userId)
-        && changedKeys().hasOnly(ownerWritableKeys())
         && entitlementsUnchanged()
-        && usageMoveIsLegal();
+        && (
+          (changedKeys().hasOnly(ownerWritableKeys()) && usageMoveIsLegal())
+          || isMonthlyReset()
+        );
 
       // Erasure runs through a function so it can be recorded and cascaded.
       allow delete: if false;

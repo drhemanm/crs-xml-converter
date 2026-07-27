@@ -266,6 +266,37 @@ Single `WriteBatch` for all active users (`functions/index.js:250-265`); Firesto
 
 ## Additions since the original audit
 
+
+### A7. Cloud Functions have never been deployed, so quotas never reset
+Deploying them fails with "Billing account for project is not open": Cloud
+Functions require the Blaze plan and this project is on Spark. Since Blaze has
+always been required, nothing in `functions/` has ever run.
+
+The consequence that reached users: `resetMonthlyLimits` never ran, so
+`conversionsUsed` never returned to zero. "3 conversions per month" has been
+"3 conversions ever" for every account since launch, and any registered user
+who spent theirs has been blocked ever since.
+
+**Fixed without billing.** The reset is now performed by the client and
+authorised by the rules: a client may zero its own counter exactly when the
+stored `usagePeriod` is not the current month, and only by writing the current
+month alongside. The month comes from `request.time` — the server's clock — so
+asking early, asking twice, or claiming a future month is refused. Nine rules
+tests cover those cases.
+
+`usagePeriod` is deliberately absent from the owner-writable list, so it cannot
+be written except through a reset; otherwise a client would write next month's
+label and reset at will. That was a real hole in the first version of this rule
+and the tests caught it.
+
+Still not deployed, and no longer on the critical path:
+- `cleanupAuditLogs` — replaceable with a native Firestore TTL policy, which is
+  free. Nothing has accumulated yet because H1 meant nothing was ever written.
+- `manualResetUser` — an admin convenience. Its old `role`-based check is now
+  unexploitable anyway, because the rules refuse to write `role`.
+- `paypalWebhook` — never live, which also means the Firebase-side webhook has
+  never processed a payment event. The Vercel handler is the one to keep.
+
 ### A1. Firestore rules, indexes and functions were never deployed
 
 > **Rules and indexes deployed to `crs-xml-converter-saas` on 27 July 2026**

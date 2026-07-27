@@ -118,6 +118,57 @@ await t('accepts the payload the portal sends', () => assertSucceeds(addDoc(coll
 })));
 await t('cannot back-date a request', () => assertFails(addDoc(collection(alice(), 'data_requests'), { userId: 'alice', status: 'received', submittedAt: new Date('2020-01-01'), requestType: 'access' })));
 
+console.log('\nmonthly quota reset (no Cloud Functions, no billing)');
+const period = (offsetMonths = 0) => {
+  const now = new Date();
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offsetMonths, 1));
+  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
+};
+const thisPeriod = () => period(0);
+const lastPeriod = () => period(-1);
+
+// Create with the period already recorded, then spend the allowance the way the
+// app does. usagePeriod is unwritable except through a reset, so seeding it at
+// create time is the only way to arrange a stale period.
+const seedSpent = async (usagePeriod) => {
+  await setDoc(doc(alice(), 'users/alice'), usagePeriod ? { ...freeDoc(), usagePeriod } : freeDoc());
+  for (let i = 0; i < 3; i++) await updateDoc(doc(alice(), 'users/alice'), { conversionsUsed: increment(1) });
+};
+
+await env.clearFirestore();
+await seedSpent(null);
+await t('resets a spent quota when no period was ever recorded', () => assertSucceeds(
+  updateDoc(doc(alice(), 'users/alice'), { conversionsUsed: 0, usagePeriod: thisPeriod() })));
+
+await updateDoc(doc(alice(), 'users/alice'), { conversionsUsed: increment(1) });
+await t('cannot reset again in the same month', () => assertFails(
+  updateDoc(doc(alice(), 'users/alice'), { conversionsUsed: 0, usagePeriod: thisPeriod() })));
+
+await t('cannot reset by claiming a future month', () => assertFails(
+  updateDoc(doc(alice(), 'users/alice'), { conversionsUsed: 0, usagePeriod: '2099-1' })));
+
+await t('cannot reset by replaying last month', () => assertFails(
+  updateDoc(doc(alice(), 'users/alice'), { conversionsUsed: 0, usagePeriod: lastPeriod() })));
+
+await t('cannot move the period on its own to unlock a reset later', () => assertFails(
+  updateDoc(doc(alice(), 'users/alice'), { usagePeriod: '2099-1' })));
+
+await env.clearFirestore();
+await seedSpent(lastPeriod());
+await t('resets once the recorded period is stale', () => assertSucceeds(
+  updateDoc(doc(alice(), 'users/alice'), { conversionsUsed: 0, usagePeriod: thisPeriod() })));
+
+await env.clearFirestore();
+await seedSpent(lastPeriod());
+await t('cannot raise the limit while resetting', () => assertFails(
+  updateDoc(doc(alice(), 'users/alice'), { conversionsUsed: 0, usagePeriod: thisPeriod(), conversionsLimit: 999 })));
+
+await t('cannot zero the counter without recording the period', () => assertFails(
+  updateDoc(doc(alice(), 'users/alice'), { conversionsUsed: 0 })));
+
+await t('ordinary profile writes still work alongside all this', () => assertSucceeds(
+  updateDoc(doc(alice(), 'users/alice'), { displayName: 'Alice B' })));
+
 console.log('\nthe filing ledger');
 await env.clearFirestore();
 const filing = () => ({
