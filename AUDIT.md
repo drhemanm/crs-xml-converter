@@ -45,6 +45,13 @@ The schema provides the honest alternative and the code ignores it: the "not rep
 **Fix:** treat missing required data as a hard stop, or emit the period-appropriate "not reported" sentinel. Never a plausible default. Same applies to the `"Not Provided"` street/city and `"XX"` country-code substitutions at `:1587-1590` (finding M4).
 
 ### C1. Users can self-upgrade to any plan (broken access control)
+
+> **Status: fixed.** `users/{uid}` update is now restricted to an explicit
+> allow-list of profile fields; `plan`, `conversionsLimit`,
+> `subscriptionStatus`, `role` and `email` are unwritable from a client, on
+> create as well as update. Create additionally pins the free-plan values and
+> requires the document's email to match the caller's token. Covered by
+> `firestore-tests/rules.test.mjs`.
 `firestore.rules:5-7` gives the account owner unrestricted `write` on `users/{userId}`:
 
 ```
@@ -67,9 +74,21 @@ Both webhook handlers process events with **no signature verification**:
 **Fix:** Verify every event with PayPal's `/v1/notifications/verify-webhook-signature` API (or validate the transmission headers against the webhook cert) before acting; reject on failure. Delete whichever of the two handlers isn't the live one.
 
 ### C3. Admin check is defeatable via C1 (`role` is user-writable)
+
+> **Status: fixed.** `manualResetUser` now checks
+> `context.auth.token.admin === true` -- a custom claim, settable only through
+> the Admin SDK (`functions/scripts/set-admin-claim.js`). The rules refuse to
+> write a `role` field at all.
 `manualResetUser` (`functions/index.js:336-368`) gates on `users/{uid}.role === 'admin'` — but per C1 users can write `role: 'admin'` into their own document, then reset any user's quota (the target `userId` is caller-supplied). **Fix:** use Firebase custom claims for admin, not a user-writable field.
 
 ### C4. All usage metering and limits are client-enforced
+
+> **Status: partially mitigated, still open.** Rules now allow
+> `conversionsUsed` to advance by exactly one and never past
+> `conversionsLimit`, so the counter cannot be reset and the limit cannot be
+> raised from the browser. The client still decides whether to call the
+> increment at all, so a tampered client converts for free. Closing that needs
+> server-side counting; it is bundled with the payment work.
 - Anonymous limit: `localStorage` (`CRSXMLConverter.js:358-416`) — cleared in two clicks, or bypassed with incognito.
 - Registered limit: checked in the browser and incremented by the browser (`updateUserUsage`, `CRSXMLConverter.js:2229`); a user who blocks that write converts for free forever.
 - XML generation itself happens fully client-side, so nothing stops a tampered client.
@@ -91,6 +110,12 @@ Both webhook handlers process events with **no signature verification**:
 ## High-severity findings
 
 ### H1. Audit-trail Firestore rules are broken — audit logging silently fails
+
+> **Status: fixed.** Create rules test `request.resource.data`, entries must
+> be attributed to the caller and stamped with `request.time`, and update and
+> delete are denied outright. Unauthenticated writes are refused everywhere --
+> anonymous trial conversions are no longer logged, and the client no longer
+> attempts it, so there is no open write endpoint into Firestore.
 Every audit `create` rule tests `resource.data.userId` (`firestore.rules:10-42`). On a `create`, `resource` does not exist — the correct object is `request.resource.data` — so the condition errors → denies. The anonymous catch-all block (`firestore.rules:39-42`) has the same bug **and** still implicitly requires auth context evaluation; unauthenticated writes are denied too. Net effect: **every `addDoc` to the audit collections fails**, and the app swallows the error with `console.error` (`logAuditEvent`, `CRSXMLConverter.js:486-488`). The product's advertised compliance audit trail does not exist in production.
 
 **Fix:** Use `request.resource.data.userId == request.auth.uid` (create-only, no client read/update/delete), or better: write audit entries from a Cloud Function so clients can't forge them at all. Add an integration test against the Firestore emulator.
@@ -111,9 +136,22 @@ Audit entries are stamped `retentionPeriod: '7_YEARS'` (`CRSXMLConverter.js:475`
 Two divergent webhook implementations exist (`api/paypal-webhook.js` on Vercel, `functions/index.js` on Firebase). The Vercel one has empty handler stubs (`// ... existing code`), meaning if PayPal points there, **nothing happens at all** on payment events. Keep exactly one, delete the other.
 
 ### H6. `resetMonthlyLimits` breaks at >500 users
+
+> **Status: fixed.** Chunked into batches of 500. `cleanupAuditLogs` was
+> deleting at most 500 documents per collection per week, so it never caught
+> up on a busy collection; it now loops until the expiry window is drained,
+> bounded at 20 passes so one invocation cannot overrun the function timeout.
 Single `WriteBatch` for all active users (`functions/index.js:250-265`); Firestore batches cap at 500 ops, so the monthly reset throws and **no one's quota resets** once the user base passes 500. Chunk into batches of ≤500 (`cleanupAuditLogs` already does this correctly).
 
 ### H7. Missing modern security headers
+
+> **Status: fixed.** `vercel.json` and `firebase.json` now carry the same
+> policy: CSP, HSTS, Referrer-Policy, Permissions-Policy,
+> Cross-Origin-Opener-Policy, X-Content-Type-Options and X-Frame-Options.
+> The deprecated X-XSS-Protection is gone. The build sets
+> `INLINE_RUNTIME_CHUNK=false` so `script-src` needs no `'unsafe-inline'`.
+> Verified by driving the app under the exact production headers: no CSP
+> violations, and a probe confirms each disallowed origin is blocked.
 `vercel.json` sets only `X-Content-Type-Options`, `X-Frame-Options`, and the deprecated `X-XSS-Protection`. No **Content-Security-Policy**, **Strict-Transport-Security**, **Referrer-Policy**, or **Permissions-Policy**; `firebase.json` hosting sets none at all. Given the app handles financial PII in-browser and loads the PayPal SDK, a CSP is the main XSS backstop.
 
 ---

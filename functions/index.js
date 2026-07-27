@@ -250,20 +250,26 @@ exports.resetMonthlyLimits = functions.pubsub
       const usersSnapshot = await db.collection('users')
         .where('subscriptionStatus', '==', 'active')
         .get();
-      
-      const batch = db.batch();
+
+      // Firestore caps a WriteBatch at 500 operations. This was a single batch
+      // over every active user, so the monthly reset would throw once the user
+      // base passed 500 -- and then nobody's quota reset at all.
+      const BATCH_LIMIT = 500;
       let updateCount = 0;
-      
-      usersSnapshot.docs.forEach(doc => {
-        batch.update(doc.ref, {
-          conversionsUsed: 0,
-          lastResetDate: admin.firestore.FieldValue.serverTimestamp()
+
+      for (let i = 0; i < usersSnapshot.docs.length; i += BATCH_LIMIT) {
+        const chunk = usersSnapshot.docs.slice(i, i + BATCH_LIMIT);
+        const batch = db.batch();
+        chunk.forEach(doc => {
+          batch.update(doc.ref, {
+            conversionsUsed: 0,
+            lastResetDate: admin.firestore.FieldValue.serverTimestamp()
+          });
         });
-        updateCount++;
-      });
-      
-      await batch.commit();
-      
+        await batch.commit();
+        updateCount += chunk.length;
+      }
+
       console.log(`Reset conversion limits for ${updateCount} active users`);
       
       // Log the reset
@@ -300,20 +306,30 @@ exports.cleanupAuditLogs = functions.pubsub
     
     let totalDeleted = 0;
     
+    // Bounded so a single invocation cannot run past the function timeout,
+    // but repeated so one week's expiry is actually cleared. The previous
+    // version deleted at most 500 documents per collection per week, which
+    // never catches up once volume exceeds that.
+    const MAX_PASSES = 20;
+
     for (const collectionName of collections) {
       try {
-        const snapshot = await db.collection(collectionName)
-          .where('timestamp', '<', cutoffDate)
-          .limit(500)  // Process in batches to avoid timeouts
-          .get();
-        
-        if (!snapshot.empty) {
+        for (let pass = 0; pass < MAX_PASSES; pass++) {
+          const snapshot = await db.collection(collectionName)
+            .where('timestamp', '<', cutoffDate)
+            .limit(500)
+            .get();
+
+          if (snapshot.empty) break;
+
           const batch = db.batch();
           snapshot.docs.forEach(doc => batch.delete(doc.ref));
           await batch.commit();
-          
+
           totalDeleted += snapshot.size;
           console.log(`Deleted ${snapshot.size} old records from ${collectionName}`);
+
+          if (snapshot.size < 500) break;
         }
       } catch (error) {
         console.error(`Error cleaning up ${collectionName}:`, error);
@@ -346,10 +362,11 @@ exports.manualResetUser = functions.https.onCall(async (data, context) => {
   }
   
   try {
-    // Check if requesting user is admin (you should implement proper admin checking)
-    // For now, this is a placeholder
-    const requestingUser = await db.collection('users').doc(context.auth.uid).get();
-    if (!requestingUser.exists || requestingUser.data().role !== 'admin') {
+    // Admin is a custom claim, verified from the ID token. It used to be read
+    // from users/{uid}.role -- a field the user it describes could write, so
+    // anyone could make themselves an admin and then reset any account.
+    // Claims are set with the Admin SDK and are not writable from a client.
+    if (context.auth.token.admin !== true) {
       throw new functions.https.HttpsError('permission-denied', 'Only admins can reset user limits');
     }
     
@@ -362,6 +379,9 @@ exports.manualResetUser = functions.https.onCall(async (data, context) => {
     
     return { success: true, message: 'User conversions reset successfully' };
   } catch (error) {
+    // Do not repackage an HttpsError as 'internal' -- that turned the
+    // permission-denied above into an opaque 500 for the caller.
+    if (error instanceof functions.https.HttpsError) throw error;
     console.error('Error resetting user:', error);
     throw new functions.https.HttpsError('internal', 'Failed to reset user conversions');
   }

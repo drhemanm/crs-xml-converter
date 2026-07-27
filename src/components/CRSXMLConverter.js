@@ -536,12 +536,19 @@ const getSessionId = () => {
 };
 
 const logAuditEvent = async (eventType, eventData, user = null) => {
+  // The audit trail records what a signed-in institution did with its own
+  // data. Anonymous trial conversions run entirely in the browser and are not
+  // part of it -- and accepting unauthenticated writes would mean running an
+  // open, billable write endpoint into Firestore. Skip rather than attempt a
+  // write the rules will (correctly) refuse.
+  if (!user?.uid) return;
+
   try {
     const auditEntry = {
       timestamp: serverTimestamp(),
       eventType,
-      userId: user?.uid || 'anonymous',
-      userEmail: user?.email || 'anonymous',
+      userId: user.uid,
+      userEmail: user.email || null,
       sessionId: getSessionId(),
       userAgent: navigator.userAgent.substring(0, 200),
       ipAddress: 'masked_for_privacy',
@@ -2167,11 +2174,18 @@ export {
 // ==========================================
 
 const logFileProcessing = async (fileData, validationResults, user = null) => {
+  // The audit trail records what a signed-in institution did with its own
+  // data. Anonymous trial conversions run entirely in the browser and are not
+  // part of it -- and accepting unauthenticated writes would mean running an
+  // open, billable write endpoint into Firestore. Skip rather than attempt a
+  // write the rules will (correctly) refuse.
+  if (!user?.uid) return;
+
   try {
     const auditEntry = {
       timestamp: serverTimestamp(),
-      userId: user?.uid || 'anonymous',
-      userEmail: user?.email || 'anonymous',
+      userId: user.uid,
+      userEmail: user.email || null,
       sessionId: getSessionId(),
       fileMetadata: {
         filename: fileData.name,
@@ -2213,11 +2227,18 @@ const logFileProcessing = async (fileData, validationResults, user = null) => {
 };
 
 const logXMLGeneration = async (conversionData, settingsUsed, user = null) => {
+  // The audit trail records what a signed-in institution did with its own
+  // data. Anonymous trial conversions run entirely in the browser and are not
+  // part of it -- and accepting unauthenticated writes would mean running an
+  // open, billable write endpoint into Firestore. Skip rather than attempt a
+  // write the rules will (correctly) refuse.
+  if (!user?.uid) return;
+
   try {
     const auditEntry = {
       timestamp: serverTimestamp(),
-      userId: user?.uid || 'anonymous',
-      userEmail: user?.email || 'anonymous',
+      userId: user.uid,
+      userEmail: user.email || null,
       sessionId: getSessionId(),
       conversionDetails: {
         recordCount: conversionData.recordCount,

@@ -7,7 +7,7 @@
   "license": "MIT",
   "keywords": [
     "CRS",
-    "OECD", 
+    "OECD",
     "XML",
     "Converter",
     "SaaS",
@@ -38,7 +38,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "INLINE_RUNTIME_CHUNK=false react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "deploy": "npm run build && firebase deploy",

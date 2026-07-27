@@ -1,44 +1,184 @@
 rules_version = '2';
+
+// Firestore security rules.
+//
+// Two principles run through this file:
+//
+//   1. The browser never writes anything it is billed for. Entitlements
+//      (plan, conversionsLimit, subscriptionStatus, role) are set exclusively
+//      by the Admin SDK -- the PayPal webhook and the scheduled functions --
+//      which is not subject to these rules. A client that tries is denied.
+//
+//   2. The audit trail is append-only and attributable. A client may create an
+//      entry about itself and read its own back; it may never update or delete
+//      one, and it may never write one attributed to somebody else.
+//
+// Anything not matched below is denied. There is no catch-all.
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users can only access their own user document
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Admin is a custom claim set with the Admin SDK, not a field in the user
+    // document. A field would be writable by the very user it describes, which
+    // is how the previous rules let anyone make themselves an admin.
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ------------------------------------------------------------------
+    // users/{userId}
+    // ------------------------------------------------------------------
+
+    // Everything the account owner may change from the browser. Note what is
+    // absent: plan, conversionsLimit, subscriptionStatus, role, email, and
+    // every PayPal field.
+    function ownerWritableKeys() {
+      return [
+        'displayName', 'company', 'preferences', 'savedGIINs',
+        'lastLogin', 'lastLoginIP', 'conversionsUsed'
+      ];
+    }
+
+    // Entitlements and identity, restated as an explicit deny. Redundant while
+    // ownerWritableKeys stays accurate -- which is the point: if somebody
+    // widens that list without thinking, this still holds the line.
+    function entitlementsUnchanged() {
+      return !changedKeys().hasAny([
+        'plan', 'conversionsLimit', 'subscriptionStatus', 'role', 'email',
+        'createdAt', 'provider', 'paypalSubscriptionId', 'paypalPlanId',
+        'subscriptionStartDate', 'subscriptionUpdatedAt',
+        'subscriptionCancelledAt', 'subscriptionSuspendedAt',
+        'lastResetDate', 'manualResetAt', 'resetBy'
+      ]);
+    }
+
+    // The usage counter may only move forward, one conversion at a time, and
+    // never past the limit recorded on the document.
+    //
+    // This does not make metering trustworthy: the client still decides
+    // whether to call the increment at all, so a tampered client converts for
+    // free (AUDIT.md C4, which needs server-side counting to close). What it
+    // removes is the one-line bypass -- setting conversionsUsed back to 0, or
+    // raising conversionsLimit, from the browser console.
+    function usageMoveIsLegal() {
+      return !changedKeys().hasAny(['conversionsUsed'])
+        || (
+          request.resource.data.conversionsUsed == resource.data.conversionsUsed + 1
+          && request.resource.data.conversionsUsed <= resource.data.conversionsLimit
+        );
+    }
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId) || isAdmin();
+
+      // A new account starts on the free plan. The client supplies the whole
+      // document, so the free-plan values are pinned here rather than trusted.
+      allow create: if isOwner(userId)
+        && request.resource.data.plan == 'free'
+        && request.resource.data.conversionsUsed == 0
+        && request.resource.data.conversionsLimit == 3
+        && request.resource.data.subscriptionStatus == 'active'
+        // The subscription webhook resolves users by email, so a user must not
+        // be able to register somebody else's address against their own uid.
+        && request.resource.data.email == request.auth.token.email
+        && !('role' in request.resource.data);
+
+      allow update: if isOwner(userId)
+        && changedKeys().hasOnly(ownerWritableKeys())
+        && entitlementsUnchanged()
+        && usageMoveIsLegal();
+
+      // Erasure runs through a function so it can be recorded and cascaded.
+      allow delete: if false;
     }
-    
-    // Audit collections - users can create their own audit entries
+
+    // ------------------------------------------------------------------
+    // Audit trail
+    // ------------------------------------------------------------------
+
+    // The previous rules tested `resource.data.userId` on create. On a create
+    // there is no `resource`, so every one of these conditions errored and
+    // denied -- meaning the advertised audit trail never recorded anything.
+    // The object that exists on a create is `request.resource.data`.
+    function isOwnAuditEntry() {
+      return isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        // serverTimestamp() resolves to request.time. Requiring it stops a
+        // client back-dating or forward-dating its own audit record.
+        && request.resource.data.timestamp == request.time;
+    }
+
+    // Unauthenticated writes are permitted nowhere. The old rules tried to
+    // allow `userId == 'anonymous'` entries, which would have been an open,
+    // unauthenticated write endpoint into a billed database. Anonymous trial
+    // conversions happen entirely in the browser and are not part of a
+    // regulatory audit trail, so nothing of compliance value is lost.
     match /audit_user_actions/{docId} {
-      allow create: if request.auth != null && 
-        (request.auth.uid == resource.data.userId || resource.data.userId == 'anonymous');
-      allow read: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
+      allow create: if isOwnAuditEntry();
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow update, delete: if false;
     }
-    
+
     match /audit_file_processing/{docId} {
-      allow create: if request.auth != null && 
-        (request.auth.uid == resource.data.userId || resource.data.userId == 'anonymous');
-      allow read: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
+      allow create: if isOwnAuditEntry();
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow update, delete: if false;
     }
-    
+
     match /audit_xml_generation/{docId} {
-      allow create: if request.auth != null && 
-        (request.auth.uid == resource.data.userId || resource.data.userId == 'anonymous');
-      allow read: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
+      allow create: if isOwnAuditEntry();
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow update, delete: if false;
     }
-    
+
     match /audit_data_access/{docId} {
-      allow create: if request.auth != null && 
-        (request.auth.uid == resource.data.userId || resource.data.userId == 'anonymous');
-      allow read: if request.auth != null && 
-        request.auth.uid == resource.data.userId;
+      allow create: if isOwnAuditEntry();
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow update, delete: if false;
     }
-    
-    // Allow anonymous audit entries
-    match /{collection}/{docId} {
-      allow create: if collection in ['audit_user_actions', 'audit_file_processing', 'audit_xml_generation'] &&
-        resource.data.userId == 'anonymous';
+
+    // Written by the subscription webhook through the Admin SDK. No client
+    // writes at all.
+    match /audit_subscription_events/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
+
+    // ------------------------------------------------------------------
+    // Data subject requests (GDPR)
+    // ------------------------------------------------------------------
+    //
+    // A signed-in user may lodge a request about themselves and read their own
+    // back. Only staff may change the status of one.
+    match /data_requests/{docId} {
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'received'
+        && request.resource.data.submittedAt == request.time;
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------------
+    // Server-only collections
+    // ------------------------------------------------------------------
+    //
+    // paypal_events, subscription_history, payment_history,
+    // pending_subscriptions and system_events are written by the Admin SDK.
+    // They are covered by the implicit default deny; noted here so it is clear
+    // the omission is deliberate rather than an oversight.
   }
 }
