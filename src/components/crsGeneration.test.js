@@ -515,3 +515,240 @@ describe('dates are never guessed at (AUDIT.md M3)', () => {
     expect(withBirthDate('circa 1980').rejectedRows[0].message).toMatch(/will guess at/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// End-to-end through the real column mapper.
+//
+// Every test above hands generateCRSXML a column mapping built by hand, which
+// means none of them exercise validateCRSData — the code that decides which
+// spreadsheet header feeds which field. That gap hid a bug where every
+// dividend figure was dropped from the return.
+// ---------------------------------------------------------------------------
+const { validateCRSData } = require('./CRSXMLConverter');
+
+const fromSpreadsheet = (rows, settings = SETTINGS) => {
+  const validation = validateCRSData(rows);
+  return { validation, ...generateCRSXML(rows, settings, validation) };
+};
+
+const spreadsheetRow = (overrides = {}) => ({
+  account_number: 'MU1234567890',
+  account_balance: '15000.50',
+  currency_code: 'USD',
+  holder_type: 'individual',
+  residence_country: 'FR',
+  address_country: 'FR',
+  city: 'Paris',
+  address: '10 Rue de Test',
+  first_name: 'Jean',
+  last_name: 'Dupont',
+  self_cert: 'true',
+  account_type: 'depository',
+  dd_procedure: 'new_account',
+  ...overrides,
+});
+
+describe('through the real column mapper', () => {
+  it('carries every payment type into the return', () => {
+    const { xml, rejectedRows } = fromSpreadsheet([spreadsheetRow({
+      interest_amount: '100',
+      dividend_amount: '250',
+      gross_proceeds_amount: '375',
+      other_amount: '50',
+    })]);
+    expect(rejectedRows).toEqual([]);
+    const doc = parse(xml);
+    const payments = [...doc.getElementsByTagName('Payment')].map(p => ({
+      type: p.getElementsByTagName('Type')[0].textContent,
+      amount: p.getElementsByTagName('PaymentAmnt')[0].textContent,
+    }));
+    expect(payments).toEqual([
+      { type: 'CRS502', amount: '100.00' },   // interest
+      { type: 'CRS501', amount: '250.00' },   // dividends
+      { type: 'CRS503', amount: '375.00' },   // gross proceeds
+      { type: 'CRS504', amount: '50.00' },    // other
+    ]);
+  });
+
+  it('does not drop dividends, which it used to', () => {
+    const { xml } = fromSpreadsheet([spreadsheetRow({ dividend_amount: '9999.99' })]);
+    expect(xml).toContain('<Type>CRS501</Type>');
+    expect(xml).toContain('>9999.99<');
+  });
+
+  it('accepts the common header spellings for each payment column', () => {
+    const { xml } = fromSpreadsheet([spreadsheetRow({ dividend: '500', interest: '25' })]);
+    const doc = parse(xml);
+    const types = [...doc.getElementsByTagName('Type')].map(t => t.textContent);
+    expect(types).toEqual(expect.arrayContaining(['CRS501', 'CRS502']));
+  });
+
+  it('maps an organisation row end to end', () => {
+    const { xml, rejectedRows } = fromSpreadsheet([spreadsheetRow({
+      holder_type: 'organization',
+      organization_name: 'Muster Holdings GmbH',
+      organization_tin: 'DE999888777',
+      account_holder_type: 'passive_nfe_reportable',
+      residence_country: 'DE',
+      address_country: 'DE',
+      city: 'Berlin',
+      first_name: '',
+      last_name: '',
+      controlling_person_first_name: 'Anna',
+      controlling_person_last_name: 'Schmidt',
+      controlling_person_residence_country: 'DE',
+      controlling_person_city: 'Berlin',
+      controlling_person_type: 'ownership',
+    })]);
+    expect(rejectedRows).toEqual([]);
+    expect(xml).toContain('<AcctHolderType>CRS101</AcctHolderType>');
+    expect(xml).toContain('<Name>Muster Holdings GmbH</Name>');
+    expect(xml).toContain('<CtrlgPersonType>CRS801</CtrlgPersonType>');
+    parse(xml);
+  });
+
+  it('reports missing critical columns before anything is generated', () => {
+    const { validation } = fromSpreadsheet.length && (() => {
+      const rows = [{ account_number: 'A1', account_balance: '1', currency_code: 'USD', holder_type: 'individual' }];
+      return { validation: validateCRSData(rows) };
+    })();
+    expect(validation.canGenerate).toBe(false);
+    const missing = validation.missingColumns.critical.map(c => c.field);
+    expect(missing).toEqual(expect.arrayContaining(['residence_country', 'city']));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The template must convert.
+//
+// A template that does not round-trip through the converter is worse than no
+// template: it teaches the wrong shape and the filer only finds out at the
+// portal. So the template is fed back through the real mapper here.
+// ---------------------------------------------------------------------------
+const { buildTemplateCsv, buildFieldGuideCsv, TEMPLATE_COLUMNS } = require('./CRSXMLConverter');
+
+const parseCsv = (csv) => {
+  const rows = [];
+  let row = [], cell = '', quoted = false;
+  for (let i = 0; i < csv.length; i++) {
+    const ch = csv[i];
+    if (quoted) {
+      if (ch === '"' && csv[i + 1] === '"') { cell += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else cell += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ',') { row.push(cell); cell = ''; }
+    else if (ch === '\r') { /* skip */ }
+    else if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; }
+    else cell += ch;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  const [headers, ...body] = rows;
+  return body.map(r => Object.fromEntries(headers.map((h, i) => [h, r[i] ?? ''])));
+};
+
+describe('the downloadable template', () => {
+  const rows = parseCsv(buildTemplateCsv());
+
+  it('contains worked examples, not just headers', () => {
+    expect(rows).toHaveLength(2);
+    expect(rows[0].holder_type).toBe('individual');
+    expect(rows[1].holder_type).toBe('organization');
+  });
+
+  it('converts with no rejected rows under v2.0', () => {
+    const validation = validateCRSData(rows);
+    expect(validation.canGenerate).toBe(true);
+    const result = generateCRSXML(rows, SETTINGS, validation);
+    expect(result.rejectedRows).toEqual([]);
+    expect(result.accountReportCount).toBe(2);
+    parse(result.xml);
+  });
+
+  it('converts with no rejected rows under v3.0 either', () => {
+    const validation = validateCRSData(rows);
+    const result = generateCRSXML(rows, { ...SETTINGS, schemaVersion: '3.0' }, validation);
+    expect(result.rejectedRows).toEqual([]);
+    expect(result.accountReportCount).toBe(2);
+    parse(result.xml);
+  });
+
+  it('supplies every value the converter would otherwise have to sentinel', () => {
+    const validation = validateCRSData(rows);
+    const { rowNotices } = generateCRSXML(rows, { ...SETTINGS, schemaVersion: '3.0' }, validation);
+    expect(rowNotices).toEqual([]);
+  });
+
+  it('produces both an individual and an organisation with a controlling person', () => {
+    const validation = validateCRSData(rows);
+    const doc = parse(generateCRSXML(rows, { ...SETTINGS, schemaVersion: '3.0' }, validation).xml);
+    // ReportingFI is its own element, so the only <Organisation> is the holder.
+    expect(doc.getElementsByTagName('Organisation')).toHaveLength(1);
+    expect(doc.getElementsByTagName('ReportingFI')).toHaveLength(1);
+    expect(doc.getElementsByTagName('ControllingPerson')).toHaveLength(1);
+    expect(doc.getElementsByTagName('BirthInfo').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('carries both payment figures through', () => {
+    const validation = validateCRSData(rows);
+    const doc = parse(generateCRSXML(rows, SETTINGS, validation).xml);
+    const types = [...doc.getElementsByTagName('Type')].map(t => t.textContent);
+    expect(types).toEqual(['CRS502', 'CRS501']);
+  });
+
+  it('every header is a field the mapper recognises', () => {
+    const validation = validateCRSData(rows);
+    const mapped = Object.keys(validation.columnMappings);
+    TEMPLATE_COLUMNS.forEach(({ field }) => expect(mapped).toContain(field));
+  });
+
+  it('the field guide documents every template column', () => {
+    const guide = parseCsv(buildFieldGuideCsv());
+    expect(guide).toHaveLength(TEMPLATE_COLUMNS.length);
+    guide.forEach(g => {
+      expect(g.description).toBeTruthy();
+      expect(g.requirement).toBeTruthy();
+    });
+    const holderType = guide.find(g => g.column === 'holder_type');
+    expect(holderType['accepted values']).toBe('individual | organization');
+  });
+});
+
+describe('column matching does not mis-claim a header', () => {
+  const map = (headers) => validateCRSData([Object.fromEntries(headers.map(h => [h, 'x']))]).columnMappings;
+
+  it('does not let a longer field name swallow a shorter header', () => {
+    const m = map(['controlling_person_address', 'controlling_person_address_country']);
+    expect(m.controlling_person_address).toBe('controlling_person_address');
+    expect(m.controlling_person_address_country).toBe('controlling_person_address_country');
+  });
+
+  it('gives each header to at most one field', () => {
+    const m = map(['account_number', 'account_balance', 'residence_country', 'address_country', 'city']);
+    const used = Object.values(m);
+    expect(new Set(used).size).toBe(used.length);
+  });
+
+  it('still tolerates punctuation and capitalisation', () => {
+    const m = map(['Account Number', 'Account-Balance', 'CURRENCY CODE']);
+    expect(m.account_number).toBe('Account Number');
+    expect(m.account_balance).toBe('Account-Balance');
+    expect(m.currency_code).toBe('CURRENCY CODE');
+  });
+
+  it('still tolerates a decorated header when it is unambiguous', () => {
+    const m = map(['account_balance_usd']);
+    expect(m.account_balance).toBe('account_balance_usd');
+  });
+
+  it('reports a column as missing rather than guessing between two candidates', () => {
+    const m = map(['tin_primary', 'tin_secondary']);
+    expect(m.tin).toBeUndefined();
+  });
+
+  it('maps the distinct residence and address country columns correctly', () => {
+    const m = map(['residence_country', 'address_country']);
+    expect(m.residence_country).toBe('residence_country');
+    expect(m.address_country).toBe('address_country');
+  });
+});

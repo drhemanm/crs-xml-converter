@@ -1,6 +1,42 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Book,  FileText,  CheckCircle,  AlertTriangle,  Info,  ArrowLeft,  Home,  Play,  FileSpreadsheet,  Settings,  HelpCircle,  Mail } from 'lucide-react';
+import { Book,  FileText,  CheckCircle,  AlertTriangle,  Info,  ArrowLeft,  Home,  Play,  FileSpreadsheet,  Settings,  HelpCircle,  Mail, Download } from 'lucide-react';
+import { buildTemplateCsv, buildFieldGuideCsv } from '../components/CRSXMLConverter';
+
+// The two files this page has always told people to download. They are built
+// from the converter's own field list, so the documentation cannot promise a
+// shape the tool does not accept.
+const downloadCsv = (filename, text) => {
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+const TemplateDownloads = ({ className = '' }) => (
+  <div className={`flex flex-wrap gap-3 ${className}`}>
+    <button
+      type="button"
+      onClick={() => downloadCsv('crs-source-template.csv', buildTemplateCsv())}
+      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-card bg-accent hover:bg-accent-soft text-white text-sm font-medium transition-colors"
+    >
+      <Download className="w-4 h-4" />
+      Download the template
+    </button>
+    <button
+      type="button"
+      onClick={() => downloadCsv('crs-field-guide.csv', buildFieldGuideCsv())}
+      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-card border border-ink-200 hover:border-ink-300 text-ink text-sm font-medium transition-colors"
+    >
+      <FileSpreadsheet className="w-4 h-4" />
+      Field guide
+    </button>
+  </div>
+);
 
 const Documentation = () => {
   const [activeSection, setActiveSection] = useState('getting-started');
@@ -265,14 +301,20 @@ const Documentation = () => {
 
                   <div>
                     <h3 className="text-xl font-semibold text-ink mb-4">Sample Data Structure</h3>
-                    <div className="bg-ink-50 rounded-card p-4 overflow-x-auto">
-                      <pre className="text-accent text-sm">
-{`account_number,account_holder_name,account_balance,currency_code,tax_identification_number
-12345678,John Smith,150000.00,USD,123-45-6789
-87654321,Jane Doe,75000.50,EUR,987-65-4321
-11223344,Bob Johnson,200000.00,GBP,111-22-3333`}
+                    <p className="text-ink-600 text-sm mb-4">
+                      This is the template itself, rendered from the converter's own
+                      field list. The example that used to sit here
+                      (<code className="font-mono text-[13px]">account_holder_name</code>,
+                      <code className="font-mono text-[13px]"> tax_identification_number</code>)
+                      described columns the converter does not read and would have
+                      been rejected on upload.
+                    </p>
+                    <div className="bg-ink-50 rounded-card p-4 overflow-x-auto scroll-quiet">
+                      <pre className="text-ink-700 text-[12px] leading-relaxed">
+{buildTemplateCsv().split('\r\n').join('\n')}
                       </pre>
                     </div>
+                    <TemplateDownloads className="mt-4" />
                   </div>
                 </div>
               )}
@@ -306,10 +348,14 @@ const Documentation = () => {
                                 <li>• Check for special characters that might cause issues</li>
                               </ul>
                             </div>
-                            <div className="bg-accent/10 border border-accent/20 rounded-card p-4">
-                              <p className="text-accent text-sm">
-                                <strong>Tip:</strong> Download our sample template to ensure your data is structured correctly.
+                            <div className="rounded-card border border-ink-200 p-4">
+                              <p className="text-ink-600 text-sm mb-3">
+                                The template carries two worked rows &mdash; one individual, one
+                                organisation with a controlling person &mdash; and converts as-is.
+                                The field guide lists every column, whether it is required, and
+                                the values each one accepts.
                               </p>
+                              <TemplateDownloads />
                             </div>
                           </div>
                         </div>
@@ -507,8 +553,9 @@ const Documentation = () => {
                         <div className="flex items-start">
                           <CheckCircle className="w-5 h-5 text-accent mr-3 mt-0.5 flex-shrink-0" />
                           <div>
-                            <h4 className="font-semibold text-ink">Use Our Template</h4>
-                            <p className="text-ink-600 text-sm">Download our sample template to ensure your data structure matches our requirements.</p>
+                            <h4 className="font-semibold text-ink">Use our template</h4>
+                            <p className="text-ink-600 text-sm mb-3">It is generated from the converter's own field list, so it cannot drift from what the tool accepts.</p>
+                            <TemplateDownloads />
                           </div>
                         </div>
                         <div className="flex items-start">

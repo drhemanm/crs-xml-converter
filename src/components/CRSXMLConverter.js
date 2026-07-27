@@ -497,6 +497,158 @@ const canAnonymousUserConvert = () => {
 };
 
 // ==========================================
+// SOURCE TEMPLATE
+// ==========================================
+//
+// The documentation has told filers to "download our sample template" since
+// launch and there was no template to download. Getting the columns right is
+// the single biggest source of friction with this format, so the template is
+// generated from the same field list and code tables the converter reads --
+// it cannot drift from what the tool actually accepts.
+
+// Ordered for a human filling it in, not for the parser.
+const TEMPLATE_COLUMNS = [
+  { field: 'account_number', requirement: 'required' },
+  { field: 'account_balance', requirement: 'required' },
+  { field: 'currency_code', requirement: 'required' },
+  { field: 'holder_type', requirement: 'required' },
+  { field: 'residence_country', requirement: 'required' },
+  { field: 'city', requirement: 'required' },
+  { field: 'address', requirement: 'recommended' },
+  { field: 'address_country', requirement: 'recommended' },
+  { field: 'postal_code', requirement: 'optional' },
+  { field: 'state', requirement: 'optional' },
+
+  { field: 'first_name', requirement: 'individuals' },
+  { field: 'middle_name', requirement: 'optional' },
+  { field: 'last_name', requirement: 'individuals' },
+  { field: 'tin', requirement: 'recommended' },
+  { field: 'birth_date', requirement: 'recommended' },
+  { field: 'birth_city', requirement: 'optional' },
+  { field: 'birth_country', requirement: 'optional' },
+  { field: 'nationality', requirement: 'v3.0 only' },
+
+  { field: 'organization_name', requirement: 'organisations' },
+  { field: 'organization_tin', requirement: 'recommended' },
+  { field: 'account_holder_type', requirement: 'organisations' },
+
+  { field: 'controlling_person_first_name', requirement: 'organisations' },
+  { field: 'controlling_person_last_name', requirement: 'organisations' },
+  { field: 'controlling_person_residence_country', requirement: 'organisations' },
+  { field: 'controlling_person_city', requirement: 'organisations' },
+  { field: 'controlling_person_address', requirement: 'optional' },
+  { field: 'controlling_person_tin', requirement: 'optional' },
+  { field: 'controlling_person_birth_date', requirement: 'optional' },
+  { field: 'controlling_person_type', requirement: 'recommended' },
+  { field: 'controlling_person_self_cert', requirement: 'v3.0 only' },
+
+  { field: 'self_cert', requirement: 'v3.0 only' },
+  { field: 'account_type', requirement: 'v3.0 only' },
+  { field: 'dd_procedure', requirement: 'v3.0 only' },
+
+  { field: 'interest_amount', requirement: 'optional' },
+  { field: 'dividend_amount', requirement: 'optional' },
+  { field: 'gross_proceeds_amount', requirement: 'optional' },
+  { field: 'other_amount', requirement: 'optional' },
+
+  { field: 'joint_account', requirement: 'v3.0 only' },
+  { field: 'joint_account_holders', requirement: 'v3.0 only' },
+  { field: 'undocumented_account', requirement: 'optional' },
+  { field: 'closed_account', requirement: 'optional' },
+  { field: 'dormant_account', requirement: 'optional' }
+];
+
+// Accepted values, taken from the code tables the mapper uses. If a table
+// gains a member, the template documents it without anyone remembering to.
+const TEMPLATE_ACCEPTED_VALUES = {
+  holder_type: ['individual', 'organization'],
+  self_cert: Object.keys(CRS_SELF_CERT_STATUS),
+  account_type: Object.keys(CRS_ACCOUNT_TYPES),
+  dd_procedure: Object.keys(CRS_DD_PROCEDURE_TYPES),
+  account_holder_type: Object.keys(CRS_ACCOUNT_HOLDER_TYPES),
+  controlling_person_type: Object.keys(CRS_CONTROLLING_PERSON_TYPES),
+  controlling_person_self_cert: Object.keys(CRS_SELF_CERT_CONTROLLING_PERSON),
+  joint_account: ['true', 'false'],
+  undocumented_account: ['true', 'false'],
+  closed_account: ['true', 'false'],
+  dormant_account: ['true', 'false']
+};
+
+// Two rows the converter accepts as-is: one individual, one organisation with
+// a controlling person. A worked example answers more questions than a
+// paragraph of prose does.
+const TEMPLATE_EXAMPLE_ROWS = [
+  {
+    account_number: 'MU0011223344', account_balance: '15000.50', currency_code: 'USD',
+    holder_type: 'individual', residence_country: 'FR', city: 'Paris',
+    address: '10 Rue de Test', address_country: 'FR', postal_code: '75001',
+    first_name: 'Jean', last_name: 'Dupont', tin: 'FR1234567890',
+    birth_date: '1980-05-12', birth_city: 'Lyon', birth_country: 'FR', nationality: 'FR',
+    self_cert: 'true', account_type: 'depository', dd_procedure: 'new_account',
+    interest_amount: '250.75',
+    undocumented_account: 'false', closed_account: 'false', dormant_account: 'false'
+  },
+  {
+    account_number: 'MU0044556677', account_balance: '980000.00', currency_code: 'EUR',
+    holder_type: 'organization', residence_country: 'DE', city: 'Berlin',
+    address: '5 Testweg', address_country: 'DE',
+    organization_name: 'Muster Holdings GmbH', organization_tin: 'DE999888777',
+    account_holder_type: 'passive_nfe_reportable',
+    controlling_person_first_name: 'Anna', controlling_person_last_name: 'Schmidt',
+    controlling_person_residence_country: 'DE', controlling_person_city: 'Berlin',
+    controlling_person_address: '9 Beispielstrasse', controlling_person_tin: 'DE111222333',
+    controlling_person_birth_date: '1975-09-30', controlling_person_type: 'ownership',
+    controlling_person_self_cert: 'true',
+    self_cert: 'true', account_type: 'custodial', dd_procedure: 'preexisting',
+    dividend_amount: '12000.00',
+    undocumented_account: 'false', closed_account: 'false', dormant_account: 'false'
+  }
+];
+
+const csvCell = (value) => {
+  const text = value === undefined || value === null ? '' : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+};
+
+/** The template itself: a header row and two worked examples. */
+const buildTemplateCsv = () => {
+  const headers = TEMPLATE_COLUMNS.map(c => c.field);
+  const lines = [headers.map(csvCell).join(',')];
+  for (const row of TEMPLATE_EXAMPLE_ROWS) {
+    lines.push(headers.map(h => csvCell(row[h])).join(','));
+  }
+  return lines.join('\r\n');
+};
+
+/** A companion sheet explaining every column, so the template is self-documenting. */
+const buildFieldGuideCsv = () => {
+  const lines = [['column', 'requirement', 'description', 'accepted values'].join(',')];
+  for (const { field, requirement } of TEMPLATE_COLUMNS) {
+    lines.push([
+      csvCell(field),
+      csvCell(requirement),
+      csvCell(getFieldDescription(field)),
+      csvCell((TEMPLATE_ACCEPTED_VALUES[field] || []).join(' | '))
+    ].join(','));
+  }
+  return lines.join('\r\n');
+};
+
+const downloadTextFile = (filename, text, mimeType = 'text/csv;charset=utf-8') => {
+  const blob = new Blob([text], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+export { buildTemplateCsv, buildFieldGuideCsv, TEMPLATE_COLUMNS };
+
+// ==========================================
 // SPREADSHEET PARSING SAFETY
 // ==========================================
 //
@@ -1093,59 +1245,102 @@ const validateCRSData = (data) => {
   const columnMappings = {};
   const missingColumns = { critical: [], warnings: [], recommendations: [] };
 
-  // Column mapping
-  Object.entries(requiredFields).forEach(([field, alternatives]) => {
-    let found = false;
-    let matchedHeader = null;
+  // Column mapping.
+  //
+  // Three passes, each over the fields still unmapped, and every pass claims
+  // the header it matches so one column can only ever feed one field.
+  //
+  // The old matcher tested substring containment in BOTH directions, so an
+  // alias could swallow a shorter header: a sheet with a
+  // `controlling_person_address` column had it claimed by the
+  // `controlling_person_address_country` field, and a street address was then
+  // read as a country code. Containment now only runs header-contains-alias,
+  // and only when nothing else has claimed either side.
+  const headerByNormalized = new Map();
+  const originalHeaders = Object.keys(firstRow);
+  for (const header of originalHeaders) {
+    headerByNormalized.set(header.toLowerCase().trim(), header);
+  }
 
-    // Exact match first
-    for (const alt of alternatives) {
-      const normalizedAlt = alt.toLowerCase().trim();
-      if (headers.includes(normalizedAlt)) {
-        matchedHeader = Object.keys(firstRow).find(h => 
-          h.toLowerCase().trim() === normalizedAlt
-        );
-        found = true;
-        break;
-      }
-    }
+  const squash = (text) => text.toLowerCase().replace(/[_\s-]/g, '');
+  const claimedHeaders = new Set();
+  const unmapped = [];
 
-    // Fuzzy match if exact match fails
-    if (!found) {
-      for (const alt of alternatives) {
-        const normalizedAlt = alt.toLowerCase().replace(/[_\s-]/g, '');
-        const fuzzyMatch = headers.find(h => 
-          h.replace(/[_\s-]/g, '').includes(normalizedAlt) ||
-          normalizedAlt.includes(h.replace(/[_\s-]/g, ''))
-        );
-        if (fuzzyMatch) {
-          matchedHeader = Object.keys(firstRow).find(h => 
-            h.toLowerCase().trim() === fuzzyMatch
-          );
-          found = true;
-          break;
-        }
-      }
-    }
+  const claim = (field, header) => {
+    columnMappings[field] = header;
+    claimedHeaders.add(header);
+  };
 
-    if (found && matchedHeader) {
-      columnMappings[field] = matchedHeader;
-    } else {
-      const fieldInfo = { 
-        field, 
-        alternatives: alternatives.slice(0, 3),
-        description: getFieldDescription(field) 
-      };
-      
-      if (criticalFields.includes(field)) {
-        missingColumns.critical.push(fieldInfo);
-      } else if (warningFields.includes(field)) {
-        missingColumns.warnings.push(fieldInfo);
-      } else if (recommendationFields.includes(field)) {
-        missingColumns.recommendations.push(fieldInfo);
-      }
+  // Pass 1 -- an alias matches a header exactly, ignoring case and padding.
+  for (const [field, alternatives] of Object.entries(requiredFields)) {
+    const hit = alternatives
+      .map((alt) => headerByNormalized.get(alt.toLowerCase().trim()))
+      .find((header) => header && !claimedHeaders.has(header));
+    if (hit) claim(field, hit);
+    else unmapped.push([field, alternatives]);
+  }
+
+  // Pass 2 -- same name, different punctuation: "Account Number", account-number.
+  const stillUnmapped = [];
+  for (const [field, alternatives] of unmapped) {
+    const wanted = new Set(alternatives.map(squash));
+    const hit = originalHeaders.find(
+      (header) => !claimedHeaders.has(header) && wanted.has(squash(header)),
+    );
+    if (hit) claim(field, hit);
+    else stillUnmapped.push([field, alternatives]);
+  }
+
+  // Pass 3 -- a decorated header such as "account_balance_usd" or
+  // "Balance (USD)".
+  //
+  // Containment only, header-contains-name, and only against the field's
+  // canonical name. Matching the alias lists here would be far too eager:
+  // `account_number` lists the alias "account", which is contained in
+  // "account_balance_usd" and would claim the balance column.
+  //
+  // A pairing is taken only when it is unambiguous from both directions --
+  // one candidate header for the field, and one candidate field for the
+  // header. Anything else is reported as a missing column, because a wrong
+  // guess here silently files the wrong number.
+  const pass3 = stillUnmapped
+    .map(([field, alternatives]) => {
+      const canonical = squash(alternatives[0] || field);
+      const candidates = canonical.length < 6 ? [] : originalHeaders.filter(
+        (header) => !claimedHeaders.has(header) && squash(header).includes(canonical),
+      );
+      return { field, alternatives, candidates };
+    });
+
+  const headerDemand = new Map();
+  for (const { candidates } of pass3) {
+    for (const header of candidates) {
+      headerDemand.set(header, (headerDemand.get(header) || 0) + 1);
     }
-  });
+  }
+
+  const finalUnmapped = [];
+  for (const { field, alternatives, candidates } of pass3) {
+    const [only] = candidates;
+    if (candidates.length === 1 && headerDemand.get(only) === 1) claim(field, only);
+    else finalUnmapped.push([field, alternatives]);
+  }
+
+  for (const [field, alternatives] of finalUnmapped) {
+    const fieldInfo = {
+      field,
+      alternatives: alternatives.slice(0, 3),
+      description: getFieldDescription(field)
+    };
+
+    if (criticalFields.includes(field)) {
+      missingColumns.critical.push(fieldInfo);
+    } else if (warningFields.includes(field)) {
+      missingColumns.warnings.push(fieldInfo);
+    } else if (recommendationFields.includes(field)) {
+      missingColumns.recommendations.push(fieldInfo);
+    }
+  }
 
   // Row validation
   const dataIssues = { critical: [], warnings: [], recommendations: [] };
@@ -1683,16 +1878,25 @@ const mapDataToCRS = (rowData, columnMappings) => {
     mappedData.equityInterestTypes.push(CRS_EQUITY_INTEREST_TYPES[equityInterestType.toLowerCase()]);
   }
 
-  // Process multiple payment types for CRS v3.0 with XSD compliance
-  const paymentTypes = ['interest', 'dividends', 'gross_proceeds', 'other'];
-  
-  paymentTypes.forEach(type => {
-    const amountKey = `${type}_amount`;
-    const amount = safeGetNumber(amountKey);
-    
+  // Payments.
+  //
+  // The source column and the CRS payment code are listed together rather than
+  // derived from each other. Deriving the column name as `${type}_amount` gave
+  // 'dividends_amount' while the column mapping only ever produces
+  // 'dividend_amount', so every dividend figure was silently dropped from the
+  // return -- under-reporting income to a tax authority with no error shown.
+  const PAYMENT_SOURCES = [
+    { column: 'interest_amount', code: CRS_PAYMENT_TYPES.interest },
+    { column: 'dividend_amount', code: CRS_PAYMENT_TYPES.dividends },
+    { column: 'gross_proceeds_amount', code: CRS_PAYMENT_TYPES.gross_proceeds },
+    { column: 'other_amount', code: CRS_PAYMENT_TYPES.other }
+  ];
+
+  PAYMENT_SOURCES.forEach(({ column, code }) => {
+    const amount = safeGetNumber(column);
     if (amount > 0) {
       mappedData.payments.push({
-        type: CRS_PAYMENT_TYPES[type] || 'CRS504',
+        type: code,
         amount: amount,
         currency: mappedData.currencyCode
       });
@@ -3701,6 +3905,16 @@ const CRSConverter = () => {
     }
   };
 
+  const handleDownloadTemplate = () => {
+    downloadTextFile('crs-source-template.csv', buildTemplateCsv());
+    trackEvent('template_downloaded', { kind: 'template' });
+  };
+
+  const handleDownloadFieldGuide = () => {
+    downloadTextFile('crs-field-guide.csv', buildFieldGuideCsv());
+    trackEvent('template_downloaded', { kind: 'field_guide' });
+  };
+
   const handleDownload = () => {
     if (!result) return;
     
@@ -3783,7 +3997,7 @@ const CRSConverter = () => {
                     {file ? file.name : 'Choose an Excel or CSV file'}
                   </span>
                   <span className="mt-1.5 block text-[14px] text-ink-400">
-                    .xlsx, .xls or .csv &middot; up to 10MB
+                    .xlsx, .xls or .csv &middot; up to {MAX_UPLOAD_BYTES / 1024 / 1024}MB &middot; never leaves this browser
                   </span>
                 </button>
 
@@ -3794,6 +4008,25 @@ const CRSConverter = () => {
                   onChange={handleFileSelect}
                   className="hidden"
                 />
+
+                <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[14px]">
+                  <span className="text-ink-400">Not sure about the columns?</span>
+                  <button
+                    type="button"
+                    onClick={handleDownloadTemplate}
+                    className="inline-flex items-center gap-1.5 text-ink underline underline-offset-4 decoration-ink-300 hover:decoration-ink transition-colors"
+                  >
+                    <Download className="w-4 h-4" strokeWidth={1.75} />
+                    Download the template
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadFieldGuide}
+                    className="inline-flex items-center gap-1.5 text-ink-500 underline underline-offset-4 decoration-ink-200 hover:text-ink hover:decoration-ink transition-colors"
+                  >
+                    Field guide
+                  </button>
+                </div>
 
                 {processing && (
                   <div className="mt-5 flex items-center gap-3 text-[14px] text-ink-500">
