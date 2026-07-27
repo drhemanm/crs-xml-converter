@@ -2294,6 +2294,11 @@ const RegistrationPrompt = ({ onRegister, onLogin, onClose }) => {
       trigger: 'conversion_limit_reached',
       crs_version: '3.0'
     });
+    // Fires once when the prompt is first shown. anonymousStatus is rebuilt by
+    // canAnonymousUserConvert() on every render, so adding it to the
+    // dependencies would re-fire this impression event on each render and
+    // inflate the metric.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

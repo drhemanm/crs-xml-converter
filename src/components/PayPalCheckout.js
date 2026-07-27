@@ -1,12 +1,20 @@
 import React, { useEffect, useRef } from 'react';
 
+// Hoisted out of the component so it is a stable reference: rebuilding it on
+// every render made it a changing effect dependency.
+//
+// NOTE: these amounts do not match the plans advertised in CRSXMLConverter.js
+// (Professional $79, Enterprise $299), and they are one-time order amounts
+// rather than subscriptions. See AUDIT.md finding C5 — this component is also
+// not rendered anywhere. Left as-is pending the pricing decision; this change
+// is lint-only and alters no behaviour.
+const planPrices = {
+  professional: '29.00',
+  enterprise: '99.00'
+};
+
 const PayPalCheckout = ({ plan, onSuccess, onError, onCancel }) => {
   const paypalRef = useRef();
-
-  const planPrices = {
-    professional: '29.00',
-    enterprise: '99.00'
-  };
 
   useEffect(() => {
     if (window.paypal) {
