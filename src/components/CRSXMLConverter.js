@@ -258,12 +258,99 @@ const LEGAL_ADDRESS_TYPES = {
 };
 
 // Account Number Types for XSD compliance (from CommonTypesFatcaCrs)
+//
+// These are labels for display. The AcctNumberType attribute carries the CODE
+// (OECD601..OECD605), not the label -- AcctNumberType_EnumType is an
+// enumeration and "Other" is not a member of it.
 const ACCOUNT_NUMBER_TYPES = {
   'OECD601': 'IBAN',
   'OECD602': 'OBAN',
   'OECD603': 'ISIN',
   'OECD604': 'OSIN',
   'OECD605': 'Other'
+};
+
+const DEFAULT_ACCOUNT_NUMBER_TYPE = 'OECD605';
+
+// ==========================================
+// SCHEMA VERSIONS
+// ==========================================
+//
+// The converter must emit the schema the receiving authority actually accepts,
+// which for the current season is v2.0 in Mauritius, Cayman, Ireland and
+// Singapore. v3.0 (the amended CRS schema) applies to reporting year 2026
+// onward and, in some jurisdictions, to corrections of earlier periods filed
+// from 2027. Emitting v3.0 into a v2.0 portal is rejected at upload.
+//
+// Namespace bindings below are taken from the OECD schema declarations. Note
+// that `targetNamespace` belongs on the schema, not on an instance document --
+// emitting it on the root element, as this generator previously did, is not
+// valid.
+const CRS_SCHEMA_PROFILES = {
+  '2.0': {
+    version: '2.0',
+    label: 'CRS XML v2.0',
+    namespace: 'urn:oecd:ties:crs:v2',
+    schemaFile: 'CrsXML_v2.0.xsd',
+    // v2.0 predates the amended-CRS additions.
+    supportsSelfCert: false,
+    supportsAccountType: false,
+    supportsDDProcedure: false,
+    supportsJointAccount: false,
+    supportsEquityInterestType: false,
+    supportsNationality: false,
+    supportsControllingPersonSelfCert: false
+  },
+  '3.0': {
+    version: '3.0',
+    label: 'CRS XML v3.0 (amended CRS)',
+    namespace: 'urn:oecd:ties:crs:v3',
+    schemaFile: 'CrsXML_v3.0.xsd',
+    supportsSelfCert: true,
+    supportsAccountType: true,
+    supportsDDProcedure: true,
+    supportsJointAccount: true,
+    supportsEquityInterestType: true,
+    supportsNationality: true,
+    supportsControllingPersonSelfCert: true
+  }
+};
+
+const DEFAULT_SCHEMA_VERSION = '2.0';
+
+const CRS_SHARED_NAMESPACES = {
+  cfc: 'urn:oecd:ties:commontypesfatcacrs:v2',
+  stf: 'urn:oecd:ties:crsstf:v5',
+  iso: 'urn:oecd:ties:isocrstypes:v1',
+  xsi: 'http://www.w3.org/2001/XMLSchema-instance'
+};
+
+// ==========================================
+// "NOT REPORTED" SENTINELS
+// ==========================================
+//
+// Each of these means "the institution did not report this", which is a
+// materially different statement from any of the substantive values in the
+// same enumeration. They exist precisely so that an absent value never has to
+// be guessed at. A missing self-certification is NEVER CRS901 ("obtained and
+// validated") -- that would have the file assert due diligence on behalf of an
+// institution that may never have performed it.
+const CRS_NOT_REPORTED = {
+  selfCert: 'CRS900',
+  accountType: 'CRS1100',
+  ddProcedure: 'CRS1200',
+  controllingPersonType: 'CRS800',
+  controllingPersonSelfCert: 'CRS1000'
+};
+
+// Source fields whose "not reported" notice is only meaningful when the target
+// schema has an element for them. Under v2.0 there is no SelfCert element at
+// all, so telling the filer their file reports "not reported" would be false.
+const SCHEMA_GATED_NOTICE_FIELDS = {
+  self_cert: 'supportsSelfCert',
+  account_type: 'supportsAccountType',
+  dd_procedure: 'supportsDDProcedure',
+  controlling_person_self_cert: 'supportsControllingPersonSelfCert'
 };
 
 // ==========================================
@@ -912,12 +999,17 @@ const validateCRSData = (data) => {
   const requiredFields = ENHANCED_FIELD_MAPPINGS;
 
   // CRS v3.0 100% compliant field classification
+  // residence_country and city are critical because no row can be converted
+  // without them: ResCountryCode identifies the reportable jurisdiction and
+  // City is mandatory inside the OECD address type. If the column is absent
+  // altogether, say so once here rather than rejecting every row individually.
   const criticalFields = [
-    'account_number', 'account_balance', 'currency_code', 'holder_type'
+    'account_number', 'account_balance', 'currency_code', 'holder_type',
+    'residence_country', 'city'
   ];
-  
+
   const warningFields = [
-    'residence_country', 'address_country', 'city', 'self_cert', 'account_type', 'dd_procedure'
+    'address_country', 'self_cert', 'account_type', 'dd_procedure'
   ];
   
   const recommendationFields = [
@@ -1031,13 +1123,13 @@ const validateCRSData = (data) => {
       // CRS v3.0 XSD compliance warnings
       const resCountryValidation = validateCountryCode(row[columnMappings.residence_country]);
       if (!resCountryValidation.valid) {
-        warnings.push('Valid residence country code recommended for CRS v3.0 compliance');
+        warnings.push('A valid two-letter residence country code is required; the row cannot be converted without it');
       }
       
       // Self-certification validation (required in v3.0)
       const selfCertValue = row[columnMappings.self_cert];
       if (!selfCertValue || !['true', 'false', 'CRS901', 'CRS902'].includes(String(selfCertValue).toLowerCase())) {
-        warnings.push('Self-certification status (true/false) required for CRS v3.0');
+        warnings.push('Self-certification status (true/false) not supplied; it will be reported as "not reported" under v3.0 and omitted under v2.0');
       }
 
       // Account type validation (required in v3.0)
@@ -1296,13 +1388,25 @@ export {
   validateCRSData
 };
 // ==========================================
-// CRS v3.0 100% COMPLIANT DATA MAPPING FUNCTION
+// DATA MAPPING
 // ==========================================
+//
+// The governing rule here: a value that was not supplied is never invented.
+// Where the OECD provides a "not reported" sentinel we use it and record a
+// notice so the filer can see what the file actually says on their behalf.
+// Where a value is supplied but not recognised, the row is rejected rather
+// than quietly coerced into whichever enum member happens to be first.
 
 const mapDataToCRS = (rowData, columnMappings) => {
   if (!rowData || !columnMappings) {
     throw new Error('Invalid data or column mappings provided');
   }
+
+  // Every value this row could not supply, and what was written instead.
+  const notices = [];
+  // Coded fields the source actually carried. Used to decide whether a value
+  // was genuinely lost when the target schema has no element for it.
+  const supplied = new Set();
 
   const safeGet = (key, defaultValue = '') => {
     const value = rowData[columnMappings[key]];
@@ -1321,9 +1425,71 @@ const mapDataToCRS = (rowData, columnMappings) => {
     return defaultValue;
   };
 
+  /**
+   * Resolve a coded CRS enum from source data.
+   *
+   * Absent  -> the OECD "not reported" sentinel, plus a notice.
+   * Present and recognised -> the code.
+   * Present and unrecognised -> row rejected. Falling back to a substantive
+   * value here is how a spreadsheet typo becomes a false regulatory assertion.
+   */
+  const resolveCoded = (key, table, sentinel, label) => {
+    const raw = safeGet(key);
+    if (!raw) {
+      notices.push({
+        field: key,
+        message: `${label} was not supplied; reported as "not reported" (${sentinel}).`
+      });
+      return sentinel;
+    }
+    supplied.add(key);
+    const code = table[raw.toLowerCase()];
+    if (code) return code;
+    // Allow the source to carry the OECD code directly.
+    const directCode = Object.values(table).find((c) => c === raw.toUpperCase());
+    if (directCode) return directCode;
+    throw new Error(
+      `${label}: "${raw}" is not a recognised value. Expected one of: ${Object.keys(table).join(', ')}.`
+    );
+  };
+
+  const countryCode = (key) => {
+    const raw = safeGet(key).toUpperCase();
+    if (!raw) return '';
+    if (!/^[A-Z]{2}$/.test(raw)) {
+      throw new Error(`"${raw}" is not a two-letter ISO 3166-1 country code (field: ${key}).`);
+    }
+    return raw;
+  };
+
   const holderType = safeGet('holder_type').toLowerCase();
   const isIndividual = holderType === 'individual';
   const isOrganization = ['organization', 'organisation'].includes(holderType);
+
+  // ResCountryCode identifies the reportable jurisdiction. A record without it
+  // tells the receiving authority nothing, and the previous 'XX' placeholder is
+  // not a member of the ISO country-code enumeration, so it failed validation
+  // at the portal instead of here.
+  const residenceCountry = countryCode('residence_country');
+  if (!residenceCountry) {
+    throw new Error(
+      'Residence country is required: it identifies the reportable jurisdiction and cannot be assumed.'
+    );
+  }
+
+  let addressCountry = countryCode('address_country');
+  if (!addressCountry) {
+    addressCountry = residenceCountry;
+    notices.push({
+      field: 'address_country',
+      message: `Address country was not supplied; the residence country (${residenceCountry}) was used.`
+    });
+  }
+
+  const hasControllingPerson =
+    isOrganization &&
+    Boolean(safeGet('controlling_person_first_name')) &&
+    Boolean(safeGet('controlling_person_last_name'));
 
   // Enhanced data mapping with 100% CRS v3.0 XSD compliance
   const mappedData = {
@@ -1336,16 +1502,15 @@ const mapDataToCRS = (rowData, columnMappings) => {
     undocumentedAccount: safeGetBoolean('undocumented_account', false),
     closedAccount: safeGetBoolean('closed_account', false),
     dormantAccount: safeGetBoolean('dormant_account', false),
-    accountNumberType: ACCOUNT_NUMBER_TYPES['OECD605'], // Default to "Other"
-    
-    // CRS v3.0 required fields with XSD compliance
-    accountType: safeGet('account_type') ? 
-      CRS_ACCOUNT_TYPES[safeGet('account_type').toLowerCase()] || 'CRS1101' : 'CRS1101', // Default to depository
-    ddProcedure: safeGet('dd_procedure') ? 
-      CRS_DD_PROCEDURE_TYPES[safeGet('dd_procedure').toLowerCase()] || 'CRS1202' : 'CRS1202', // Default to preexisting
-    selfCert: safeGet('self_cert') ? 
-      CRS_SELF_CERT_STATUS[safeGet('self_cert').toLowerCase()] || 'CRS901' : 'CRS901', // Default to true
-    
+    // The attribute carries the enum code, not the human-readable label.
+    accountNumberType: DEFAULT_ACCOUNT_NUMBER_TYPE,
+
+    // v3.0-only classifications. Absent values become the OECD sentinel, never
+    // a substantive assertion. See CRS_NOT_REPORTED.
+    accountType: resolveCoded('account_type', CRS_ACCOUNT_TYPES, CRS_NOT_REPORTED.accountType, 'Account type'),
+    ddProcedure: resolveCoded('dd_procedure', CRS_DD_PROCEDURE_TYPES, CRS_NOT_REPORTED.ddProcedure, 'Due diligence procedure'),
+    selfCert: resolveCoded('self_cert', CRS_SELF_CERT_STATUS, CRS_NOT_REPORTED.selfCert, 'Self-certification status'),
+
     // Joint account support (XSD compliant)
     isJointAccount: safeGetBoolean('joint_account', false),
     jointAccountHolders: safeGetNumber('joint_account_holders', 1),
@@ -1368,8 +1533,8 @@ const mapDataToCRS = (rowData, columnMappings) => {
       birthCity: safeGet('birth_city'),
       birthCountry: safeGet('birth_country').toUpperCase(),
       tin: safeGet('tin'),
-      resCountryCode: safeGet('residence_country', 'XX').toUpperCase(),
-      addressCountryCode: (safeGet('address_country') || safeGet('residence_country', 'XX')).toUpperCase(),
+      resCountryCode: residenceCountry,
+      addressCountryCode: addressCountry,
       city: safeGet('city'),
       address: safeGet('address'),
       postalCode: safeGet('postal_code'),
@@ -1381,19 +1546,41 @@ const mapDataToCRS = (rowData, columnMappings) => {
     organization: isOrganization ? {
       name: safeGet('organization_name'),
       tin: safeGet('organization_tin'),
-      resCountryCode: safeGet('residence_country', 'XX').toUpperCase(),
-      addressCountryCode: (safeGet('address_country') || safeGet('residence_country', 'XX')).toUpperCase(),
+      resCountryCode: residenceCountry,
+      addressCountryCode: addressCountry,
       city: safeGet('city'),
       address: safeGet('address'),
       postalCode: safeGet('postal_code'),
       state: safeGet('state'),
-      // CRS v3.0 account holder type (required for organizations)
-      acctHolderType: safeGet('account_holder_type') ? 
-        CRS_ACCOUNT_HOLDER_TYPES[safeGet('account_holder_type').toLowerCase()] || 'CRS102' : 'CRS102'
+      // AcctHolderType is mandatory for organisations in both v2.0 and v3.0 and
+      // has no "not reported" sentinel. It also decides whether controlling
+      // persons must be reported, so guessing it (the previous code defaulted
+      // to CRS102, "CRS Reportable Person") can suppress an entire class of
+      // required disclosure. Missing means the row is rejected.
+      acctHolderType: (() => {
+        const raw = safeGet('account_holder_type');
+        if (!raw) {
+          throw new Error(
+            'Account holder type is required for organisation account holders (CRS101, CRS102 or CRS103). ' +
+            'It determines whether controlling persons must be reported and cannot be assumed.'
+          );
+        }
+        const code = CRS_ACCOUNT_HOLDER_TYPES[raw.toLowerCase()] ||
+          Object.values(CRS_ACCOUNT_HOLDER_TYPES).find((c) => c === raw.toUpperCase());
+        if (!code) {
+          throw new Error(
+            `Account holder type: "${raw}" is not a recognised value. ` +
+            `Expected one of: ${Object.keys(CRS_ACCOUNT_HOLDER_TYPES).join(', ')}.`
+          );
+        }
+        return code;
+      })()
     } : null,
     
-    // Controlling person (for organizations) with 100% v3.0 compliance
-    controllingPerson: isOrganization ? {
+    // Controlling person, built only when the row actually carries one --
+    // otherwise every organisation row would accrue "not reported" notices for
+    // a person who does not exist.
+    controllingPerson: hasControllingPerson ? {
       firstName: safeGet('controlling_person_first_name'),
       lastName: safeGet('controlling_person_last_name'), 
       middleName: safeGet('controlling_person_middle_name'),
@@ -1401,21 +1588,27 @@ const mapDataToCRS = (rowData, columnMappings) => {
       birthDate: safeGet('controlling_person_birth_date'),
       birthCity: safeGet('controlling_person_birth_city'),
       birthCountry: safeGet('controlling_person_birth_country').toUpperCase(),
-      resCountryCode: safeGet('controlling_person_residence_country', 'XX').toUpperCase(),
-      addressCountryCode: (safeGet('controlling_person_address_country') || 
-                          safeGet('controlling_person_residence_country', 'XX')).toUpperCase(),
+      resCountryCode: countryCode('controlling_person_residence_country'),
+      addressCountryCode: countryCode('controlling_person_address_country') ||
+                          countryCode('controlling_person_residence_country'),
       city: safeGet('controlling_person_city'),
       address: safeGet('controlling_person_address'),
       postalCode: safeGet('controlling_person_postal_code'),
       state: safeGet('controlling_person_state'),
       tin: safeGet('controlling_person_tin'),
       nationality: safeGet('controlling_person_nationality', '').toUpperCase(),
-      // CRS v3.0 controlling person type (XSD compliant)
-      ctrlgPersonType: safeGet('controlling_person_type') ? 
-        CRS_CONTROLLING_PERSON_TYPES[safeGet('controlling_person_type').toLowerCase()] || 'CRS801' : 'CRS801',
-      // CRS v3.0 controlling person self-certification (XSD compliant)
-      selfCert: safeGet('controlling_person_self_cert') ?
-        CRS_SELF_CERT_CONTROLLING_PERSON[safeGet('controlling_person_self_cert').toLowerCase()] || 'CRS1001' : 'CRS1001'
+      ctrlgPersonType: resolveCoded(
+        'controlling_person_type',
+        CRS_CONTROLLING_PERSON_TYPES,
+        CRS_NOT_REPORTED.controllingPersonType,
+        'Controlling person type'
+      ),
+      selfCert: resolveCoded(
+        'controlling_person_self_cert',
+        CRS_SELF_CERT_CONTROLLING_PERSON,
+        CRS_NOT_REPORTED.controllingPersonSelfCert,
+        'Controlling person self-certification'
+      )
     } : null,
     
     // Enhanced payment data with v3.0 compliant payment types
@@ -1479,6 +1672,8 @@ const mapDataToCRS = (rowData, columnMappings) => {
     throw new Error('Joint account holders must be between 1 and 200 (XSD constraint)');
   }
 
+  mappedData.notices = notices;
+  mappedData.supplied = supplied;
   return mappedData;
 };
 
@@ -1501,7 +1696,15 @@ const generateCRSXML = (data, settings, validationResults) => {
 
   const { reportingFI, messageRefId, taxYear } = settings;
   const { columnMappings } = validationResults;
-  
+
+  const profile = CRS_SCHEMA_PROFILES[settings.schemaVersion] ||
+                  CRS_SCHEMA_PROFILES[DEFAULT_SCHEMA_VERSION];
+
+  // Values the chosen schema has no element for. Collected once for the whole
+  // file rather than per row: dropping data the filer supplied without telling
+  // them is the failure mode this exists to prevent.
+  const droppedBySchema = new Set();
+
   // Enhanced utility functions with 100% XSD compliance
   const formatDate = (date) => {
     if (!date) return '';
@@ -1576,14 +1779,31 @@ const generateCRSXML = (data, settings, validationResults) => {
         </Name>`;
   };
 
-  // 100% XSD compliant address generation
-  const generateAddress = (addressData, legalAddressType = 'OECD302') => {
+  /**
+   * Address.
+   *
+   * legalAddressType defaults to OECD301 (residentialOrBusiness) rather than
+   * OECD302 (residential): we do not know which one an address is, and calling
+   * a company's registered office a residence is a claim we have no basis for.
+   *
+   * Street is optional in the OECD address type and is omitted when absent.
+   * It previously emitted the literal string "Not Provided", which put text
+   * that is not an address into an address field. City is mandatory, so an
+   * absent city is an error the filer has to resolve.
+   */
+  const generateAddress = (addressData, legalAddressType = 'OECD301') => {
+    if (!addressData.countryCode) {
+      throw new Error('Address country code is required.');
+    }
+    if (!addressData.city) {
+      throw new Error('City is required within an address and cannot be substituted.');
+    }
     return `
         <Address legalAddressType="${legalAddressType}">
-          <cfc:CountryCode>${escapeXML(addressData.countryCode || 'XX')}</cfc:CountryCode>
+          <cfc:CountryCode>${escapeXML(addressData.countryCode)}</cfc:CountryCode>
           <cfc:AddressFix>
-            <cfc:Street>${escapeXML(addressData.street || 'Not Provided')}</cfc:Street>
-            <cfc:City>${escapeXML(addressData.city || 'Not Provided')}</cfc:City>
+            ${addressData.street ? `<cfc:Street>${escapeXML(addressData.street)}</cfc:Street>` : ''}
+            <cfc:City>${escapeXML(addressData.city)}</cfc:City>
             ${addressData.postalCode ? `<cfc:PostCode>${escapeXML(addressData.postalCode)}</cfc:PostCode>` : ''}
             ${addressData.state ? `<cfc:CountrySubentity>${escapeXML(addressData.state)}</cfc:CountrySubentity>` : ''}
           </cfc:AddressFix>
@@ -1619,31 +1839,59 @@ const generateCRSXML = (data, settings, validationResults) => {
             </BirthInfo>`;
   };
 
-  // CRS v3.0 compliant account report generation with 100% XSD compliance
-  const generateAccountReport = (mappedAccount, index) => {
+  // Account report generation. Element inclusion follows the selected schema
+  // profile: v2.0 predates SelfCert, AccountType, DDProcedure, JointAccount,
+  // EquityInterestType and Nationality, and emitting them into a v2.0 document
+  // makes it invalid.
+  const generateAccountReport = (mappedAccount) => {
     const docRefId = generateDocRefId();
-    
-    // Generate equity interest types (XSD compliant)
+
     const generateEquityInterestTypes = () => {
       if (!mappedAccount.equityInterestTypes || mappedAccount.equityInterestTypes.length === 0) {
         return '';
       }
-      
-      return mappedAccount.equityInterestTypes.map(type => 
+      if (!profile.supportsEquityInterestType) {
+        droppedBySchema.add('equity interest type');
+        return '';
+      }
+      return mappedAccount.equityInterestTypes.map(type =>
         `<EquityInterestType>${escapeXML(type)}</EquityInterestType>`
       ).join('');
     };
 
-    // Generate account holder section with full CRS v3.0 XSD compliance
+    // Only report a value as lost if the filer actually supplied one. A field
+    // that was blank in the source was not dropped by the schema; it was never
+    // there.
+    const noteDropped = (field, label) => {
+      if (mappedAccount.supplied?.has(field)) droppedBySchema.add(label);
+    };
+
+    const generateSelfCert = () => {
+      if (!profile.supportsSelfCert) {
+        noteDropped('self_cert', 'self-certification status');
+        return '';
+      }
+      return `
+          <SelfCert>${escapeXML(mappedAccount.selfCert)}</SelfCert>`;
+    };
+
+    const generateNationality = (person) => {
+      if (!person.nationality) return '';
+      if (!profile.supportsNationality) {
+        droppedBySchema.add('nationality');
+        return '';
+      }
+      return `<Nationality>${escapeXML(person.nationality)}</Nationality>`;
+    };
+
     const generateAccountHolder = () => {
       if (mappedAccount.isIndividual && mappedAccount.individual) {
         const individual = mappedAccount.individual;
         return `
         <AccountHolder>
-          ${generateEquityInterestTypes()}
-          <SelfCert>${escapeXML(mappedAccount.selfCert)}</SelfCert>
+          ${generateEquityInterestTypes()}${generateSelfCert()}
           <Individual>
-            <ResCountryCode>${escapeXML(individual.resCountryCode || 'XX')}</ResCountryCode>
+            <ResCountryCode>${escapeXML(individual.resCountryCode)}</ResCountryCode>
             ${generateTIN(individual.tin, individual.resCountryCode)}
             ${generatePersonName(individual)}
             ${generateAddress({
@@ -1653,7 +1901,7 @@ const generateCRSXML = (data, settings, validationResults) => {
               postalCode: individual.postalCode,
               state: individual.state
             })}
-            ${individual.nationality ? `<Nationality>${escapeXML(individual.nationality)}</Nationality>` : ''}
+            ${generateNationality(individual)}
             ${generateBirthInfo(individual)}
           </Individual>
         </AccountHolder>`;
@@ -1661,11 +1909,10 @@ const generateCRSXML = (data, settings, validationResults) => {
         const organization = mappedAccount.organization;
         return `
         <AccountHolder>
-          ${generateEquityInterestTypes()}
-          <SelfCert>${escapeXML(mappedAccount.selfCert)}</SelfCert>
+          ${generateEquityInterestTypes()}${generateSelfCert()}
           <Organisation>
-            ${organization.resCountryCode ? `<ResCountryCode>${escapeXML(organization.resCountryCode)}</ResCountryCode>` : ''}
-            ${generateOrganisationIN(organization.tin, organization.resCountryCode)}
+            <ResCountryCode>${escapeXML(organization.resCountryCode)}</ResCountryCode>
+            ${generateOrganisationIN(organization.tin, organization.resCountryCode, 'TIN')}
             <Name>${escapeXML(organization.name)}</Name>
             ${generateAddress({
               countryCode: organization.addressCountryCode,
@@ -1678,41 +1925,51 @@ const generateCRSXML = (data, settings, validationResults) => {
           <AcctHolderType>${escapeXML(organization.acctHolderType)}</AcctHolderType>
         </AccountHolder>`;
       }
-      
+
       throw new Error(`Invalid account holder type for account ${mappedAccount.accountNumber}`);
     };
 
-    // Generate controlling person section with 100% CRS v3.0 XSD compliance
     const generateControllingPerson = () => {
       if (!mappedAccount.isOrganization || !mappedAccount.controllingPerson) {
         return '';
       }
-      
+
       const cp = mappedAccount.controllingPerson;
-      
+
       // Only generate if we have at least first and last name
       if (!cp.firstName || !cp.lastName) {
         return '';
       }
-      
+
+      const cpSelfCert = () => {
+        if (!profile.supportsControllingPersonSelfCert) {
+          noteDropped('controlling_person_self_cert', 'controlling person self-certification');
+          return '';
+        }
+        return `
+          <SelfCert>${escapeXML(cp.selfCert)}</SelfCert>`;
+      };
+
       return `
         <ControllingPerson>
           <Individual>
-            <ResCountryCode>${escapeXML(cp.resCountryCode || 'XX')}</ResCountryCode>
+            ${cp.resCountryCode ? `<ResCountryCode>${escapeXML(cp.resCountryCode)}</ResCountryCode>` : ''}
             ${generateTIN(cp.tin, cp.resCountryCode)}
             ${generatePersonName(cp)}
             ${generateAddress({
+              // No fallback to the organisation's address: a controlling
+              // person does not live at the company's registered office
+              // unless the data says so.
               countryCode: cp.addressCountryCode,
               street: cp.address,
               city: cp.city,
               postalCode: cp.postalCode,
               state: cp.state
             })}
-            ${cp.nationality ? `<Nationality>${escapeXML(cp.nationality)}</Nationality>` : ''}
+            ${generateNationality(cp)}
             ${generateBirthInfo(cp)}
           </Individual>
-          <CtrlgPersonType>${escapeXML(cp.ctrlgPersonType)}</CtrlgPersonType>
-          <SelfCert>${escapeXML(cp.selfCert)}</SelfCert>
+          <CtrlgPersonType>${escapeXML(cp.ctrlgPersonType)}</CtrlgPersonType>${cpSelfCert()}
         </ControllingPerson>`;
     };
 
@@ -1729,16 +1986,36 @@ const generateCRSXML = (data, settings, validationResults) => {
         </Payment>`).join('');
     };
 
-    // Generate joint account section (XSD compliant)
     const generateJointAccount = () => {
       if (!mappedAccount.isJointAccount) {
         return '';
       }
-      
+      if (!profile.supportsJointAccount) {
+        droppedBySchema.add('joint account holder count');
+        return '';
+      }
       return `
         <JointAccount>
           <Number>${mappedAccount.jointAccountHolders}</Number>
         </JointAccount>`;
+    };
+
+    const generateDDProcedure = () => {
+      if (!profile.supportsDDProcedure) {
+        noteDropped('dd_procedure', 'due diligence procedure');
+        return '';
+      }
+      return `
+        <DDProcedure>${escapeXML(mappedAccount.ddProcedure)}</DDProcedure>`;
+    };
+
+    const generateAccountType = () => {
+      if (!profile.supportsAccountType) {
+        noteDropped('account_type', 'account type');
+        return '';
+      }
+      return `
+        <AccountType>${escapeXML(mappedAccount.accountType)}</AccountType>`;
     };
 
     return `
@@ -1751,41 +2028,64 @@ const generateCRSXML = (data, settings, validationResults) => {
         ${generateAccountHolder()}
         ${generateControllingPerson()}
         <AccountBalance currCode="${escapeXML(mappedAccount.currencyCode)}">${formatCurrency(mappedAccount.accountBalance)}</AccountBalance>
-        ${generatePayments()}
-        <DDProcedure>${escapeXML(mappedAccount.ddProcedure)}</DDProcedure>
-        <AccountType>${escapeXML(mappedAccount.accountType)}</AccountType>
+        ${generatePayments()}${generateDDProcedure()}${generateAccountType()}
         ${generateJointAccount()}
       </AccountReport>`;
   };
-  
-  // Process and map all data rows with enhanced error handling
+
+  // Process and map all data rows.
+  //
+  // A row that cannot be mapped is excluded from the file. That has to be
+  // visible: previously these were console.warn'd and the UI still reported the
+  // full input count, so a filer could submit a return that was silently short
+  // of the accounts they uploaded. Both lists are returned to the caller.
   const mappedAccounts = [];
-  const processingErrors = [];
+  const rejectedRows = [];
+  const rowNotices = [];
 
   data.forEach((row, index) => {
     try {
       const mappedAccount = mapDataToCRS(row, columnMappings);
+      mappedAccount.sourceRow = index + 1;
       mappedAccounts.push(mappedAccount);
     } catch (error) {
-      processingErrors.push(`Row ${index + 1}: ${error.message}`);
+      rejectedRows.push({ row: index + 1, message: error.message });
     }
   });
 
-  if (processingErrors.length > 0) {
-    console.warn('XML Generation warnings:', processingErrors);
-    if (processingErrors.length > data.length * 0.5) {
-      throw new Error(`Too many processing errors: ${processingErrors.length} out of ${data.length} rows failed`);
+  // Serialisation can fail for a row that mapped cleanly -- a controlling
+  // person with no city, for instance. That must reject the one row, not the
+  // whole file, so it is caught here rather than aborting the run.
+  const serialisedReports = [];
+  let emittedCount = 0;
+
+  mappedAccounts.forEach((account) => {
+    try {
+      serialisedReports.push(generateAccountReport(account));
+      emittedCount += 1;
+      // Notices are only recorded once the row is genuinely in the file, and
+      // only for values the chosen schema actually carries -- under v2.0 there
+      // is no SelfCert element, so "reported as not reported" would be untrue.
+      (account.notices || []).forEach((notice) => {
+        const capability = SCHEMA_GATED_NOTICE_FIELDS[notice.field];
+        if (capability && !profile[capability]) return;
+        rowNotices.push({ row: account.sourceRow, message: notice.message });
+      });
+    } catch (error) {
+      rejectedRows.push({ row: account.sourceRow, message: error.message });
     }
+  });
+
+  if (emittedCount === 0) {
+    const first = rejectedRows[0];
+    throw new Error(
+      first
+        ? `No rows could be converted. First problem — row ${first.row}: ${first.message}`
+        : 'No valid accounts to process after data mapping'
+    );
   }
 
-  if (mappedAccounts.length === 0) {
-    throw new Error('No valid accounts to process after data mapping');
-  }
-
-  // Generate account reports
-  const accountReports = mappedAccounts.map((account, index) => 
-    generateAccountReport(account, index)
-  ).join('');
+  const accountReports = serialisedReports.join('');
 
   // Generate message reference ID and other required elements
   const messageRef = messageRefId || generateUniqueRefId('CRS');
@@ -1793,22 +2093,27 @@ const generateCRSXML = (data, settings, validationResults) => {
   const timestamp = new Date().toISOString();
   const fiDocRefId = generateDocRefId();
 
-  // Build complete CRS v3.0 100% compliant XML with all required namespaces and attributes
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<CRS_OECD xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
-          xmlns:crs="urn:oecd:ties:crs:v3" 
-          xmlns:cfc="urn:oecd:ties:commontypesfatcacrs:v2" 
-          xmlns:stf="urn:oecd:ties:crsstf:v5" 
-          xmlns:iso="urn:oecd:ties:isocrstypes:v1"
-          xmlns:ftc="urn:oecd:ties:fatca:v1"
-          targetNamespace="urn:oecd:ties:crs:v3"
-          version="3.0" 
-          xmlns="urn:oecd:ties:crs:v3"
-          xsi:schemaLocation="urn:oecd:ties:crs:v3 CrsXML_v3.0.xsd">
+  if (!reportingFI.country) {
+    throw new Error('Reporting jurisdiction is required for the message header.');
+  }
+
+  // Root element.
+  //
+  // `targetNamespace` and the FATCA namespace were previously declared here.
+  // targetNamespace belongs on the schema, not on an instance document, and no
+  // element in a CRS return is in the FATCA namespace. Both are removed.
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<CRS_OECD xmlns="${profile.namespace}"
+          xmlns:cfc="${CRS_SHARED_NAMESPACES.cfc}"
+          xmlns:stf="${CRS_SHARED_NAMESPACES.stf}"
+          xmlns:iso="${CRS_SHARED_NAMESPACES.iso}"
+          xmlns:xsi="${CRS_SHARED_NAMESPACES.xsi}"
+          xsi:schemaLocation="${profile.namespace} ${profile.schemaFile}"
+          version="${profile.version}">
   <MessageSpec>
-    <SendingCompanyIN>${escapeXML(reportingFI.giin || 'UNKNOWN')}</SendingCompanyIN>
-    <TransmittingCountry>${escapeXML(reportingFI.country || 'XX')}</TransmittingCountry>
-    <ReceivingCountry>${escapeXML(reportingFI.country || 'XX')}</ReceivingCountry>
+    ${reportingFI.giin ? `<SendingCompanyIN>${escapeXML(reportingFI.giin)}</SendingCompanyIN>` : ''}
+    <TransmittingCountry>${escapeXML(reportingFI.country)}</TransmittingCountry>
+    <ReceivingCountry>${escapeXML(reportingFI.country)}</ReceivingCountry>
     <MessageType>CRS</MessageType>
     <MessageRefId>${escapeXML(messageRef)}</MessageRefId>
     <MessageTypeIndic>CRS701</MessageTypeIndic>
@@ -1817,7 +2122,7 @@ const generateCRSXML = (data, settings, validationResults) => {
   </MessageSpec>
   <CrsBody>
     <ReportingFI>
-      ${reportingFI.country ? `<ResCountryCode>${escapeXML(reportingFI.country)}</ResCountryCode>` : ''}
+      <ResCountryCode>${escapeXML(reportingFI.country)}</ResCountryCode>
       ${generateOrganisationIN(reportingFI.giin, reportingFI.country, 'GIIN')}
       <Name>${escapeXML(reportingFI.name || 'Unknown Institution')}</Name>
       ${generateAddress({
@@ -1835,6 +2140,19 @@ const generateCRSXML = (data, settings, validationResults) => {
     </ReportingGroup>
   </CrsBody>
 </CRS_OECD>`;
+
+  return {
+    // Conditional templates leave whitespace-only lines behind. Whitespace
+    // between elements is insignificant here (no element carries mixed
+    // content), so collapsing them costs nothing and makes the file readable.
+    xml: xml.replace(/^[ \t]*\r?\n/gm, ''),
+    schemaVersion: profile.version,
+    schemaLabel: profile.label,
+    accountReportCount: emittedCount,
+    rejectedRows,
+    rowNotices,
+    droppedBySchema: Array.from(droppedBySchema)
+  };
 };
 
 export {
@@ -3049,6 +3367,9 @@ const CRSConverter = () => {
       city: ''
     },
     taxYear: new Date().getFullYear() - 1,
+    // v2.0 is the schema currently accepted by Mauritius, Cayman, Ireland and
+    // Singapore, so it is the default. v3.0 applies from reporting year 2026.
+    schemaVersion: DEFAULT_SCHEMA_VERSION,
     messageRefId: `CRS_${Date.now()}`
   });
 
@@ -3065,8 +3386,7 @@ const CRSConverter = () => {
       logAuditEvent('file_upload', {
         filename: selectedFile.name,
         fileSize: selectedFile.size,
-        fileType: selectedFile.type,
-        crsVersion: '3.0'
+        fileType: selectedFile.type
       }, user);
       processFile(selectedFile);
     }
@@ -3164,7 +3484,7 @@ const CRSConverter = () => {
     }
 
     if (!validationResults.canGenerate) {
-      setError('Please fix critical errors before converting to 100% CRS v3.0 XSD compliant XML');
+      setError('Please fix the critical errors above before generating XML');
       return;
     }
 
@@ -3180,49 +3500,55 @@ const CRSConverter = () => {
       void logAuditEvent('xml_conversion_started', {
         recordCount: data.length,
         taxYear: settings.taxYear,
-        crsVersion: '3.0',
-        xsdCompliant: true
-      }, user);	
-      
+        crsVersion: settings.schemaVersion
+      }, user);
+
       const startTime = Date.now();
-      const xml = generateCRSXML(data, settings, validationResults);
+      const generated = generateCRSXML(data, settings, validationResults);
+      const xml = generated.xml;
       const processingTime = Date.now() - startTime;
-      
+
       if (user && userDoc) {
         await updateUserUsage();
       } else {
         updateAnonymousUsage();
         trackEvent('anonymous_conversion', {
           file_type: file?.type || 'unknown',
-          record_count: data.length,
+          record_count: generated.accountReportCount,
           conversion_number: getAnonymousUsage().count,
-          crs_version: '3.0',
-          xsd_compliant: true,
+          crs_version: generated.schemaVersion,
           processing_time_ms: processingTime
         });
       }
-      
+
       void logXMLGeneration({
-        recordCount: data.length,
+        recordCount: generated.accountReportCount,
+        rejectedRowCount: generated.rejectedRows.length,
         xml: xml,
         processingTime: processingTime
       }, settings, user);
 
       setResult({
         xml,
-        filename: `CRS_${settings.reportingFI.country}_${settings.taxYear}_${Date.now()}.xml`,
-        recordCount: data.length,
+        filename: `CRS_${settings.reportingFI.country}_${settings.taxYear}_v${generated.schemaVersion}_${Date.now()}.xml`,
+        // The number of AccountReport elements actually in the file, not the
+        // number of rows uploaded. These differ whenever a row is rejected.
+        recordCount: generated.accountReportCount,
+        inputRowCount: data.length,
+        rejectedRows: generated.rejectedRows,
+        rowNotices: generated.rowNotices,
+        droppedBySchema: generated.droppedBySchema,
         timestamp: new Date().toISOString(),
-        crsVersion: '3.0',
-        xsdCompliant: true,
+        crsVersion: generated.schemaVersion,
+        schemaLabel: generated.schemaLabel,
         processingTime
       });
 
       trackEvent('conversion_success', {
-        record_count: data.length,
+        record_count: generated.accountReportCount,
+        rejected_rows: generated.rejectedRows.length,
         user_type: user ? 'registered' : 'anonymous',
-        crs_version: '3.0',
-        xsd_compliant: true,
+        crs_version: generated.schemaVersion,
         processing_time_ms: processingTime
       });
 
@@ -3232,14 +3558,14 @@ const CRSConverter = () => {
       void logAuditEvent('xml_conversion_error', {
         error: err.message,
         recordCount: data.length,
-        crsVersion: '3.0'
-      }, user);	
-      
-      setError(`CRS v3.0 XSD compliant conversion failed: ${err.message}`);
+        crsVersion: settings.schemaVersion
+      }, user);
+
+      setError(`Conversion failed: ${err.message}`);
       trackEvent('conversion_error', {
         error: err.message,
         user_type: user ? 'registered' : 'anonymous',
-        crs_version: '3.0'
+        crs_version: settings.schemaVersion
       });
     } finally {
       setProcessing(false);
@@ -3253,8 +3579,7 @@ const CRSConverter = () => {
       filename: result.filename,
       recordCount: result.recordCount,
       fileSize: result.xml.length,
-      crsVersion: '3.0',
-      xsdCompliant: true
+      crsVersion: result.crsVersion
     }, user);
 
     const blob = new Blob([result.xml], { type: 'application/xml' });
@@ -3452,6 +3777,23 @@ const CRSConverter = () => {
                   </label>
 
                   <label className="block sm:col-span-2">
+                    <span className="block text-[13px] text-ink-500 mb-2">Schema version</span>
+                    <select
+                      value={settings.schemaVersion}
+                      onChange={(e) => handleSettingsChange('schemaVersion', null, e.target.value)}
+                      className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] text-ink transition-colors duration-300 outline-none appearance-none"
+                    >
+                      <option value="2.0">CRS XML v2.0 — current filing seasons</option>
+                      <option value="3.0">CRS XML v3.0 — amended CRS, reporting year 2026 onward</option>
+                    </select>
+                    <span className="mt-2 block text-[13px] text-ink-400 leading-snug">
+                      {settings.schemaVersion === '3.0'
+                        ? 'v3.0 carries self-certification, account type and due diligence. Confirm your authority accepts it before filing — most portals are still on v2.0.'
+                        : 'v2.0 is what Mauritius, Cayman, Ireland and Singapore accept today. It has no element for self-certification, account type or due diligence; those values are kept out of the file rather than misplaced.'}
+                    </span>
+                  </label>
+
+                  <label className="block sm:col-span-2">
                     <span className="block text-[13px] text-ink-500 mb-2">Street address</span>
                     <input
                       type="text"
@@ -3504,6 +3846,72 @@ const CRSConverter = () => {
                   </div>
                 )}
 
+                {result && result.rejectedRows?.length > 0 && (
+                  <div className="mt-5 rounded-field bg-critical-wash border border-critical/15 p-5">
+                    <div className="flex gap-3">
+                      <AlertCircle className="w-[18px] h-[18px] text-critical shrink-0 mt-0.5" strokeWidth={1.75} />
+                      <div>
+                        <p className="text-[14px] font-medium text-ink">
+                          {result.rejectedRows.length} of {result.inputRowCount} rows are not in this file
+                        </p>
+                        <p className="mt-1 text-[13px] text-ink-500 leading-snug">
+                          These rows could not be converted without inventing a value, so they were left out.
+                          Fix them and regenerate before filing.
+                        </p>
+                        <ul className="mt-3 space-y-1.5 max-h-56 overflow-y-auto scroll-quiet">
+                          {result.rejectedRows.slice(0, 25).map((r) => (
+                            <li key={r.row} className="text-[13px] text-ink-600 leading-snug">
+                              <span className="tabular text-ink-400">Row {r.row}</span> — {r.message}
+                            </li>
+                          ))}
+                        </ul>
+                        {result.rejectedRows.length > 25 && (
+                          <p className="mt-2 text-[13px] text-ink-400">
+                            and {result.rejectedRows.length - 25} more
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {result && (result.rowNotices?.length > 0 || result.droppedBySchema?.length > 0) && (
+                  <div className="mt-5 rounded-field bg-caution-wash border border-caution/15 p-5">
+                    <div className="flex gap-3">
+                      <AlertCircle className="w-[18px] h-[18px] text-caution shrink-0 mt-0.5" strokeWidth={1.75} />
+                      <div>
+                        <p className="text-[14px] font-medium text-ink">What this file says on your behalf</p>
+                        {result.droppedBySchema?.length > 0 && (
+                          <p className="mt-1.5 text-[13px] text-ink-600 leading-snug">
+                            CRS v{result.crsVersion} has no element for {result.droppedBySchema.join(', ')}.
+                            Any values you supplied for these were not written to the file.
+                          </p>
+                        )}
+                        {result.rowNotices?.length > 0 && (
+                          <>
+                            <p className="mt-2.5 text-[13px] text-ink-600 leading-snug">
+                              {result.rowNotices.length} value{result.rowNotices.length === 1 ? ' was' : 's were'} absent
+                              from your data and reported as &ldquo;not reported&rdquo; rather than assumed:
+                            </p>
+                            <ul className="mt-2 space-y-1.5 max-h-56 overflow-y-auto scroll-quiet">
+                              {result.rowNotices.slice(0, 25).map((n, i) => (
+                                <li key={`${n.row}-${i}`} className="text-[13px] text-ink-600 leading-snug">
+                                  <span className="tabular text-ink-400">Row {n.row}</span> — {n.message}
+                                </li>
+                              ))}
+                            </ul>
+                            {result.rowNotices.length > 25 && (
+                              <p className="mt-2 text-[13px] text-ink-400">
+                                and {result.rowNotices.length - 25} more
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {result && (
                   <div className="mt-8 rounded-card bg-ink text-white overflow-hidden animate-fade-up">
                     <div className="p-6 lg:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
@@ -3513,8 +3921,8 @@ const CRSConverter = () => {
                           {result.recordCount} account reports
                         </div>
                         <div className="mt-1 text-[13px] text-white/50 tabular">
-                          Tax year {settings.taxYear} &middot; {Math.round(result.xml.length / 1024)}KB &middot;{' '}
-                          {result.processingTime}ms
+                          CRS v{result.crsVersion} &middot; Tax year {settings.taxYear} &middot;{' '}
+                          {Math.round(result.xml.length / 1024)}KB &middot; {result.processingTime}ms
                         </div>
                       </div>
                       <button

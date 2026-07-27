@@ -24,7 +24,14 @@
 
 ### 2.1 The product targets a schema version that is not yet accepted — and drops the one that is
 
-The app emits CRS v3.0 exclusively (`version="3.0"` hardcoded, `CRSXMLConverter.js:1809`). The actual adoption timeline: **[SECONDARY]**
+> **Status: addressed in the live app.** It now emits v2.0 or v3.0 from a
+> schema-version setting, defaulting to **v2.0**. Under v2.0 the elements that
+> schema does not define (`SelfCert`, `AccountType`, `DDProcedure`,
+> `JointAccount`, `EquityInterestType`, `Nationality`) are omitted, and the
+> filer is told which supplied values did not make it into the file. The UK
+> combined schema is still not emitted — a UK filer cannot use this tool.
+
+The app emitted CRS v3.0 exclusively (`version="3.0"` hardcoded). The actual adoption timeline: **[SECONDARY]**
 
 | Jurisdiction | 2026 filing season (RY2025) | v3.0 mandatory from |
 |---|---|---|

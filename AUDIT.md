@@ -26,6 +26,16 @@ Severity counts: **7 critical, 7 high, 8 medium, 7 low.**
 ### C0. Fabricated regulatory attestations in generated filings — highest severity
 *(Added after CRS domain research; see `CONCEPT.md` §2.5 for the full analysis.)*
 
+> **Status: fixed in the live app.** A missing self-certification now emits the
+> OECD "not reported" sentinel (`CRS900` / `CRS1000`), never `CRS901` / `CRS1001`.
+> A *present but unrecognised* value rejects the row instead of falling through
+> to a default. `AcctHolderType` has no sentinel and is now a hard stop. The
+> `"Not Provided"` street/city and `"XX"` country substitutions from M4 are gone
+> with it: Street is omitted when absent, City and residence country are
+> required. Rejected rows are shown to the filer with reasons and excluded from
+> the report count, which previously over-stated the file's contents. Covered by
+> `src/components/crsGeneration.test.js`.
+
 When a source column is missing, `mapDataToCRS` does not fail and does not mark the value unknown — it substitutes a compliant-looking default (`CRSXMLConverter.js:1346-1351`, `:1396`, `:1419-1422`). Most seriously, `SelfCert` defaults to **`CRS901`** and controlling-person `SelfCert` to **`CRS1001`** — both meaning *"a valid self-certification was obtained."*
 
 An institution that uploads a spreadsheet with no `self_cert` column will therefore file a return asserting, for every account, that it holds a valid self-certification — the cornerstone due-diligence obligation under CRS. If it does not hold them, the institution has made a false statement to its tax authority, produced by a tool that reported the output as "100% compliant."
