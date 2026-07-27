@@ -28,14 +28,9 @@ import {
 import { getAnalytics, logEvent } from 'firebase/analytics';
 
 // Icons
-import { 
-  Upload, Download, FileText, AlertCircle, CheckCircle, CheckCircle2, Settings, 
-  Shield, X, HelpCircle, Clock, Zap, Lock, Globe, ChevronRight,
-  User, Building2, Menu, LogOut, CreditCard, BarChart3,
-  Star, Crown, Sparkles, ArrowRight, Check, Users, Calendar,
-  TrendingUp, Award, Headphones, Smartphone, Eye, History,
-  DollarSign, Target, Activity, Briefcase, AlertTriangle, Mail,
-  UserPlus, Search, Trash2, Save, Database
+import {
+  Upload, Download, AlertCircle, CheckCircle2, Shield, X, Zap, Lock, Building2, Menu,
+  LogOut, Sparkles, ArrowRight, Users, UserPlus
 } from 'lucide-react';
 
 // Excel processing
@@ -1517,7 +1512,7 @@ const generateCRSXML = (data, settings, validationResults) => {
       } else if (typeof date === 'string') {
         dateObj = new Date(date);
         if (isNaN(dateObj.getTime())) {
-          const parts = date.split(/[\/\-\.]/);
+          const parts = date.split(/[/\-.]/);
           if (parts.length === 3) {
             dateObj = new Date(parts[2], parts[1] - 1, parts[0]);
             if (isNaN(dateObj.getTime())) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cookie, Settings, X, Check, Info } from 'lucide-react';
+import { Cookie,  X,  Info } from 'lucide-react';
 
 const CookieConsent = () => {
   const [showBanner, setShowBanner] = useState(false);

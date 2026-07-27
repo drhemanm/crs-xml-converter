@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CRS filing</title>
+    <meta
+      name="description"
+      content="Prepare CRS/AEOI returns. Account data is processed entirely in your browser and is never uploaded."
+    />
+    <!--
+      No external origin is referenced anywhere in this document or the bundle,
+      and `connect-src 'self'` is the enforcement behind the claim that account
+      data never leaves the browser: a request to any other host fails.
+
+      `frame-ancestors` and `X-Frame-Options` are deliberately absent here —
+      browsers ignore frame-ancestors when delivered via <meta>, so it must be
+      set as a response header by whatever serves this app. Declaring it here
+      would look like protection while providing none.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'"
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%231f4d8f'/%3E%3Cpath d='M4 5h8M4 8h8M4 11h5' stroke='white' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

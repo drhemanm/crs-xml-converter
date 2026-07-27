@@ -1,0 +1,4 @@
+account_number,account_balance,currency_code,holder_type,residence_country,first_name,last_name,birth_date,tin,address_street,address_city,organisation_name,account_holder_type,cp_first_name,cp_last_name,cp_residence_country,cp_address_street,cp_address_city,cp_type,cp_self_cert,self_cert,account_type,dd_procedure,payment_interest
+ACC-1001,152340.50,USD,individual,FR,Camille,Deschamps,1978-06-02,FR7712345678,14 Rue de Rivoli,Paris,,,,,,,,,,true,depository,preexisting,1250.00
+ACC-1002,8900.00,EUR,individual,DE,Lukas,Brandt,1990-11-23,DE99887766,Hauptstrasse 8,Berlin,,,,,,,,,,true,custodial,new_account,0
+ACC-1003,4410000.00,USD,organisation,SG,,,,,1 Raffles Place,Singapore,Meridian Capital Partners Pte Ltd,passive_nfe_reportable,Wei,Tan,SG,20 Orchard Road,Singapore,ownership,true,true,investment_entity,preexisting,88000.00

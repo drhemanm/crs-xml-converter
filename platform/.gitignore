@@ -1,0 +1,13 @@
+# Dependencies (anywhere in the workspace, not just the root)
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Test/coverage output
+coverage/
+
+# Local env
+.env
+.env.local
