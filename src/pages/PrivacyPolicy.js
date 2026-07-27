@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, ArrowLeft, Eye, Lock, Trash2, Download, AlertTriangle, CheckCircle, Mail } from 'lucide-react';
+import { Shield,  ArrowLeft,  Eye,  Lock,  Trash2,  Download,  AlertTriangle,  CheckCircle } from 'lucide-react';
 
 const PrivacyPolicy = () => {
   return (
