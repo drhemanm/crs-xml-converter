@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inferColumns, mapRows, type Row } from "../src/index.js";
+import { fieldDocs, inferColumns, mapRows, requiredFields, templateCsv, type Row } from "../src/index.js";
 
 const HEADERS = [
   "account_number",
@@ -206,3 +206,70 @@ describe("provenance", () => {
     expect(inferred[0]?.remediation).toMatch(/Confirm this mapping/);
   });
 });
+
+describe("CSV template", () => {
+  /**
+   * The template is generated from the same field specs the mapper uses, and
+   * this test is what keeps that promise honest: if a field is renamed, or a
+   * value constraint tightens, the template stops round-tripping and this
+   * fails. The legacy application documented a template that did not exist.
+   */
+  it("round-trips through column inference and mapping without errors", () => {
+    const csv = templateCsv({ withExampleRows: true });
+    const rows = parseTemplate(csv);
+    const mapping = inferColumns(Object.keys(rows[0]!));
+    const { records, diagnostics } = mapRows(rows, mapping, { sheet: "template.csv" });
+
+    expect(diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(records).toHaveLength(2);
+    expect(records[0]?.holder.kind).toBe("individual");
+    expect(records[1]?.holder.kind).toBe("organisation");
+    expect(records[1]?.controllingPersons).toHaveLength(1);
+  });
+
+  it("maps every one of its own columns — no header is silently ignored", () => {
+    const mapping = inferColumns(templateCsv().trim().split(","));
+    expect(mapping.unmatchedHeaders).toEqual([]);
+    expect(mapping.ambiguous).toEqual([]);
+  });
+
+  it("covers every required field in the minimal variant", () => {
+    const headers = templateCsv({ minimal: true }).trim().split(",");
+    for (const field of requiredFields()) {
+      expect(headers).toContain(field);
+    }
+  });
+
+  it("documents accepted values for every closed-value field", () => {
+    const docs = fieldDocs();
+    const closed = ["holder_type", "self_cert", "account_type", "dd_procedure", "cp_type"];
+    for (const field of closed) {
+      expect(docs.find((d) => d.field === field)?.accepts).toBeTruthy();
+    }
+  });
+});
+
+/** Minimal CSV reader — the template is generated, so quoting is predictable. */
+function parseTemplate(csv: string): Row[] {
+  const [headerLine, ...lines] = csv.trim().split("\n");
+  const headers = headerLine!.split(",");
+  return lines.map((line) => {
+    const values: string[] = [];
+    let cur = "";
+    let quoted = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        if (quoted && line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else quoted = !quoted;
+      } else if (c === "," && !quoted) {
+        values.push(cur);
+        cur = "";
+      } else cur += c;
+    }
+    values.push(cur);
+    return Object.fromEntries(headers.map((h, i) => [h, values[i] ?? ""]));
+  });
+}

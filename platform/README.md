@@ -14,7 +14,10 @@ the legacy application it replaces.
 
 ## Status
 
-Working core with 96 tests. Not production-ready — see [Before production](#before-production).
+Working end to end: 100 unit/integration tests plus 11 browser tests covering
+every filing mode — new information, correction, void, nil return — including
+the paths that must fail. Not production-ready; see
+[Before production](#before-production).
 
 ## Why it is built this way
 
@@ -100,7 +103,11 @@ code it prevents.
 
 ```bash
 pnpm install
-pnpm test
+pnpm test:all      # typecheck + unit/integration + browser end-to-end
+
+# What columns does it accept?
+pnpm cli fields
+pnpm cli template --out accounts.csv
 
 # File a return. Mauritius takes v2.0 for a 2025 period filed in 2026.
 pnpm cli file examples/accounts.csv \
@@ -155,7 +162,9 @@ correct; emitting a guessed shape would be worse.
    `urn:oecd:ties:stf:v5`). One-line change; golden tests will catch it.
 4. **Add golden-file tests** against the OECD's published sample instance
    documents once the schemas are available.
-5. **XLSX ingestion.** Only CSV is wired up. `xlsx@0.18.5` has known CVEs and is
-   unmaintained on npm — use a patched SheetJS build or a vetted alternative.
+5. **XLSX ingestion.** Only CSV is wired up (`pnpm cli template` generates a
+   conforming file, and a test asserts it round-trips). `xlsx@0.18.5` has known
+   CVEs and is unmaintained on npm — use a patched SheetJS build or a vetted
+   alternative.
 6. **Replace the in-memory ledger** with a database, and implement the
    client-side-encrypted payload vault described in `CONCEPT.md` §6.1.

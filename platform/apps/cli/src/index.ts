@@ -32,7 +32,7 @@ import {
   type PlanContext,
   type ReportingFinancialInstitution,
 } from "@crs/core";
-import { inferColumns, mapRows, type Row } from "@crs/ingest";
+import { fieldDocs, inferColumns, mapRows, templateCsv, type Row } from "@crs/ingest";
 import { deadlineFor, packFor, type JurisdictionPack } from "@crs/jurisdictions";
 import { SchemaValidator, describeOutcome } from "@crs/validate";
 import { loadLedger, saveLedger } from "./ledger-store.js";
@@ -341,6 +341,35 @@ function cmdLedger(args: Args): void {
   process.stdout.write("\n");
 }
 
+function cmdTemplate(args: Args): void {
+  const csv = templateCsv({
+    withExampleRows: !args.flags["bare"],
+    minimal: Boolean(args.flags["minimal"]),
+  });
+  const out = str(args.flags, "out");
+  if (out) {
+    writeFileSync(out, csv, "utf8");
+    process.stdout.write(`\n  ${GREEN}Wrote${RESET} ${out}\n\n`);
+  } else {
+    process.stdout.write(csv);
+  }
+}
+
+function cmdFields(): void {
+  const docs = fieldDocs();
+  process.stdout.write(`\n  ${docs.length} recognised columns. Required columns are marked *.\n\n`);
+  for (const d of docs) {
+    process.stdout.write(`  ${d.required ? "*" : " "} ${d.field.padEnd(26)}${d.label}\n`);
+    if (d.accepts) process.stdout.write(`    ${DIM}${"".padEnd(26)}${d.accepts}${RESET}\n`);
+    if (d.aliases.length > 0) {
+      process.stdout.write(`    ${DIM}${"".padEnd(26)}also accepts: ${d.aliases.slice(0, 4).join(", ")}${RESET}\n`);
+    }
+  }
+  process.stdout.write(
+    `\n  ${DIM}Column names are matched case-insensitively and ignore spaces, underscores and hyphens.${RESET}\n\n`,
+  );
+}
+
 function cmdJurisdictions(): void {
   process.stdout.write("\n  Installed jurisdiction packs:\n\n");
   for (const code of ["MU", "KY", "SG", "IE", "GB"]) {
@@ -369,6 +398,8 @@ function cmdHelp(): void {
     nil                   Produce a nil return (CRS703)
     status <status.xml>   Record an authority status message and update record states
     ledger                Show what has been filed and its current state
+    template              Write a CSV template with example rows
+    fields                List every recognised column and its accepted values
     jurisdictions         List installed jurisdiction packs and rule confidence
 
   Required flags
@@ -384,6 +415,7 @@ function cmdHelp(): void {
     --test                Emit test DocTypeIndic values (OECD10-13)
 
   Example
+    template --out accounts.csv
     file accounts.csv --jurisdiction MU --fi-name "Banque X" --fi-id MU10203040
 
 `);
@@ -404,6 +436,10 @@ function main(): void {
       return cmdStatus(args);
     case "ledger":
       return cmdLedger(args);
+    case "template":
+      return cmdTemplate(args);
+    case "fields":
+      return cmdFields();
     case "jurisdictions":
       return cmdJurisdictions();
     default:

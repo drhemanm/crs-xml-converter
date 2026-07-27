@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { parse as parseCsv } from "csv-parse/browser/esm/sync";
 import {
   InMemoryLedger,
@@ -18,7 +18,7 @@ import {
   type FilingPlan,
   type PlanContext,
 } from "@crs/core";
-import { inferColumns, mapRows, specFor, type ColumnMapping, type Row } from "@crs/ingest";
+import { inferColumns, mapRows, specFor, templateCsv, type ColumnMapping, type Row } from "@crs/ingest";
 import { PACKS, deadlineFor, packFor, type JurisdictionPack } from "@crs/jurisdictions";
 import { Diagnostics } from "./components/Diagnostics.js";
 import { clearLedger, exportLedger, loadLedger, saveLedger } from "./ledger-storage.js";
@@ -88,21 +88,28 @@ export default function App() {
   const [ingestDiagnostics, setIngestDiagnostics] = useState<readonly Diagnostic[]>([]);
   const [output, setOutput] = useState<{ xml: string; plan: FilingPlan; note: string } | null>(null);
   const [outputDiagnostics, setOutputDiagnostics] = useState<readonly Diagnostic[]>([]);
-  const [ledgerVersion, setLedgerVersion] = useState(0);
+  const [ledgerState, setLedgerState] = useState<{ ledger: InMemoryLedger; error: string | null }>(() => {
+    try {
+      return { ledger: loadLedger(), error: null };
+    } catch (e) {
+      return { ledger: new InMemoryLedger(), error: (e as Error).message };
+    }
+  });
   const [fatal, setFatal] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const statusInput = useRef<HTMLInputElement>(null);
 
-  const ledger = useMemo(() => {
+  const ledger = ledgerState.ledger;
+
+  /** Re-read from storage so the view reflects what was actually persisted. */
+  const reloadLedger = useCallback(() => {
     try {
-      return loadLedger();
+      setLedgerState({ ledger: loadLedger(), error: null });
     } catch (e) {
-      setFatal((e as Error).message);
-      return new InMemoryLedger();
+      setLedgerState({ ledger: new InMemoryLedger(), error: (e as Error).message });
     }
-    // Reload whenever we record a filing or a status message.
-  }, [ledgerVersion]);
+  }, []);
 
   const pack: JurisdictionPack | undefined = packFor(settings.jurisdiction);
   const schemaTarget = pack
@@ -257,11 +264,11 @@ export default function App() {
     if (!output) return;
     ledger.apply(output.plan.mutations);
     saveLedger(ledger);
-    setLedgerVersion((v) => v + 1);
+    reloadLedger();
     setOutput(null);
     setOutputDiagnostics([]);
     setTab("history");
-  }, [output, ledger]);
+  }, [output, ledger, reloadLedger]);
 
   const download = useCallback(() => {
     if (!output) return;
@@ -274,6 +281,16 @@ export default function App() {
     URL.revokeObjectURL(url);
   }, [output, settings]);
 
+  const downloadTemplate = useCallback(() => {
+    const blob = new Blob([templateCsv({ withExampleRows: true })], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "crs-template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
   const applyStatus = useCallback(
     async (file: File) => {
       const parsed = parseStatusMessage(await file.text());
@@ -284,10 +301,10 @@ export default function App() {
       const result = applyStatusMessage(ledger, parsed);
       ledger.apply(result.mutations);
       saveLedger(ledger);
-      setLedgerVersion((v) => v + 1);
+      reloadLedger();
       setOutputDiagnostics(result.diagnostics);
     },
-    [ledger],
+    [ledger, reloadLedger],
   );
 
   const settingsComplete = settings.fiName.trim() !== "" && settings.fiId.trim() !== "";
@@ -306,10 +323,10 @@ export default function App() {
         </div>
       </header>
 
-      {fatal ? (
+      {fatal || ledgerState.error ? (
         <div className="diagnostic error" role="alert">
           <span className="sev">error</span>
-          <span className="body">{fatal}</span>
+          <span className="body">{fatal ?? ledgerState.error}</span>
         </div>
       ) : null}
 
@@ -328,9 +345,10 @@ export default function App() {
             <h2>1 · Reporting institution</h2>
             <div className="panel">
               <div className="grid">
-                <label className="field">
-                  <span>Filing jurisdiction</span>
+                <div className="field">
+                  <label htmlFor="jurisdiction">Filing jurisdiction</label>
                   <select
+                    id="jurisdiction"
                     value={settings.jurisdiction}
                     onChange={(e) => setSettings({ ...settings, jurisdiction: e.target.value })}
                   >
@@ -340,50 +358,57 @@ export default function App() {
                       </option>
                     ))}
                   </select>
-                </label>
-                <label className="field">
-                  <span>Institution name</span>
+                </div>
+                <div className="field">
+                  <label htmlFor="fi-name">Institution name</label>
                   <input
+                    id="fi-name"
                     type="text"
                     value={settings.fiName}
                     onChange={(e) => setSettings({ ...settings, fiName: e.target.value })}
                   />
-                </label>
-                <label className="field">
-                  <span>{pack ? `Institution ${pack.fiIdentifierType}` : "Institution identifier"}</span>
+                </div>
+                <div className="field">
+                  <label htmlFor="fi-id">
+                    {pack ? `Institution ${pack.fiIdentifierType}` : "Institution identifier"}
+                  </label>
                   <input
+                    id="fi-id"
                     type="text"
                     value={settings.fiId}
                     onChange={(e) => setSettings({ ...settings, fiId: e.target.value })}
                   />
                   {pack ? <p className="hint">{pack.name} identifies filers by {pack.fiIdentifierType}.</p> : null}
-                </label>
-                <label className="field">
-                  <span>Institution city</span>
+                </div>
+                <div className="field">
+                  <label htmlFor="fi-city">Institution city</label>
                   <input
+                    id="fi-city"
                     type="text"
                     value={settings.fiCity}
                     onChange={(e) => setSettings({ ...settings, fiCity: e.target.value })}
                   />
                   <p className="hint">Required — City is mandatory in the OECD address type.</p>
-                </label>
-                <label className="field">
-                  <span>Reporting period end</span>
+                </div>
+                <div className="field">
+                  <label htmlFor="period-end">Reporting period end</label>
                   <input
+                    id="period-end"
                     type="date"
                     value={settings.periodEnd}
                     onChange={(e) => setSettings({ ...settings, periodEnd: e.target.value })}
                   />
-                </label>
-                <label className="field">
-                  <span>Filing date</span>
+                </div>
+                <div className="field">
+                  <label htmlFor="filing-date">Filing date</label>
                   <input
+                    id="filing-date"
                     type="date"
                     value={settings.filingDate}
                     onChange={(e) => setSettings({ ...settings, filingDate: e.target.value })}
                   />
                   <p className="hint">Determines the schema — several authorities switch on 1 Jan 2027.</p>
-                </label>
+                </div>
               </div>
 
               {pack && schemaTarget ? (
@@ -440,6 +465,13 @@ export default function App() {
           {mode !== "nil" ? (
             <section className="step">
               <h2>3 · Account data</h2>
+              <div className="actions" style={{ marginTop: 0, marginBottom: 12 }}>
+                <button onClick={downloadTemplate}>Download CSV template</button>
+                <span className="hint">
+                  Every recognised column, with two worked example rows. Column names are matched
+                  case-insensitively and ignore spaces, underscores and hyphens.
+                </span>
+              </div>
               <div
                 className={`dropzone${dragOver ? " over" : ""}`}
                 role="button"
@@ -538,15 +570,15 @@ export default function App() {
                   <dl className="kv">
                     <div>
                       <dt>MessageRefId</dt>
-                      <dd>{output.plan.messageRefId}</dd>
+                      <dd data-testid="message-ref-id">{output.plan.messageRefId}</dd>
                     </div>
                     <div>
                       <dt>Message type</dt>
-                      <dd>{output.plan.messageTypeIndic}</dd>
+                      <dd data-testid="message-type">{output.plan.messageTypeIndic}</dd>
                     </div>
                     <div>
                       <dt>Records</dt>
-                      <dd>{output.plan.accountReports.length}</dd>
+                      <dd data-testid="record-count">{output.plan.accountReports.length}</dd>
                     </div>
                   </dl>
                   <p className="summary-line">{output.note}</p>
@@ -647,7 +679,7 @@ export default function App() {
                       )
                     ) {
                       clearLedger();
-                      setLedgerVersion((v) => v + 1);
+                      reloadLedger();
                     }
                   }}
                 >
