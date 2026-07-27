@@ -46,7 +46,9 @@
     "deploy:vercel": "vercel --prod",
     "init:firebase": "firebase init",
     "login:firebase": "firebase login",
-    "analyze": "npm run build && npx serve -s build"
+    "analyze": "npm run build && npx serve -s build",
+    "lint:ci": "eslint src --ext .js --no-eslintrc -c .eslintrc.ci.js --max-warnings 0",
+    "verify": "npm run lint:ci && CI=true react-scripts test --watchAll=false && CI=true DISABLE_ESLINT_PLUGIN=true react-scripts build"
   },
   "eslintConfig": {
     "extends": [

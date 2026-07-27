@@ -1211,7 +1211,6 @@ const validateCRSData = (data) => {
     };
   }
 
-  const headers = Object.keys(firstRow).map(h => h.toLowerCase().trim());
   const requiredFields = ENHANCED_FIELD_MAPPINGS;
 
   // Field classification
