@@ -12,9 +12,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p packages/core/tsconfig.json && tsc -p packages/jurisdictions/tsconfig.json && tsc -p packages/ingest/tsconfig.json && tsc -p packages/validate/tsconfig.json && tsc -p apps/cli/tsconfig.json && tsc -p apps/web/tsconfig.json",
-    "cli": "tsx apps/cli/src/index.ts"
+    "cli": "tsx apps/cli/src/index.ts",
+    "test:e2e": "playwright test",
+    "test:all": "pnpm typecheck && pnpm test && pnpm test:e2e"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "@types/node": "^22.10.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
