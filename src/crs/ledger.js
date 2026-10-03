@@ -128,10 +128,16 @@ export async function loadPeriodRecords(db, { userId, country, taxYear }) {
 
   const records = [];
   for (const filing of filings) {
+    // The userId filter is what lets the rules admit this query at all: rules
+    // are not filters, and a query they cannot prove is owner-only is refused
+    // outright. Without it every period with a prior filing was unreadable.
+    //
+    // No orderBy or limit: buildLedgerIndex sorts by sequence itself, and a
+    // limit silently dropped records past it, turning corrections of those
+    // accounts into duplicate new filings.
     const snap = await getDocs(query(
       collection(db, FILINGS, filing.id, FILING_RECORDS),
-      orderBy('sequence', 'asc'),
-      limit(1000),
+      where('userId', '==', userId),
     ));
     snap.docs.forEach((d) => records.push({ id: d.id, filingId: filing.id, ...d.data() }));
   }
