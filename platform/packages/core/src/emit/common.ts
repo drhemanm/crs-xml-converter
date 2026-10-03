@@ -97,8 +97,10 @@ export function buildAddress(
     el(`${ns}:CountryCode`, {}, [text(a.countryCode)]),
     el(`${ns}:AddressFix`, {}, [
       leaf(`${ns}:Street`, valueOf(a.street)),
-      leaf(`${ns}:City`, city),
+      // Schema order: PostCode precedes City. Reversed, every address with a
+      // postcode fails XSD validation.
       leaf(`${ns}:PostCode`, valueOf(a.postCode)),
+      leaf(`${ns}:City`, city),
       leaf(`${ns}:CountrySubentity`, valueOf(a.countrySubentity)),
     ]),
   ]);
@@ -142,7 +144,11 @@ export function buildBirthInfo(b: BirthInfo): XmlElement | undefined {
   ]);
 }
 
-/** Individual party. `includeNationality` is false for v2.0, which lacks the element. */
+/**
+ * Individual party. `includeNationality` is false for both CRS emitters: the
+ * v3.0 XSD has the element, but the OECD User Guide marks it non-CRS and it
+ * must not be populated in a CRS file.
+ */
 export function buildIndividual(
   i: Individual,
   opts: { includeNationality: boolean },

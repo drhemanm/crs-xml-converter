@@ -28,7 +28,6 @@ import {
 } from "../model.js";
 import { DiagnosticCode, error as diagError, type Diagnostic } from "../diagnostics.js";
 import type { FilingPlan, PlannedRecord } from "../lifecycle.js";
-import { MessageTypeIndic } from "../lifecycle.js";
 import {
   buildAddress,
   childCtx,
@@ -113,7 +112,7 @@ function buildControllingPerson(
   );
 
   return el("ControllingPerson", {}, [
-    buildIndividual(cp.individual, { includeNationality: true }, { diagnostics, path, provenance: record.provenance }),
+    buildIndividual(cp.individual, { includeNationality: false }, { diagnostics, path, provenance: record.provenance }),
     cpType ? el("CtrlgPersonType", {}, [text(cpType)]) : undefined,
     cpSelfCert ? el("SelfCert", {}, [text(cpSelfCert)]) : undefined,
   ]);
@@ -142,7 +141,7 @@ function buildAccountHolder(
   const ctx = { diagnostics, path, provenance: record.provenance };
 
   if (record.holder.kind === "individual") {
-    children.push(buildIndividual(record.holder, { includeNationality: true }, ctx));
+    children.push(buildIndividual(record.holder, { includeNationality: false }, ctx));
   } else {
     const org = record.holder;
     children.push(
@@ -262,9 +261,9 @@ export const v3Emitter: Emitter = {
         diagnostics,
         path: "/CRS_OECD/CrsBody",
       }),
-      plan.messageTypeIndic === MessageTypeIndic.NilReturn && accountReports.length === 0
-        ? undefined
-        : el("ReportingGroup", {}, accountReports),
+      // Always present: CrsBody requires ReportingGroup (minOccurs 1) and all
+      // of its children are optional, so a nil return carries it empty.
+      el("ReportingGroup", {}, accountReports),
     ]);
 
     const root = el(

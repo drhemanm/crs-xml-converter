@@ -246,6 +246,7 @@ describe("nil returns", () => {
     expect(xml).toContain("<CrsBody>");
     expect(xml).toContain("<ReportingFI>");
     expect(xml).not.toContain("<AccountReport>");
-    expect(xml).not.toContain("<ReportingGroup>");
+    // Present and empty: the XSD requires ReportingGroup inside CrsBody.
+    expect(xml).toMatch(/<ReportingGroup\s*\/>|<ReportingGroup><\/ReportingGroup>/);
   });
 });
