@@ -323,6 +323,56 @@ are in the ledger, but their XML was never delivered. Before relying on
 corrections for those periods, review `filings` for entries the user does not
 recognise.
 
+### A9. v3.0 output failed the official schema in two places
+The first time output was validated against the official OECD CRS v3.0 XSD
+(now committed in `schemas/oecd-crs-v3.0`), two defects showed up. Each one
+made the whole file invalid:
+
+- `PostCode` was written after `City`, and the schema requires it before.
+  **Every filing with a postcode was invalid**, including any file built from
+  the downloadable template, whose first example row has one.
+- Nil returns left out `ReportingGroup`, which `CrsBody` requires even when it
+  is empty.
+
+**Fixed**, and kept fixed: `src/crs/filing.test.js` validates new,
+correction, void and nil returns against the schema with `xmllint`, using
+rows that exercise every template column. CI installs `xmllint`. Without it
+the test fails instead of skipping.
+
+**Still open:**
+- v2.0 output is not schema-validated, because no v2.0 XSD is in the repo.
+- Schema-valid does not mean accepted. The "not reported" sentinels
+  (`CRS1100`, `CRS1200` and the rest) are still emitted for periods after
+  2025, which the schema allows but the OECD user guide restricts. The
+  `platform/` emitter enforces that cutoff and this app does not.
+- A missing institution name becomes `Unknown Institution`, a fabricated value.
+- A missing `issuedBy` falls back to `XX`, which is not a valid country code
+  in the schema.
+
+### A10. The filing ledger mixed institutions filed from one login
+A period was keyed on (user, country, year). A management company files for
+every fund and GBC it administers from one login, so a correction for its
+second institution read the first one's filings and **resent the first
+institution's ReportingFI DocRefId**. The authority would match that
+correction to the wrong institution, or reject it. The filing history mixed
+the institutions together as well.
+
+**Fixed:** a period is now (user, institution, country, year).
+- The institution is the identifier the return carries in `ReportingFI/IN`.
+- Reads filter on it client-side, so no new index deploy is needed. The query
+  limit is removed, because a limit applied before that filter could drop the
+  filings being looked for.
+- Reading or recording without an identifier is refused.
+- Every ledger result is tagged with the period it was read for. A file can't
+  be planned while the history for the institution on screen is still loading,
+  or after the filer has switched institution.
+- Covered by `src/crs/ledger.test.js`, which fails against the previous code.
+
+**Still open:** the identifier is the GIIN field, and GIIN format is enforced.
+It is not confirmed which identifier MRA requires in `ReportingFI/IN`; the
+platform pack records TAN from a secondary source. Filings recorded before
+this change are matched on the GIIN they were stored with.
+
 ### A1. Firestore rules, indexes and functions were never deployed
 
 > **Rules and indexes deployed to `crs-xml-converter-saas` on 27 July 2026**

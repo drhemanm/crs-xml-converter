@@ -48,7 +48,7 @@ import {
   describeFiling,
 } from '../crs/lifecycle';
 import { createRefMinter, resolveMessageRefId } from '../crs/refs';
-import { recordFiling, loadPeriodRecords, nextSequenceStart } from '../crs/ledger';
+import { recordFiling, loadPeriodRecords, nextSequenceStart, institutionKey } from '../crs/ledger';
 
 // ==========================================
 // FIREBASE CONFIGURATION
@@ -305,6 +305,7 @@ const CRS_SCHEMA_PROFILES = {
   '2.0': {
     version: '2.0',
     label: 'CRS XML v2.0',
+    hint: 'No element for self-certification, account type or due diligence; those values are kept out of the file rather than misplaced.',
     namespace: 'urn:oecd:ties:crs:v2',
     schemaFile: 'CrsXML_v2.0.xsd',
     // v2.0 predates the amended-CRS additions.
@@ -319,6 +320,7 @@ const CRS_SCHEMA_PROFILES = {
   '3.0': {
     version: '3.0',
     label: 'CRS XML v3.0 (amended CRS)',
+    hint: 'Carries self-certification, account type and due diligence.',
     namespace: 'urn:oecd:ties:crs:v3',
     schemaFile: 'CrsXML_v3.0.xsd',
     supportsSelfCert: true,
@@ -332,6 +334,25 @@ const CRS_SCHEMA_PROFILES = {
 };
 
 const DEFAULT_SCHEMA_VERSION = '2.0';
+
+/** Every version the generator can emit, in registry order. */
+const SUPPORTED_SCHEMA_VERSIONS = Object.keys(CRS_SCHEMA_PROFILES);
+
+// The OECD's standard transition to the amended schema: v3.0 for reporting
+// periods from 2026, and for every filing made from 1 January 2027 --
+// corrections of earlier years included. Mirrors standardSchemaFor in
+// platform/packages/jurisdictions.
+//
+// It is a recommendation, not a rule: the filer can override it, because an
+// authority can adopt late (MRA has not announced its date). It exists so that
+// when the transition comes, every filer moves on the right date without
+// having to know to change a setting.
+const AMENDED_SCHEMA_FILING_CUTOVER = '2027-01-01';
+
+const recommendedSchemaVersion = (taxYear, filingDate = new Date()) => {
+  if (filingDate.toISOString().slice(0, 10) >= AMENDED_SCHEMA_FILING_CUTOVER) return '3.0';
+  return Number(taxYear) >= 2026 ? '3.0' : '2.0';
+};
 
 const CRS_SHARED_NAMESPACES = {
   cfc: 'urn:oecd:ties:commontypesfatcacrs:v2',
@@ -1996,8 +2017,16 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
   const { reportingFI, messageRefId, taxYear } = settings;
   const columnMappings = validationResults ? validationResults.columnMappings : {};
 
-  const profile = CRS_SCHEMA_PROFILES[settings.schemaVersion] ||
-                  CRS_SCHEMA_PROFILES[DEFAULT_SCHEMA_VERSION];
+  // Refused, never guessed. This used to fall back to v2.0 for anything it did
+  // not recognise, which would turn a typo or a version added to the UI but
+  // not the generator into a file in the wrong schema.
+  const profile = CRS_SCHEMA_PROFILES[settings.schemaVersion];
+  if (!profile) {
+    throw new Error(
+      `Unsupported schema version "${settings.schemaVersion}". ` +
+      `Supported: ${SUPPORTED_SCHEMA_VERSIONS.join(', ')}.`
+    );
+  }
 
   // Values the chosen schema has no element for. Collected once for the whole
   // file rather than per row: dropping data the filer supplied without telling
@@ -2118,8 +2147,8 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
           <cfc:CountryCode>${escapeXML(addressData.countryCode)}</cfc:CountryCode>
           <cfc:AddressFix>
             ${addressData.street ? `<cfc:Street>${escapeXML(addressData.street)}</cfc:Street>` : ''}
-            <cfc:City>${escapeXML(addressData.city)}</cfc:City>
             ${addressData.postalCode ? `<cfc:PostCode>${escapeXML(addressData.postalCode)}</cfc:PostCode>` : ''}
+            <cfc:City>${escapeXML(addressData.city)}</cfc:City>
             ${addressData.state ? `<cfc:CountrySubentity>${escapeXML(addressData.state)}</cfc:CountrySubentity>` : ''}
           </cfc:AddressFix>
         </Address>`;
@@ -2372,6 +2401,9 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
   const rejectedRows = [...(filingPlan.rejected || [])];
   const rowNotices = [];
 
+  // A nil return has no rows, so accountReports stays empty -- but
+  // ReportingGroup is still emitted: CrsBody requires it (minOccurs 1) and all
+  // of its children are optional. Omitting it fails schema validation.
   (isNilReturn ? [] : data).forEach((row, index) => {
     try {
       const mappedAccount = mapDataToCRS(row, columnMappings);
@@ -2479,9 +2511,9 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
         <stf:DocRefId>${escapeXML(reportingFiDocSpec.docRefId)}</stf:DocRefId>
       </DocSpec>
     </ReportingFI>
-    ${isNilReturn ? '' : `<ReportingGroup>
+    <ReportingGroup>
       ${accountReports}
-    </ReportingGroup>`}
+    </ReportingGroup>
   </CrsBody>
 </CRS_OECD>`;
 
@@ -2517,6 +2549,11 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
 };
 
 export {
+  // Schema versions
+  CRS_SCHEMA_PROFILES,
+  SUPPORTED_SCHEMA_VERSIONS,
+  recommendedSchemaVersion,
+
   // Data mapping function
   mapDataToCRS,
   
@@ -3761,39 +3798,60 @@ const CRSConverter = () => {
       city: ''
     },
     taxYear: new Date().getFullYear() - 1,
-    // v2.0 is the schema currently accepted by Mauritius, Cayman, Ireland and
-    // Singapore, so it is the default. v3.0 applies from reporting year 2026.
-    schemaVersion: DEFAULT_SCHEMA_VERSION,
+    // Follows the reporting year (recommendedSchemaVersion) until the filer
+    // picks a version themselves.
+    schemaVersion: recommendedSchemaVersion(new Date().getFullYear() - 1),
+    schemaVersionOverridden: false,
     messageRefId: `CRS_${Date.now()}`
   });
 
   const usageStatus = getUserConversionStatus(user, userDoc);
 
+  // The period a ledger belongs to: one institution, one country, one year.
+  // One account files for many institutions, so the institution is part of it.
+  // Only a well-formed identifier counts, so a half-typed one never triggers a
+  // read or matches another institution's filings.
+  const institutionId = validateGIIN(settings.reportingFI.giin).valid
+    ? institutionKey(settings.reportingFI.giin)
+    : null;
+  const periodKey = [institutionId, settings.reportingFI.country, settings.taxYear].join('|');
+  const latestPeriodKey = useRef(periodKey);
+  latestPeriodKey.current = periodKey;
+
   // What has already been filed for this institution and year. Corrections
   // reference it; a new return is checked against it for duplicates. Signed-out
   // users have no ledger, so they get the plain converter and are told why.
+  //
+  // Every result is tagged with the period it was read for, and a result for a
+  // period the filer has since moved off is discarded. Switching institution
+  // otherwise left the previous one's records in place until the new read
+  // landed, and a file planned in that window referenced the wrong institution.
   const loadPeriod = useCallback(async () => {
-    if (!user || !settings.reportingFI.country || !settings.taxYear) {
-      setPeriod({ loading: false, records: [], filings: [], reportingFiDocRefId: null, error: null });
+    const key = [institutionId, settings.reportingFI.country, settings.taxYear].join('|');
+    if (!user || !institutionId || !settings.reportingFI.country || !settings.taxYear) {
+      setPeriod({ key, loading: false, records: [], filings: [], reportingFiDocRefId: null, error: null });
       return;
     }
-    setPeriod((prev) => ({ ...prev, loading: true, error: null }));
+    setPeriod({ key, loading: true, records: [], filings: [], reportingFiDocRefId: null, error: null });
     try {
       const loaded = await loadPeriodRecords(db, {
         userId: user.uid,
+        institutionId,
         country: settings.reportingFI.country,
         taxYear: settings.taxYear,
       });
-      setPeriod({ loading: false, ...loaded, error: null });
+      if (latestPeriodKey.current !== key) return;
+      setPeriod({ key, loading: false, ...loaded, error: null });
     } catch (err) {
+      if (latestPeriodKey.current !== key) return;
       // A ledger we cannot read must not look like an empty one -- that would
       // turn a correction into a duplicate filing at the authority.
       setPeriod({
-        loading: false, records: [], filings: [], reportingFiDocRefId: null,
+        key, loading: false, records: [], filings: [], reportingFiDocRefId: null,
         error: err.message,
       });
     }
-  }, [user, settings.reportingFI.country, settings.taxYear]);
+  }, [user, institutionId, settings.reportingFI.country, settings.taxYear]);
 
   useEffect(() => { loadPeriod(); }, [loadPeriod]);
 
@@ -3952,6 +4010,12 @@ const CRSConverter = () => {
         `Sign in to file a ${FILING_MODE_LABELS[filingMode].toLowerCase()}. ` +
         'It has to reference the return it amends, and that record belongs to your account.'
       );
+      return;
+    }
+
+    // Plan only against the history of the institution on screen, fully read.
+    if (user && (period.loading || period.key !== periodKey)) {
+      setError('The filing history for this institution is still loading. Try again in a moment.');
       return;
     }
 
@@ -4162,6 +4226,24 @@ const CRSConverter = () => {
   };
 
   const handleSettingsChange = (section, field, value) => {
+    // A new reporting year carries the recommended schema with it, unless the
+    // filer has chosen one.
+    if (section === 'taxYear') {
+      setSettings(prev => ({
+        ...prev,
+        taxYear: value,
+        schemaVersion: prev.schemaVersionOverridden ? prev.schemaVersion : recommendedSchemaVersion(value)
+      }));
+      return;
+    }
+    if (section === 'schemaVersion') {
+      setSettings(prev => ({
+        ...prev,
+        schemaVersion: value,
+        schemaVersionOverridden: value !== recommendedSchemaVersion(prev.taxYear)
+      }));
+      return;
+    }
     if (field === null) {
       setSettings(prev => ({
         ...prev,
@@ -4241,7 +4323,9 @@ const CRSConverter = () => {
 
                 {user && (
                   <div className="mt-4 text-[13px] text-ink-500">
-                    {period.loading ? (
+                    {!institutionId ? (
+                      "Enter the institution's GIIN to see what has been filed for it."
+                    ) : period.loading ? (
                       'Reading your filing history…'
                     ) : period.error ? (
                       <span className="text-critical">
@@ -4249,11 +4333,11 @@ const CRSConverter = () => {
                         unsafe until this is readable.
                       </span>
                     ) : period.filings.length === 0 ? (
-                      `Nothing filed yet for ${settings.reportingFI.country} ${settings.taxYear}.`
+                      `Nothing filed yet for ${institutionId} in ${settings.reportingFI.country} ${settings.taxYear}.`
                     ) : (
                       <>
                         {period.filings.length} filing{period.filings.length === 1 ? '' : 's'} on
-                        record for {settings.reportingFI.country} {settings.taxYear}
+                        record for {institutionId} in {settings.reportingFI.country} {settings.taxYear}
                         {' '}&middot; {period.records.length} record
                         {period.records.length === 1 ? '' : 's'} available to correct
                       </>
@@ -4443,14 +4527,24 @@ const CRSConverter = () => {
                       onChange={(e) => handleSettingsChange('schemaVersion', null, e.target.value)}
                       className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] text-ink transition-colors duration-300 outline-none appearance-none"
                     >
-                      <option value="2.0">CRS XML v2.0 — current filing seasons</option>
-                      <option value="3.0">CRS XML v3.0 — amended CRS, reporting year 2026 onward</option>
+                      {SUPPORTED_SCHEMA_VERSIONS.map((version) => (
+                        <option key={version} value={version}>
+                          {CRS_SCHEMA_PROFILES[version].label}
+                          {version === recommendedSchemaVersion(settings.taxYear) ? ` — recommended for ${settings.taxYear}` : ''}
+                        </option>
+                      ))}
                     </select>
                     <span className="mt-2 block text-[13px] text-ink-400 leading-snug">
-                      {settings.schemaVersion === '3.0'
-                        ? 'v3.0 carries self-certification, account type and due diligence. Confirm your authority accepts it before filing — most portals are still on v2.0.'
-                        : 'v2.0 is what Mauritius, Cayman, Ireland and Singapore accept today. It has no element for self-certification, account type or due diligence; those values are kept out of the file rather than misplaced.'}
+                      {CRS_SCHEMA_PROFILES[settings.schemaVersion]?.hint}{' '}
+                      Confirm the version your tax authority accepts before filing.
                     </span>
+                    {settings.schemaVersion !== recommendedSchemaVersion(settings.taxYear) && (
+                      <span className="mt-2 block text-[13px] text-critical leading-snug">
+                        You have chosen v{settings.schemaVersion}; the standard OECD transition calls for
+                        v{recommendedSchemaVersion(settings.taxYear)} for tax year {settings.taxYear}. File this only
+                        if your authority has told you to.
+                      </span>
+                    )}
                   </label>
 
                   <label className="block sm:col-span-2">
@@ -4635,7 +4729,7 @@ const CRSConverter = () => {
               {user && !period.loading && period.filings.length > 0 && (
                 <div className="rounded-card hairline bg-white p-6">
                   <div className="text-[13px] text-ink-400">
-                    Filed for {settings.reportingFI.country} {settings.taxYear}
+                    Filed for {institutionId} in {settings.reportingFI.country} {settings.taxYear}
                   </div>
                   <ol className="mt-4 space-y-3">
                     {period.filings.slice().reverse().slice(0, 6).map((f) => (
