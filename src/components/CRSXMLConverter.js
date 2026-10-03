@@ -2950,9 +2950,11 @@ const AuthProvider = ({ children }) => {
   const updateUserUsage = async () => {
     if (user && userDoc) {
       try {
+        // conversionsUsed only. The rules accept nothing else on this write,
+        // and an extra field (a lastConversion stamp used to ride along here)
+        // gets the whole update refused -- failing every signed-in conversion.
         await updateDoc(doc(db, 'users', user.uid), {
-          conversionsUsed: increment(1),
-          lastConversion: serverTimestamp()
+          conversionsUsed: increment(1)
         });
         
         const newUsage = userDoc.conversionsUsed + 1;

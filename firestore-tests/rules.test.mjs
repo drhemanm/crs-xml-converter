@@ -1,5 +1,5 @@
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, setDoc, getDoc, updateDoc, deleteDoc, addDoc, collection, serverTimestamp, increment } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDoc, collection, query, where, orderBy, limit, serverTimestamp, increment } from 'firebase/firestore';
 import fs from 'fs';
 
 const env = await initializeTestEnvironment({
@@ -72,6 +72,10 @@ await env.clearFirestore(); await seed();
 await t('can update lastLogin', () => assertSucceeds(updateDoc(doc(alice(), 'users/alice'), { lastLogin: serverTimestamp(), lastLoginIP: 'masked_for_privacy' })));
 await t('can update profile fields', () => assertSucceeds(updateDoc(doc(alice(), 'users/alice'), { displayName: 'Alice B', company: 'Acme Ltd', preferences: { currency: 'EUR' }, savedGIINs: ['ABC123.00000.MU.480'] })));
 await t('can increment conversionsUsed by one', () => assertSucceeds(updateDoc(doc(alice(), 'users/alice'), { conversionsUsed: increment(1) })));
+// updateUserUsage in CRSXMLConverter.js must send the increment alone, as the
+// test above does. A lastConversion stamp riding along with it got every
+// signed-in conversion refused.
+await t('an extra field on the usage write is refused', () => assertFails(updateDoc(doc(alice(), 'users/alice'), { conversionsUsed: increment(1), lastConversion: serverTimestamp() })));
 await t('can read their own document', () => assertSucceeds(getDoc(doc(alice(), 'users/alice'))));
 await t('cannot read another user\'s document', () => assertFails(getDoc(doc(bob(), 'users/alice'))));
 await t('admin can read any user document', () => assertSucceeds(getDoc(doc(admin(), 'users/alice'))));
@@ -207,6 +211,17 @@ await t('cannot smuggle customer data into a filing record', () => assertFails(
   setDoc(doc(alice(), 'filings/f1/records/r2'), { ...filingRecord(), holderName: 'Jean Dupont' })));
 await t('cannot store an account number in place of the hash', () => assertFails(
   setDoc(doc(alice(), 'filings/f1/records/r3'), { ...filingRecord(), accountKey: 12345 })));
+
+// Queries, in the shape src/crs/ledger.js sends them. Rules are not filters: a
+// query they cannot prove is owner-only is refused whole, and the records
+// query used to omit the userId filter -- so every period with a prior filing
+// was unreadable and corrections could not be planned. Single-document reads
+// above could not catch that.
+await t('the app\'s filings query is accepted', () => assertSucceeds(getDocs(query(collection(alice(), 'filings'),
+  where('userId', '==', 'alice'), where('country', '==', 'MU'), where('taxYear', '==', 2024), orderBy('createdAt', 'asc'), limit(200)))));
+await t('the app\'s records query is accepted', () => assertSucceeds(getDocs(query(collection(alice(), 'filings', 'f1', 'records'),
+  where('userId', '==', 'alice')))));
+await t('a records query without the owner filter is refused', () => assertFails(getDocs(query(collection(alice(), 'filings', 'f1', 'records')))));
 
 console.log('\nserver-only collections');
 await env.clearFirestore();

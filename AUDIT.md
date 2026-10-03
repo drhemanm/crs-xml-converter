@@ -297,6 +297,32 @@ Still not deployed, and no longer on the critical path:
 - `paypalWebhook` — never live, which also means the Firebase-side webhook has
   never processed a payment event. The Vercel handler is the one to keep.
 
+### A8. Signed-in conversions were refused by the deployed rules
+Two client writes did not match the rules they run under. Neither showed up in
+the rules suite, because it tested a simplified version of each write instead
+of the real one.
+
+- `updateUserUsage` sent `lastConversion` alongside the increment. That field
+  is not owner-writable, so **every signed-in conversion failed** with
+  "insufficient permissions". This happened *after* `recordFiling`, so the
+  ledger kept a filing whose XML the user never received.
+- `loadPeriodRecords` queried `filings/{id}/records` without a `userId`
+  filter. Rules are not filters, so the query was refused whole. Once a
+  period had one filing, the period could not be read, and the converter
+  (correctly) refused to plan anything against it. Corrections and voids
+  could never run. The query also had `limit(1000)`, which would have
+  silently dropped records from larger filings.
+
+**Fixed:** the increment goes out alone, and the records query filters on
+`userId` with no limit. `buildLedgerIndex` already orders by `sequence`. The
+rules suite now sends both writes in the shape the app sends them. Neither fix
+needs a rules or index deploy, so it ships with the next Vercel deploy.
+
+**Still open:** filings that were recorded while the usage write was failing
+are in the ledger, but their XML was never delivered. Before relying on
+corrections for those periods, review `filings` for entries the user does not
+recognise.
+
 ### A1. Firestore rules, indexes and functions were never deployed
 
 > **Rules and indexes deployed to `crs-xml-converter-saas` on 27 July 2026**
