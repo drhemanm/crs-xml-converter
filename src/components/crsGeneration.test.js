@@ -176,8 +176,13 @@ describe('schema version selection', () => {
     expect(xml).toContain('<AccountType>CRS1101</AccountType>');
     expect(xml).toContain('<DDProcedure>CRS1201</DDProcedure>');
     expect(xml).toContain('<JointAccount>');
-    expect(xml).toContain('<Nationality>FR</Nationality>');
-    expect(droppedBySchema).toEqual([]);
+    expect(droppedBySchema).toEqual(['nationality']);
+  });
+
+  it('never writes Nationality, which the OECD guide excludes from CRS files', () => {
+    const { xml, droppedBySchema } = gen([individualRow()], { ...SETTINGS, schemaVersion: '3.0' });
+    expect(xml).not.toContain('<Nationality>');
+    expect(droppedBySchema).toEqual(['nationality']);
   });
 
   it('does not put targetNamespace or the FATCA namespace on the instance document', () => {
@@ -291,6 +296,62 @@ describe('"not reported" is transitional, and ends with the 2025 period', () => 
       { ...SETTINGS, schemaVersion: '2.0', taxYear: 2026 },
     );
     expect(rejectedRows).toEqual([]);
+  });
+});
+
+describe('closed accounts', () => {
+  const genClosed = (rows) => generateCRSXML(
+    rows, SETTINGS, { columnMappings: { ...COLUMN_MAPPINGS, closed_account: 'closed_account' } },
+  );
+
+  it('rejects a row marked closed that still carries a balance', () => {
+    const { rejectedRows, accountReportCount } = genClosed([
+      individualRow(),
+      individualRow({ account_number: 'MU2', closed_account: 'true', account_balance: '500' }),
+    ]);
+    expect(accountReportCount).toBe(1);
+    expect(rejectedRows[0].message).toMatch(/marked closed but has a balance of 500/);
+  });
+
+  it('reports a closed account with a zero balance', () => {
+    const { xml, rejectedRows } = genClosed([individualRow({ closed_account: 'true', account_balance: '0' })]);
+    expect(rejectedRows).toEqual([]);
+    expect(xml).toContain('ClosedAccount="true"');
+    expect(xml).toMatch(/<AccountBalance currCode="USD">0\.00<\/AccountBalance>/);
+  });
+});
+
+describe("MRA's restricted characters", () => {
+  // SETTINGS files to MU, so MRA's rule applies.
+  it('rejects a row whose values carry them, naming the field and character', () => {
+    const { rejectedRows, accountReportCount } = gen([
+      individualRow(),
+      individualRow({ account_number: 'MU2', last_name: "D'Unienville", address: 'Unit #4' }),
+    ]);
+    expect(accountReportCount).toBe(1);
+    expect(rejectedRows[0].message).toContain("individual.lastName (')");
+    expect(rejectedRows[0].message).toContain('individual.address (#)');
+  });
+
+  it('catches a double dash but not a single hyphen', () => {
+    const { rejectedRows } = gen([
+      individualRow({ last_name: 'Smith-Jones' }),
+      individualRow({ account_number: 'MU2', city: 'Port--Louis' }),
+    ]);
+    expect(rejectedRows).toHaveLength(1);
+    expect(rejectedRows[0].message).toContain('individual.city (--)');
+  });
+
+  it('refuses institution details that carry them', () => {
+    expect(() => gen([individualRow()], { ...SETTINGS, reportingFI: { ...SETTINGS.reportingFI, name: 'Smith & Co' } }))
+      .toThrow(/institution details: reportingFI.name \(&\)/);
+  });
+
+  it('applies only to filings for Mauritius; elsewhere the value is escaped', () => {
+    const elsewhere = { ...SETTINGS, reportingFI: { ...SETTINGS.reportingFI, country: 'KY' } };
+    const { xml, rejectedRows } = gen([individualRow({ last_name: "O'Neil & Co" })], elsewhere);
+    expect(rejectedRows).toEqual([]);
+    expect(xml).toContain('O&#39;Neil &amp; Co');
   });
 });
 
@@ -461,7 +522,9 @@ describe('document structure', () => {
   });
 
   it('escapes markup in supplied values', () => {
-    const { xml } = gen([individualRow({ last_name: 'O\'Brien & <Sons>' })]);
+    // Filed outside Mauritius: for MU, MRA's restricted characters reject the row.
+    const elsewhere = { ...SETTINGS, reportingFI: { ...SETTINGS.reportingFI, country: 'KY' } };
+    const { xml } = gen([individualRow({ last_name: 'O\'Brien & <Sons>' })], elsewhere);
     expect(xml).toContain('O&#39;Brien &amp; &lt;Sons&gt;');
     parse(xml);
   });

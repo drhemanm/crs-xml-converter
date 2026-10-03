@@ -350,11 +350,11 @@ describe('schema validity (OECD CRS XML v3.0)', () => {
       dormant_account: 'true', joint_account: 'true', joint_account_holders: '2',
     },
     {
-      // Absent classifications become "not reported" sentinels, and the name
-      // needs escaping.
+      // Absent classifications become "not reported" sentinels. Plain names:
+      // this files to MU, where MRA's restricted characters reject the row.
       account_number: 'MU0100', account_balance: '42', currency_code: 'USD', holder_type: 'individual',
-      residence_country: 'US', city: 'Austin', address_country: 'US', first_name: 'Ann & <Co>',
-      last_name: "O'Neil", undocumented_account: 'true',
+      residence_country: 'US', city: 'Austin', address_country: 'US', first_name: 'Ann-Marie',
+      last_name: 'Lee', undocumented_account: 'true',
     },
   ].map((r) => ({ ...blank, ...r }));
 

@@ -393,6 +393,29 @@ this change are matched on the GIIN they were stored with.
   - `api/paypal-webhook.js` on Vercel remains as an unverified stub that acts
     on nothing.
 
+### A12. Rules from the Mauritius CRS v3.0 developer mapping
+The source is a Mauritius developer mapping workbook. Its checksums for the
+five XSDs and the bundle match `schemas/oecd-crs-v3.0` exactly. Three of its
+rules were not met:
+
+- **GRP-002, Nationality.** The v3.0 XSD has the element, but the OECD guide
+  marks it non-CRS, and it must not be populated in a CRS file. v3.0 files
+  wrote it. It is now left out and listed as dropped.
+- **ACC-002, closed accounts.** A closed account is reported with a balance
+  of 0. A row marked closed with a non-zero balance is now rejected: one of
+  the two values is wrong, and zeroing the balance would hide a live one.
+- **MU-004, MRA restricted characters.** MRA advises against
+  `' * -- # & " < >` in element values, over and above XML escaping. For
+  filings to MU, a row carrying one is now rejected, naming the field and the
+  character. Institution details carrying one stop the file. Values are never
+  rewritten. Other jurisdictions keep plain escaping.
+
+**Still open from the same workbook:**
+- MU-003: the format of the MRA-recognised institution identifier is
+  unconfirmed.
+- MU-001: v3.0 must not be submitted to MRA's production portal until MRA
+  confirms the portal accepts it.
+
 ### A1. Firestore rules, indexes and functions were never deployed
 
 > **Rules and indexes deployed to `crs-xml-converter-saas` on 27 July 2026**
