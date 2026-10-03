@@ -328,12 +328,39 @@ const CRS_SCHEMA_PROFILES = {
     supportsDDProcedure: true,
     supportsJointAccount: true,
     supportsEquityInterestType: true,
-    supportsNationality: true,
+    // The v3.0 XSD has a Nationality element, but the OECD User Guide marks
+    // it non-CRS: it must not be populated in a CRS file. Treated as absent so
+    // a supplied value is reported as dropped rather than written.
+    supportsNationality: false,
     supportsControllingPersonSelfCert: true
   }
 };
 
 const DEFAULT_SCHEMA_VERSION = '2.0';
+
+// MRA advises that element values must not contain these, over and above
+// XML escaping (rule MU-004 in the Mauritius developer mapping). Escaping
+// keeps the XML valid; it does not stop MRA's portal refusing the file.
+const MRA_RESTRICTED = /['*#&"<>]|--/g;
+
+const mraRestrictedIn = (value) =>
+  typeof value === 'string' ? [...new Set(value.match(MRA_RESTRICTED) || [])] : [];
+
+// Every string value in a mapped account that carries a restricted character,
+// as "path (chars)". Bookkeeping fields are not written to the file and are
+// skipped -- notices, for one, quote the "not reported" codes.
+const mraRestrictedFields = (record, path = '') => {
+  if (!record || typeof record !== 'object') return [];
+  return Object.entries(record).flatMap(([key, value]) => {
+    if (['notices', 'supplied', 'sourceRow'].includes(key)) return [];
+    const at = path ? `${path}.${key}` : key;
+    if (typeof value === 'string') {
+      const found = mraRestrictedIn(value);
+      return found.length ? [`${at} (${found.join(' ')})`] : [];
+    }
+    return typeof value === 'object' ? mraRestrictedFields(value, at) : [];
+  });
+};
 
 // The "not reported" sentinels are a transitional measure: the v3.0 schema
 // documents each one as available "to facilitate interoperability with the
@@ -1497,8 +1524,6 @@ const validateCRSData = (data) => {
           if (!nationalityValidation.valid) {
             warnings.push('Invalid nationality country code format');
           }
-        } else {
-          recommendations.push('Nationality information recommended for individuals');
         }
         
         if (!row[columnMappings.tin] || String(row[columnMappings.tin]).trim() === '') {
@@ -1990,6 +2015,17 @@ const mapDataToCRS = (rowData, columnMappings) => {
     throw new Error('Joint account holders must be between 1 and 200 (XSD constraint)');
   }
 
+  // The OECD User Guide reports a closed account with a balance of zero. A
+  // non-zero balance on a row marked closed means one of the two is wrong, and
+  // which one is not something to guess: zeroing it would hide a live balance
+  // if the closure flag is the mistake.
+  if (mappedData.closedAccount && mappedData.accountBalance !== 0) {
+    throw new Error(
+      `Account is marked closed but has a balance of ${mappedData.accountBalance}. ` +
+      'A closed account is reported with a balance of 0. Correct the balance or the closed_account flag.'
+    );
+  }
+
   mappedData.notices = notices;
   mappedData.supplied = supplied;
   return mappedData;
@@ -2039,6 +2075,19 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
   // to 'Unknown Institution', a made-up value in a regulatory document.
   if (!reportingFI || !String(reportingFI.name || '').trim()) {
     throw new Error('The reporting institution name is required.');
+  }
+
+  // Rejected, never rewritten: changing a name in a tax filing to get it past
+  // a portal is a decision for the filer, not the converter.
+  const enforceMraCharacters = reportingFI.country === 'MU';
+  if (enforceMraCharacters) {
+    const fiProblems = mraRestrictedFields(
+      { name: reportingFI.name, address: reportingFI.address, city: reportingFI.city, giin: reportingFI.giin },
+      'reportingFI'
+    );
+    if (fiProblems.length > 0) {
+      throw new Error(`MRA does not accept these characters in the institution details: ${fiProblems.join('; ')}.`);
+    }
   }
 
   // Values the chosen schema has no element for. Collected once for the whole
@@ -2460,6 +2509,15 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
 
   mappedAccounts.forEach((account) => {
     try {
+      if (enforceMraCharacters) {
+        const problems = mraRestrictedFields(account);
+        if (problems.length > 0) {
+          throw new Error(
+            `MRA does not accept the characters ' * -- # & " < > in a filing. Found in: ${problems.join('; ')}. ` +
+            'Remove them from the source data.'
+          );
+        }
+      }
       if (Number(taxYear) > LAST_SENTINEL_PERIOD_YEAR) {
         const missing = sentinelsInFile(account);
         if (missing.length > 0) {
