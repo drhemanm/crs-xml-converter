@@ -2118,8 +2118,8 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
           <cfc:CountryCode>${escapeXML(addressData.countryCode)}</cfc:CountryCode>
           <cfc:AddressFix>
             ${addressData.street ? `<cfc:Street>${escapeXML(addressData.street)}</cfc:Street>` : ''}
-            <cfc:City>${escapeXML(addressData.city)}</cfc:City>
             ${addressData.postalCode ? `<cfc:PostCode>${escapeXML(addressData.postalCode)}</cfc:PostCode>` : ''}
+            <cfc:City>${escapeXML(addressData.city)}</cfc:City>
             ${addressData.state ? `<cfc:CountrySubentity>${escapeXML(addressData.state)}</cfc:CountrySubentity>` : ''}
           </cfc:AddressFix>
         </Address>`;
@@ -2372,6 +2372,9 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
   const rejectedRows = [...(filingPlan.rejected || [])];
   const rowNotices = [];
 
+  // A nil return has no rows, so accountReports stays empty -- but
+  // ReportingGroup is still emitted: CrsBody requires it (minOccurs 1) and all
+  // of its children are optional. Omitting it fails schema validation.
   (isNilReturn ? [] : data).forEach((row, index) => {
     try {
       const mappedAccount = mapDataToCRS(row, columnMappings);
@@ -2479,9 +2482,9 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
         <stf:DocRefId>${escapeXML(reportingFiDocSpec.docRefId)}</stf:DocRefId>
       </DocSpec>
     </ReportingFI>
-    ${isNilReturn ? '' : `<ReportingGroup>
+    <ReportingGroup>
       ${accountReports}
-    </ReportingGroup>`}
+    </ReportingGroup>
   </CrsBody>
 </CRS_OECD>`;
 

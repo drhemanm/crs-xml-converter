@@ -323,6 +323,32 @@ are in the ledger, but their XML was never delivered. Before relying on
 corrections for those periods, review `filings` for entries the user does not
 recognise.
 
+### A9. v3.0 output failed the official schema in two places
+The first time output was validated against the official OECD CRS v3.0 XSD
+(now committed in `schemas/oecd-crs-v3.0`), two defects showed up. Each one
+made the whole file invalid:
+
+- `PostCode` was written after `City`, and the schema requires it before.
+  **Every filing with a postcode was invalid**, including any file built from
+  the downloadable template, whose first example row has one.
+- Nil returns left out `ReportingGroup`, which `CrsBody` requires even when it
+  is empty.
+
+**Fixed**, and kept fixed: `src/crs/filing.test.js` validates new,
+correction, void and nil returns against the schema with `xmllint`, using
+rows that exercise every template column. CI installs `xmllint`. Without it
+the test fails instead of skipping.
+
+**Still open:**
+- v2.0 output is not schema-validated, because no v2.0 XSD is in the repo.
+- Schema-valid does not mean accepted. The "not reported" sentinels
+  (`CRS1100`, `CRS1200` and the rest) are still emitted for periods after
+  2025, which the schema allows but the OECD user guide restricts. The
+  `platform/` emitter enforces that cutoff and this app does not.
+- A missing institution name becomes `Unknown Institution`, a fabricated value.
+- A missing `issuedBy` falls back to `XX`, which is not a valid country code
+  in the schema.
+
 ### A1. Firestore rules, indexes and functions were never deployed
 
 > **Rules and indexes deployed to `crs-xml-converter-saas` on 27 July 2026**

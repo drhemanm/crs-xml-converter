@@ -78,7 +78,7 @@ const keyOf = (accountNumber) => `key:${accountNumber}`;
  * Everything the app does between "file uploaded" and "call the generator".
  * Kept in one place so these tests exercise the same sequence the UI does.
  */
-function fileReturn(mode, rows, { previousRecords = [], previousFiling = null } = {}) {
+function fileReturn(mode, rows, { previousRecords = [], previousFiling = null, settings = SETTINGS } = {}) {
   const validation = validateCRSData(rows.length ? rows : [sheetRow('PLACEHOLDER')]);
   const minter = createRefMinter({ country: 'MU', taxYear: 2024, batch: 'BATCH' });
   const ledgerIndex = buildLedgerIndex(previousRecords);
@@ -102,7 +102,7 @@ function fileReturn(mode, rows, { previousRecords = [], previousFiling = null } 
     }]),
   );
 
-  return generateCRSXML(rows, SETTINGS, validation, {
+  return generateCRSXML(rows, settings, validation, {
     mode, reportingFi, docSpecByAccount, rejected, minter,
   });
 }
@@ -253,7 +253,8 @@ describe('a nil return', () => {
     expect(text(doc, 'MessageTypeIndic')).toBe('CRS703');
     expect(doc.getElementsByTagName('ReportingFI')).toHaveLength(1);
     expect(doc.getElementsByTagName('AccountReport')).toHaveLength(0);
-    expect(doc.getElementsByTagName('ReportingGroup')).toHaveLength(0);
+    // Present and empty: the schema requires the element even with nothing in it.
+    expect(doc.getElementsByTagName('ReportingGroup')).toHaveLength(1);
     expect(accountReportCount).toBe(0);
   });
 
@@ -279,5 +280,107 @@ describe('the plain converter path is unchanged', () => {
     expect(text(doc, 'MessageTypeIndic')).toBe('CRS701');
     expect(text(doc, 'stf:DocTypeIndic')).toBe('OECD1');
     expect(xml).not.toContain('CorrDocRefId');
+  });
+});
+
+/**
+ * Validity against the official OECD CRS v3.0 schema, which is committed in
+ * schemas/oecd-crs-v3.0.
+ *
+ * Every other test here checks the XML by reading it, and reading it missed
+ * two defects that each made the file invalid: PostCode written after City
+ * (so any address with a postcode failed), and nil returns that left out the
+ * mandatory ReportingGroup. Only the schema catches errors like these, so the
+ * schema is the test.
+ *
+ * Needs xmllint (libxml2-utils). Without it this test fails. It does not
+ * skip, because a validation that is quietly skipped reads as a pass.
+ */
+describe('schema validity (OECD CRS XML v3.0)', () => {
+  const { execFileSync } = require('child_process');
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const { TEMPLATE_COLUMNS } = require('../components/CRSXMLConverter');
+
+  const XSD = path.join(__dirname, '../../schemas/oecd-crs-v3.0/CrsXML_v3.0.xsd');
+  const V3 = { ...SETTINGS, schemaVersion: '3.0' };
+
+  const validate = (xml) => {
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'crs-')), 'filing.xml');
+    fs.writeFileSync(file, xml);
+    try {
+      execFileSync('xmllint', ['--noout', '--schema', XSD, file], { stdio: 'pipe' });
+    } catch (e) {
+      if (e.code === 'ENOENT') throw new Error('xmllint is not installed (apt-get install libxml2-utils).');
+      throw new Error(String(e.stderr));
+    }
+  };
+
+  // Every template column present, as in a real upload, and every optional
+  // field exercised somewhere -- an element only gets checked if it is emitted.
+  const blank = Object.fromEntries(TEMPLATE_COLUMNS.map((c) => [c.field, '']));
+  const rows = [
+    {
+      account_number: 'MU0011223344', account_balance: '15000.50', currency_code: 'USD',
+      holder_type: 'individual', residence_country: 'FR', city: 'Paris', address: '10 Rue de Test',
+      address_country: 'FR', postal_code: '75001', state: 'IDF', first_name: 'Jean', middle_name: 'Paul',
+      last_name: 'Dupont', tin: 'FR1234567890', birth_date: '1980-05-12', birth_city: 'Lyon',
+      birth_country: 'FR', nationality: 'FR', self_cert: 'true', account_type: 'depository',
+      dd_procedure: 'new_account', interest_amount: '250.75', dividend_amount: '1',
+      gross_proceeds_amount: '10', other_amount: '5',
+    },
+    {
+      account_number: 'MU0044556677', account_balance: '980000.00', currency_code: 'EUR',
+      holder_type: 'organization', residence_country: 'DE', city: 'Berlin', address: '5 Testweg',
+      address_country: 'DE', postal_code: '10115', organization_name: 'Muster Holdings GmbH',
+      organization_tin: 'DE999888777', account_holder_type: 'passive_nfe_reportable',
+      controlling_person_first_name: 'Anna', controlling_person_last_name: 'Schmidt',
+      controlling_person_residence_country: 'DE', controlling_person_city: 'Berlin',
+      controlling_person_address: '9 Beispielstrasse', controlling_person_tin: 'DE111222333',
+      controlling_person_birth_date: '1975-09-30', controlling_person_type: 'ownership',
+      controlling_person_self_cert: 'true', self_cert: 'true', account_type: 'custodial',
+      dd_procedure: 'preexisting',
+    },
+    {
+      account_number: 'MU0099', account_balance: '0', currency_code: 'MUR', holder_type: 'organization',
+      residence_country: 'GB', city: 'London', address: '1 High St', address_country: 'GB',
+      organization_name: 'Plain Co Ltd', account_holder_type: 'reportable_person', self_cert: 'false',
+      account_type: 'investment_entity', dd_procedure: 'preexisting', closed_account: 'true',
+      dormant_account: 'true', joint_account: 'true', joint_account_holders: '2',
+    },
+    {
+      // Absent classifications become "not reported" sentinels, and the name
+      // needs escaping.
+      account_number: 'MU0100', account_balance: '42', currency_code: 'USD', holder_type: 'individual',
+      residence_country: 'US', city: 'Austin', address_country: 'US', first_name: 'Ann & <Co>',
+      last_name: "O'Neil", undocumented_account: 'true',
+    },
+  ].map((r) => ({ ...blank, ...r }));
+
+  const original = () => fileReturn(FilingMode.New, rows, { settings: V3 });
+  const history = (filed) => ({
+    previousRecords: filed.ledgerEntries.map((e, i) => filedRecord(e.accountNumber, e.docRefId, i + 1)),
+    previousFiling: { reportingFiDocRefId: filed.reportingFiDocRefId },
+    settings: V3,
+  });
+
+  it('a new return validates, with every row reported', () => {
+    const filed = original();
+    expect(filed.rejectedRows).toEqual([]);
+    expect(filed.accountReportCount).toBe(rows.length);
+    validate(filed.xml);
+  });
+
+  it('a correction validates', () => {
+    validate(fileReturn(FilingMode.Correction, rows.slice(0, 2), history(original())).xml);
+  });
+
+  it('a void validates', () => {
+    validate(fileReturn(FilingMode.Void, rows.slice(1, 2), history(original())).xml);
+  });
+
+  it('a nil return validates', () => {
+    validate(fileReturn(FilingMode.Nil, [], { settings: V3 }).xml);
   });
 });
