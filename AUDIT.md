@@ -416,6 +416,42 @@ rules were not met:
 - MU-001: v3.0 must not be submitted to MRA's production portal until MRA
   confirms the portal accepts it.
 
+### A13. Re-audit, 3 October 2026
+**Verified working.** Each item below was run, not inferred:
+- **Live app checks:** lint, 144 unit tests, production build, and 75
+  Firestore rules tests against the emulator.
+- **End to end in a browser:** in the built app, I downloaded the template,
+  uploaded it and generated a file for 2025 (v2.0) and for 2026 (v3.0). Both
+  accounts were reported, there was no Nationality and no page errors. The
+  v3.0 file passes the official XSD.
+- **Production:** all three Vercel projects deploy the latest `main`.
+
+**Fixed in `platform/`.** The rewrite had the same schema defects as the live
+app, invisible because its validator never had schemas loaded:
+- PostCode was emitted after City.
+- Nil returns had no ReportingGroup.
+- v3.0 files carried Nationality.
+
+All three are fixed. `packages/validate/test/official-schema.test.ts` now
+validates emitted documents against `schemas/oecd-crs-v3.0`, and fails
+against the previous code. CLI output for a 2026 return and a nil return
+passes `xmllint`.
+
+**Open, needs the project owner:**
+- **Firestore rules have not deployed since 27 July.** Every run of
+  `deploy firebase config` fails with HTTP 403 from
+  `firebaserules.googleapis.com`: the service account lacks permission to
+  publish rules. Production therefore most likely runs the rules as of
+  `ebb0234`, without the monthly quota reset (A7), so registered users'
+  quotas never reset. Fix: grant the service account the Firebase Rules
+  Admin role, or run `firebase deploy --only firestore:rules` once by hand.
+- **Three Vercel projects** (`crs-xml-converter`, `-kue9`, `-pl8g`) build and
+  deploy the same app from `main`. Keep one.
+- **Vercel deployment protection** is `all_except_custom_domains` on all
+  three, and none has a custom domain. The `*.vercel.app` production URLs may
+  therefore require a Vercel login. Confirm the public URL loads in a private
+  window.
+
 ### A1. Firestore rules, indexes and functions were never deployed
 
 > **Rules and indexes deployed to `crs-xml-converter-saas` on 27 July 2026**

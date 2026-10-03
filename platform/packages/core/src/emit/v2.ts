@@ -15,7 +15,6 @@ import { el, serialize, text, type XmlElement, type XmlNode } from "../xml.js";
 import { valueOf, type AccountRecord, type ControllingPerson } from "../model.js";
 import { DiagnosticCode, error as diagError, warning as diagWarning, type Diagnostic } from "../diagnostics.js";
 import type { FilingPlan, PlannedRecord } from "../lifecycle.js";
-import { MessageTypeIndic } from "../lifecycle.js";
 import {
   buildAddress,
   childCtx,
@@ -173,9 +172,9 @@ export const v2Emitter: Emitter = {
         diagnostics,
         path: "/CRS_OECD/CrsBody",
       }),
-      plan.messageTypeIndic === MessageTypeIndic.NilReturn && accountReports.length === 0
-        ? undefined
-        : el("ReportingGroup", {}, accountReports),
+      // Always present: CrsBody requires ReportingGroup (minOccurs 1) and all
+      // of its children are optional, so a nil return carries it empty.
+      el("ReportingGroup", {}, accountReports),
     ]);
 
     const root = el(

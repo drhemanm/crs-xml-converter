@@ -33,7 +33,11 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm --filter @crs/web build && pnpm --filter @crs/web preview --port 4173 --strictPort",
+    // --host 127.0.0.1: without it Vite binds "localhost", which resolves to
+    // ::1 on IPv6-enabled runners such as GitHub's, while Playwright polls
+    // 127.0.0.1 below. The server was up and never seen, so every CI run timed
+    // out after 180s before a single test ran.
+    command: "pnpm --filter @crs/web build && pnpm --filter @crs/web preview --host 127.0.0.1 --port 4173 --strictPort",
     url: "http://127.0.0.1:4173",
     // Never reuse a running server. A stale preview left over from an earlier
     // build silently serves an old bundle, so the suite reports green on code
