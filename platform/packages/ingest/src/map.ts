@@ -165,9 +165,15 @@ class RowReader {
       if (required) this.missing(field);
       return undefined;
     }
-    const cleaned = v.replace(/[\s,]/g, "");
-    if (!/^-?\d+(\.\d+)?$/.test(cleaned)) {
-      this.invalid(field, `"${v}" is not a valid decimal amount.`);
+    // Plain decimals, or commas grouping thousands in threes. Stripping every
+    // comma read a European "12,34" as 1234 and "1.234,56" as 1.23456; a
+    // separator that does not group thousands is ambiguous, so it is refused.
+    const text = v.trim();
+    let cleaned: string;
+    if (/^-?\d+(\.\d+)?$/.test(text)) cleaned = text;
+    else if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(text)) cleaned = text.replace(/,/g, "");
+    else {
+      this.invalid(field, `"${v}" is not a valid decimal amount. Use digits with an optional decimal point, e.g. 1234567.89 or 1,234,567.89.`);
       return undefined;
     }
     if (cleaned.startsWith("-")) {

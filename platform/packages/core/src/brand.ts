@@ -7,6 +7,7 @@
  * validation first.
  */
 import { type Result, ok, err } from "./result.js";
+import { ISO_COUNTRY_CODES, ISO_CURRENCY_CODES } from "./iso-codes.js";
 
 declare const brand: unique symbol;
 type Brand<T, B> = T & { readonly [brand]: B };
@@ -53,6 +54,10 @@ export function iso3166Alpha2(input: unknown): Result<Iso3166Alpha2, BrandError>
       fail("Iso3166Alpha2", input, `"${v}" is a user-assigned placeholder, not a reportable jurisdiction`),
     );
   }
+  // The right shape is not enough: the schema enumerates the valid codes.
+  if (!ISO_COUNTRY_CODES.has(v)) {
+    return err(fail("Iso3166Alpha2", input, `"${v}" is not an ISO 3166-1 country code`));
+  }
   return ok(v as Iso3166Alpha2);
 }
 
@@ -61,6 +66,9 @@ export function iso4217(input: unknown): Result<Iso4217, BrandError> {
   const v = input.trim().toUpperCase();
   if (!/^[A-Z]{3}$/.test(v)) {
     return err(fail("Iso4217", input, "must be exactly three letters (ISO 4217)"));
+  }
+  if (!ISO_CURRENCY_CODES.has(v)) {
+    return err(fail("Iso4217", input, `"${v}" is not an ISO 4217 currency code`));
   }
   return ok(v as Iso4217);
 }

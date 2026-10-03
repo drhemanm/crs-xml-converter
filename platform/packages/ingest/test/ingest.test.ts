@@ -129,6 +129,19 @@ describe("mapping refuses to fabricate", () => {
     expect(records[0]?.balance.amount).toBe("1234567.89");
   });
 
+  // A separator that does not group thousands is ambiguous. Stripping every
+  // comma read "12,34" as 1234 and "1.234,56" as 1.23456 -- a hundredfold
+  // overstatement and an understatement, both silent.
+  it.each(["12,34", "1.234,56", "1,23,456.00", "1 234.56"])("refuses the ambiguous amount %s", (value) => {
+    const { records } = mapOne({ ...validRow, account_balance: value });
+    expect(records).toHaveLength(0);
+  });
+
+  it("refuses a country code that has the right shape but is not a country", () => {
+    const { records } = mapOne({ ...validRow, residence_country: "QB" });
+    expect(records).toHaveLength(0);
+  });
+
   it("does not emit a partially-mapped record", () => {
     const { records } = mapOne({ ...validRow, first_name: "", last_name: "" });
     expect(records).toHaveLength(0);
