@@ -305,6 +305,7 @@ const CRS_SCHEMA_PROFILES = {
   '2.0': {
     version: '2.0',
     label: 'CRS XML v2.0',
+    hint: 'No element for self-certification, account type or due diligence; those values are kept out of the file rather than misplaced.',
     namespace: 'urn:oecd:ties:crs:v2',
     schemaFile: 'CrsXML_v2.0.xsd',
     // v2.0 predates the amended-CRS additions.
@@ -319,6 +320,7 @@ const CRS_SCHEMA_PROFILES = {
   '3.0': {
     version: '3.0',
     label: 'CRS XML v3.0 (amended CRS)',
+    hint: 'Carries self-certification, account type and due diligence.',
     namespace: 'urn:oecd:ties:crs:v3',
     schemaFile: 'CrsXML_v3.0.xsd',
     supportsSelfCert: true,
@@ -332,6 +334,25 @@ const CRS_SCHEMA_PROFILES = {
 };
 
 const DEFAULT_SCHEMA_VERSION = '2.0';
+
+/** Every version the generator can emit, in registry order. */
+const SUPPORTED_SCHEMA_VERSIONS = Object.keys(CRS_SCHEMA_PROFILES);
+
+// The OECD's standard transition to the amended schema: v3.0 for reporting
+// periods from 2026, and for every filing made from 1 January 2027 --
+// corrections of earlier years included. Mirrors standardSchemaFor in
+// platform/packages/jurisdictions.
+//
+// It is a recommendation, not a rule: the filer can override it, because an
+// authority can adopt late (MRA has not announced its date). It exists so that
+// when the transition comes, every filer moves on the right date without
+// having to know to change a setting.
+const AMENDED_SCHEMA_FILING_CUTOVER = '2027-01-01';
+
+const recommendedSchemaVersion = (taxYear, filingDate = new Date()) => {
+  if (filingDate.toISOString().slice(0, 10) >= AMENDED_SCHEMA_FILING_CUTOVER) return '3.0';
+  return Number(taxYear) >= 2026 ? '3.0' : '2.0';
+};
 
 const CRS_SHARED_NAMESPACES = {
   cfc: 'urn:oecd:ties:commontypesfatcacrs:v2',
@@ -1996,8 +2017,16 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
   const { reportingFI, messageRefId, taxYear } = settings;
   const columnMappings = validationResults ? validationResults.columnMappings : {};
 
-  const profile = CRS_SCHEMA_PROFILES[settings.schemaVersion] ||
-                  CRS_SCHEMA_PROFILES[DEFAULT_SCHEMA_VERSION];
+  // Refused, never guessed. This used to fall back to v2.0 for anything it did
+  // not recognise, which would turn a typo or a version added to the UI but
+  // not the generator into a file in the wrong schema.
+  const profile = CRS_SCHEMA_PROFILES[settings.schemaVersion];
+  if (!profile) {
+    throw new Error(
+      `Unsupported schema version "${settings.schemaVersion}". ` +
+      `Supported: ${SUPPORTED_SCHEMA_VERSIONS.join(', ')}.`
+    );
+  }
 
   // Values the chosen schema has no element for. Collected once for the whole
   // file rather than per row: dropping data the filer supplied without telling
@@ -2520,6 +2549,11 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
 };
 
 export {
+  // Schema versions
+  CRS_SCHEMA_PROFILES,
+  SUPPORTED_SCHEMA_VERSIONS,
+  recommendedSchemaVersion,
+
   // Data mapping function
   mapDataToCRS,
   
@@ -3764,9 +3798,10 @@ const CRSConverter = () => {
       city: ''
     },
     taxYear: new Date().getFullYear() - 1,
-    // v2.0 is the schema currently accepted by Mauritius, Cayman, Ireland and
-    // Singapore, so it is the default. v3.0 applies from reporting year 2026.
-    schemaVersion: DEFAULT_SCHEMA_VERSION,
+    // Follows the reporting year (recommendedSchemaVersion) until the filer
+    // picks a version themselves.
+    schemaVersion: recommendedSchemaVersion(new Date().getFullYear() - 1),
+    schemaVersionOverridden: false,
     messageRefId: `CRS_${Date.now()}`
   });
 
@@ -4165,6 +4200,24 @@ const CRSConverter = () => {
   };
 
   const handleSettingsChange = (section, field, value) => {
+    // A new reporting year carries the recommended schema with it, unless the
+    // filer has chosen one.
+    if (section === 'taxYear') {
+      setSettings(prev => ({
+        ...prev,
+        taxYear: value,
+        schemaVersion: prev.schemaVersionOverridden ? prev.schemaVersion : recommendedSchemaVersion(value)
+      }));
+      return;
+    }
+    if (section === 'schemaVersion') {
+      setSettings(prev => ({
+        ...prev,
+        schemaVersion: value,
+        schemaVersionOverridden: value !== recommendedSchemaVersion(prev.taxYear)
+      }));
+      return;
+    }
     if (field === null) {
       setSettings(prev => ({
         ...prev,
@@ -4446,14 +4499,24 @@ const CRSConverter = () => {
                       onChange={(e) => handleSettingsChange('schemaVersion', null, e.target.value)}
                       className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 text-[15px] text-ink transition-colors duration-300 outline-none appearance-none"
                     >
-                      <option value="2.0">CRS XML v2.0 — current filing seasons</option>
-                      <option value="3.0">CRS XML v3.0 — amended CRS, reporting year 2026 onward</option>
+                      {SUPPORTED_SCHEMA_VERSIONS.map((version) => (
+                        <option key={version} value={version}>
+                          {CRS_SCHEMA_PROFILES[version].label}
+                          {version === recommendedSchemaVersion(settings.taxYear) ? ` — recommended for ${settings.taxYear}` : ''}
+                        </option>
+                      ))}
                     </select>
                     <span className="mt-2 block text-[13px] text-ink-400 leading-snug">
-                      {settings.schemaVersion === '3.0'
-                        ? 'v3.0 carries self-certification, account type and due diligence. Confirm your authority accepts it before filing — most portals are still on v2.0.'
-                        : 'v2.0 is what Mauritius, Cayman, Ireland and Singapore accept today. It has no element for self-certification, account type or due diligence; those values are kept out of the file rather than misplaced.'}
+                      {CRS_SCHEMA_PROFILES[settings.schemaVersion]?.hint}{' '}
+                      Confirm the version your tax authority accepts before filing.
                     </span>
+                    {settings.schemaVersion !== recommendedSchemaVersion(settings.taxYear) && (
+                      <span className="mt-2 block text-[13px] text-critical leading-snug">
+                        You have chosen v{settings.schemaVersion}; the standard OECD transition calls for
+                        v{recommendedSchemaVersion(settings.taxYear)} for tax year {settings.taxYear}. File this only
+                        if your authority has told you to.
+                      </span>
+                    )}
                   </label>
 
                   <label className="block sm:col-span-2">

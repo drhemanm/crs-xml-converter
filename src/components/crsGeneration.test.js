@@ -33,7 +33,7 @@ jest.mock('firebase/firestore', () => ({
 }));
 jest.mock('firebase/analytics', () => ({ getAnalytics: () => null, logEvent: jest.fn() }));
 
-const { generateCRSXML } = require('./CRSXMLConverter');
+const { generateCRSXML, recommendedSchemaVersion, SUPPORTED_SCHEMA_VERSIONS } = require('./CRSXMLConverter');
 
 const COLUMN_MAPPINGS = {
   account_number: 'account_number',
@@ -119,10 +119,35 @@ describe('schema version selection', () => {
     parse(xml);
   });
 
-  it('defaults to v2.0 when no version is set', () => {
+  it('refuses to generate without a supported schema version, rather than guessing one', () => {
     const settings = { ...SETTINGS };
     delete settings.schemaVersion;
-    expect(gen([individualRow()], settings).schemaVersion).toBe('2.0');
+    expect(() => gen([individualRow()], settings)).toThrow(/Unsupported schema version/);
+    expect(() => gen([individualRow()], { ...SETTINGS, schemaVersion: '4.0' })).toThrow(/Supported: 2\.0, 3\.0/);
+  });
+
+  describe('the recommended version', () => {
+    const before = new Date('2026-10-03T00:00:00Z');
+    const after = new Date('2027-01-01T00:00:00Z');
+
+    it('is v2.0 for periods before 2026 filed before the cutover', () => {
+      expect(recommendedSchemaVersion(2025, before)).toBe('2.0');
+    });
+
+    it('is v3.0 for reporting year 2026 onward', () => {
+      expect(recommendedSchemaVersion(2026, before)).toBe('3.0');
+    });
+
+    it('is v3.0 for anything filed from 1 January 2027, earlier years included', () => {
+      expect(recommendedSchemaVersion(2024, after)).toBe('3.0');
+    });
+
+    it('is always a version the generator supports', () => {
+      for (const year of [2017, 2025, 2026, 2030]) {
+        expect(SUPPORTED_SCHEMA_VERSIONS).toContain(recommendedSchemaVersion(year, before));
+        expect(SUPPORTED_SCHEMA_VERSIONS).toContain(recommendedSchemaVersion(year, after));
+      }
+    });
   });
 
   it('omits v3.0-only elements from a v2.0 document and says which were dropped', () => {
