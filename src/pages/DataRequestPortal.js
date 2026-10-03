@@ -233,7 +233,7 @@ const DataRequestPortal = () => {
               onClick={() => setActiveTab('request')}
               className={`px-6 py-2 rounded-field transition-colors ${
                 activeTab === 'request'
-                  ? 'bg-accent text-ink'
+                  ? 'bg-accent text-white'
                   : 'text-ink-600 hover:text-ink hover:bg-ink-50'
               }`}
             >
@@ -243,7 +243,7 @@ const DataRequestPortal = () => {
               onClick={() => setActiveTab('status')}
               className={`px-6 py-2 rounded-field transition-colors ${
                 activeTab === 'status'
-                  ? 'bg-accent text-ink'
+                  ? 'bg-accent text-white'
                   : 'text-ink-600 hover:text-ink hover:bg-ink-50'
               }`}
             >
@@ -523,7 +523,7 @@ const DataRequestPortal = () => {
                       verificationMethod: 'email'
                     });
                   }}
-                  className="px-6 py-2 bg-accent hover:bg-accent text-ink rounded-card transition-colors"
+                  className="px-6 py-2 bg-accent hover:bg-accent text-white rounded-card transition-colors"
                 >
                   Submit Another Request
                 </button>

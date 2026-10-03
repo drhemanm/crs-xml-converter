@@ -268,7 +268,7 @@ const TermsOfService = () => {
         <div className="text-center mt-8 mb-12">
           <Link 
             to="/" 
-            className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent text-ink rounded-card transition-colors duration-200 font-medium"
+            className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent text-white rounded-card transition-colors duration-200 font-medium"
           >
             <Home className="w-5 h-5 mr-2" />
             Return to CRS Converter

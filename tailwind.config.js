@@ -20,7 +20,9 @@ module.exports = {
           700: "#2A2A2E",
           600: "#3D3D43",
           500: "#5B5B63",
-          400: "#84848D",
+          // 5.05:1 on white, 4.64:1 on ink-50: WCAG AA for body text. Was
+          // #84848D (3.7:1), which failed AA wherever it carried text.
+          400: "#6E6E77",
           300: "#AEAEB6",
           200: "#D4D4D9",
           100: "#E9E9EC",

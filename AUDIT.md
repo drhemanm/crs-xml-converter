@@ -452,6 +452,80 @@ passes `xmllint`.
   therefore require a Vercel login. Confirm the public URL loads in a private
   window.
 
+### A14. Release test pass, 3 October 2026
+Unit, functional and non-functional testing of `main` after #7.
+
+**Defects found and fixed**
+- **Formatted balances filed as 1.00 (critical).** Spreadsheet cells are
+  read as their displayed text, so a balance formatted `#,##0.00` reached the
+  mapper as `"1,234,567.89"`. `parseFloat` stopped at the first comma and
+  filed **1.00**, with no error. `"15000abc"` was filed as 15000, and a blank
+  balance as 0.00. Payment amounts were affected the same way.
+  - Fix: amounts are now parsed strictly (plain decimals, or comma-grouped
+    thousands) or the row is refused. A blank balance is refused.
+- **Codes checked for shape, not membership.** `XX` and `ABC` passed and
+  produced schema-invalid files. A missing currency silently became USD.
+  - Fix: country and currency codes are now checked against the schema's own
+    ISO enumerations (`src/crs/isoCodes.js`, generated from the XSD and
+    drift-tested), and a missing currency is refused.
+- **`platform/` amount parsing.** It stripped every comma, reading a European
+  `12,34` as 1234 and `1.234,56` as 1.23456. Its country check accepted any
+  two letters except a few placeholders. Both now match the live app.
+- **Accessibility.**
+  - Secondary text (`ink-400`, 3.7:1) failed WCAG AA contrast across the app.
+    It is now 5.05:1.
+  - Buttons on the content pages had near-black text on dark green or red
+    (about 2:1). They now use white text.
+  - The mobile menu button and the cookie toggles had no accessible name.
+    The toggles also had no keyboard focus indicator.
+  - axe now reports zero WCAG 2.2 AA violations on every route.
+
+**Verified**
+- **Unit tests:**
+  - App: 157 tests (was 144).
+  - Firestore rules: 75 tests.
+  - `platform/`: 122 tests (was 114).
+  - Each new regression test fails against the previous code.
+- **Functional, in a browser (10 scenarios):**
+  - Template download, then new returns for 2025 (v2.0) and 2026 (v3.0); the
+    v3.0 file is XSD-valid.
+  - An Excel file with formatted balances is filed at full value.
+  - MRA-restricted characters are rejected and explained.
+  - A 2026 file without `account_type` is refused.
+  - A wrong file type is refused.
+  - The version-override warning is shown.
+  - Ledger-only modes are disabled when signed out.
+  - Markup in uploaded data is never executed.
+  - The `platform/` browser suite passes 11/11.
+- **Performance:**
+  - 1,000 accounts: read and validated in 0.2s, generated in 0.1s.
+  - 10,000 accounts (a 14.9MB xlsx): 1.8s and 0.9s, 238MB JS heap. The
+    17MB output is XSD-valid.
+  - A 76MB file is refused at once with a clear message.
+- **Security:**
+  - The production headers and CSP are served, with no violations.
+  - An injected inline script is blocked.
+  - No secrets were found in tracked files.
+- **Responsive:** no horizontal scroll at 390, 768 or 1280px on any route.
+
+**Accepted or open risk**
+- **Capacity.** The 15MB upload cap and the 42-column template allow roughly
+  10,000 accounts per file. The cap message says to split the return, but MRA
+  is recorded as allowing one file per institution per year. Institutions
+  above that size cannot file through this tool yet.
+- **Dependencies.**
+  - `xlsx` still needs the SheetJS CDN build (H4).
+  - The `firebase` advisories are in Node-only transports (undici, grpc) and
+    are absent from the browser bundle.
+  - The `react-router` open-redirect advisory needs v7. The app never routes
+    to user-supplied destinations.
+- **Not covered here.** Signed-in flows (corrections, voids, nil returns, the
+  ledger) were not exercised in a browser, because Firebase Auth is
+  unreachable from the test environment. They are covered by unit and rules
+  tests only.
+- **Not in CI.** The live app's browser and axe checks above ran in this
+  session and are not yet wired into CI.
+
 ### A1. Firestore rules, indexes and functions were never deployed
 
 > **Rules and indexes deployed to `crs-xml-converter-saas` on 27 July 2026**

@@ -49,6 +49,7 @@ import {
 } from '../crs/lifecycle';
 import { createRefMinter, resolveMessageRefId } from '../crs/refs';
 import { recordFiling, loadPeriodRecords, nextSequenceStart, institutionKey } from '../crs/ledger';
+import { ISO_COUNTRY_CODES, ISO_CURRENCY_CODES } from '../crs/isoCodes';
 
 // ==========================================
 // FIREBASE CONFIGURATION
@@ -1052,6 +1053,35 @@ const validateGIIN = (giin) => {
   return { valid: true };
 };
 
+/**
+ * Parse a monetary amount exactly, or refuse.
+ *
+ * Spreadsheet cells arrive as their displayed text, so a balance formatted
+ * "#,##0.00" reads as "1,234,567.89". parseFloat stops at the first comma and
+ * returned 1 -- filing a seven-figure balance as 1.00 with no error. It also
+ * read "15000abc" as 15000.
+ *
+ * Accepted: plain decimals ("1234567.89") and comma-grouped thousands
+ * ("1,234,567.89"), with an optional leading minus. Anything else -- including
+ * "1.234.567,89", which is ambiguous without knowing the locale -- is refused.
+ * Returns null for an empty value; the caller decides whether that is allowed.
+ */
+const parseAmount = (raw, field) => {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === 'number') {
+    if (!Number.isFinite(raw)) throw new Error(`${field}: "${raw}" is not a valid amount.`);
+    return raw;
+  }
+  const text = String(raw).trim();
+  if (text === '') return null;
+  if (/^-?\d+(\.\d+)?$/.test(text)) return Number(text);
+  if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(text)) return Number(text.replace(/,/g, ''));
+  throw new Error(
+    `${field}: "${text}" is not a valid amount. Use digits with an optional ` +
+    'decimal point, e.g. 1234567.89 or 1,234,567.89.'
+  );
+};
+
 const validateTaxYear = (year) => {
   const currentYear = new Date().getFullYear();
   const minYear = 2014; // CRS started in 2014
@@ -1108,8 +1138,8 @@ const validateCountryCode = (countryCode) => {
   
   const cleanCode = countryCode.trim().toUpperCase();
   
-  if (!/^[A-Z]{2}$/.test(cleanCode)) {
-    return { valid: false, message: "Country code must be 2 letters (ISO 3166-1)", severity: 'error' };
+  if (!ISO_COUNTRY_CODES.has(cleanCode)) {
+    return { valid: false, message: `"${cleanCode}" is not an ISO 3166-1 country code`, severity: 'error' };
   }
   
   return { valid: true };
@@ -1122,8 +1152,8 @@ const validateCurrencyCode = (currencyCode) => {
   
   const cleanCode = currencyCode.trim().toUpperCase();
   
-  if (!/^[A-Z]{3}$/.test(cleanCode)) {
-    return { valid: false, message: "Currency code must be 3 letters (ISO 4217)", severity: 'error' };
+  if (!ISO_CURRENCY_CODES.has(cleanCode)) {
+    return { valid: false, message: `"${cleanCode}" is not an ISO 4217 currency code`, severity: 'error' };
   }
   
   return { valid: true };
@@ -1134,10 +1164,11 @@ const validateAccountBalance = (balance) => {
     return { valid: false, message: "Account balance is required", severity: 'error' };
   }
   
-  const numericBalance = parseFloat(balance);
-  
-  if (isNaN(numericBalance)) {
-    return { valid: false, message: "Account balance must be a valid number", severity: 'error' };
+  let numericBalance;
+  try {
+    numericBalance = parseAmount(balance, 'Account balance');
+  } catch (e) {
+    return { valid: false, message: e.message, severity: 'error' };
   }
   
   if (numericBalance < 0) {
@@ -1790,10 +1821,18 @@ const mapDataToCRS = (rowData, columnMappings) => {
   const countryCode = (key) => {
     const raw = safeGet(key).toUpperCase();
     if (!raw) return '';
-    if (!/^[A-Z]{2}$/.test(raw)) {
-      throw new Error(`"${raw}" is not a two-letter ISO 3166-1 country code (field: ${key}).`);
+    if (!ISO_COUNTRY_CODES.has(raw)) {
+      throw new Error(`"${raw}" is not an ISO 3166-1 country code (field: ${key}).`);
     }
     return raw;
+  };
+
+  // Required amounts are refused when blank; a blank balance used to become
+  // 0.00, asserting a zero balance nobody supplied.
+  const requiredAmount = (key, label) => {
+    const value = parseAmount(rowData[columnMappings[key]], label);
+    if (value === null) throw new Error(`${label} is required.`);
+    return value;
   };
 
   const holderType = safeGet('holder_type').toLowerCase();
@@ -1829,8 +1868,10 @@ const mapDataToCRS = (rowData, columnMappings) => {
   const mappedData = {
     // Account details with XSD compliance
     accountNumber: safeGet('account_number'),
-    accountBalance: safeGetNumber('account_balance'),
-    currencyCode: safeGet('currency_code', 'USD').toUpperCase(),
+    accountBalance: requiredAmount('account_balance', 'Account balance'),
+    // Required, never defaulted: a missing currency used to become USD, which
+    // misstates every amount on the record.
+    currencyCode: safeGet('currency_code').toUpperCase(),
     
     // Account attributes (XSD compliant)
     undocumentedAccount: safeGetBoolean('undocumented_account', false),
@@ -1865,7 +1906,7 @@ const mapDataToCRS = (rowData, columnMappings) => {
       suffix: safeGet('suffix'),
       birthDate: safeGet('birth_date'),
       birthCity: safeGet('birth_city'),
-      birthCountry: safeGet('birth_country').toUpperCase(),
+      birthCountry: countryCode('birth_country'),
       tin: safeGet('tin'),
       resCountryCode: residenceCountry,
       addressCountryCode: addressCountry,
@@ -1921,7 +1962,7 @@ const mapDataToCRS = (rowData, columnMappings) => {
       title: safeGet('controlling_person_title'),
       birthDate: safeGet('controlling_person_birth_date'),
       birthCity: safeGet('controlling_person_birth_city'),
-      birthCountry: safeGet('controlling_person_birth_country').toUpperCase(),
+      birthCountry: countryCode('controlling_person_birth_country'),
       resCountryCode: countryCode('controlling_person_residence_country'),
       addressCountryCode: countryCode('controlling_person_address_country') ||
                           countryCode('controlling_person_residence_country'),
@@ -1970,7 +2011,7 @@ const mapDataToCRS = (rowData, columnMappings) => {
   ];
 
   PAYMENT_SOURCES.forEach(({ column, code }) => {
-    const amount = safeGetNumber(column);
+    const amount = parseAmount(rowData[columnMappings[column]], column) || 0;
     if (amount > 0) {
       mappedData.payments.push({
         type: code,
@@ -1982,7 +2023,7 @@ const mapDataToCRS = (rowData, columnMappings) => {
 
   // Fallback payment from general payment amount
   if (mappedData.payments.length === 0) {
-    const generalPaymentAmount = safeGetNumber('payment_amount');
+    const generalPaymentAmount = parseAmount(rowData[columnMappings.payment_amount], 'payment_amount') || 0;
     if (generalPaymentAmount > 0) {
       const paymentType = safeGet('payment_type');
       mappedData.payments.push({
@@ -2002,8 +2043,11 @@ const mapDataToCRS = (rowData, columnMappings) => {
     throw new Error('Account balance cannot be negative');
   }
 
-  if (!/^[A-Z]{3}$/.test(mappedData.currencyCode)) {
-    throw new Error('Invalid currency code format - must be 3-letter ISO 4217 code');
+  if (!mappedData.currencyCode) {
+    throw new Error('Currency code is required.');
+  }
+  if (!ISO_CURRENCY_CODES.has(mappedData.currencyCode)) {
+    throw new Error(`"${mappedData.currencyCode}" is not an ISO 4217 currency code.`);
   }
 
   // XSD constraint validation
@@ -3171,7 +3215,7 @@ const RegistrationPrompt = ({ onRegister, onLogin, onClose }) => {
       <div className="relative w-full max-w-[440px] rounded-card bg-white shadow-deep p-8 lg:p-10 animate-scale-in">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-1.5 text-ink-300 hover:text-ink transition-colors duration-300"
+          className="absolute top-5 right-5 p-1.5 text-ink-400 hover:text-ink transition-colors duration-300"
         >
           <X className="w-5 h-5" strokeWidth={1.5} />
         </button>
@@ -3321,7 +3365,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
       <div className="relative w-full max-w-[440px] max-h-[90vh] overflow-y-auto scroll-quiet rounded-card bg-white shadow-deep p-8 lg:p-10 animate-scale-in">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-1.5 text-ink-300 hover:text-ink transition-colors duration-300"
+          className="absolute top-5 right-5 p-1.5 text-ink-400 hover:text-ink transition-colors duration-300"
         >
           <X className="w-5 h-5" strokeWidth={1.5} />
         </button>
@@ -3406,7 +3450,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
                   </label>
                   <label className="block">
                     <span className="block text-[13px] text-ink-500 mb-2">
-                      Institution <span className="text-ink-300">optional</span>
+                      Institution <span className="text-ink-400">optional</span>
                     </span>
                     <input
                       type="text"
@@ -3449,7 +3493,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
 
             <div className="my-5 flex items-center gap-4">
               <span className="flex-1 h-px bg-ink-100" />
-              <span className="text-[12px] text-ink-300">or</span>
+              <span className="text-[12px] text-ink-400">or</span>
               <span className="flex-1 h-px bg-ink-100" />
             </div>
 
@@ -3603,7 +3647,7 @@ const Navigation = () => {
                 </div>
               )}
 
-              <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="md:hidden p-2 text-ink">
+              <button onClick={() => setIsMenuOpen(!isMenuOpen)} aria-label={isMenuOpen ? 'Close menu' : 'Open menu'} aria-expanded={isMenuOpen} className="md:hidden p-2 text-ink">
                 {isMenuOpen ? <X className="w-6 h-6" strokeWidth={1.5} /> : <Menu className="w-6 h-6" strokeWidth={1.5} />}
               </button>
             </div>
@@ -4380,7 +4424,7 @@ const CRSConverter = () => {
               {/* Step 0 — what kind of filing this is */}
               <section>
                 <div className="flex items-baseline gap-4 mb-5">
-                  <span className="font-display text-[13px] text-ink-300 tabular">01</span>
+                  <span className="font-display text-[13px] text-ink-400 tabular">01</span>
                   <h3 className="font-display text-2xl tracking-display text-ink">
                     What are you filing?
                   </h3>
@@ -4459,7 +4503,7 @@ const CRSConverter = () => {
               {/* Step 1 */}
               <section className={filingMode === FilingMode.Nil ? 'opacity-50 pointer-events-none' : ''}>
                 <div className="flex items-baseline gap-4 mb-5">
-                  <span className="font-display text-[13px] text-ink-300 tabular">02</span>
+                  <span className="font-display text-[13px] text-ink-400 tabular">02</span>
                   <h3 className="font-display text-2xl tracking-display text-ink">
                     {filingMode === FilingMode.New ? 'Upload your data'
                       : filingMode === FilingMode.Nil ? 'No file needed'
@@ -4531,7 +4575,7 @@ const CRSConverter = () => {
               {/* Step 2 */}
               <section>
                 <div className="flex items-baseline gap-4 mb-5">
-                  <span className="font-display text-[13px] text-ink-300 tabular">03</span>
+                  <span className="font-display text-[13px] text-ink-400 tabular">03</span>
                   <h3 className="font-display text-2xl tracking-display text-ink">
                     Identify the reporting institution
                   </h3>
@@ -4664,7 +4708,7 @@ const CRSConverter = () => {
               {/* Step 3 */}
               <section>
                 <div className="flex items-baseline gap-4 mb-5">
-                  <span className="font-display text-[13px] text-ink-300 tabular">04</span>
+                  <span className="font-display text-[13px] text-ink-400 tabular">04</span>
                   <h3 className="font-display text-2xl tracking-display text-ink">Generate</h3>
                 </div>
 
@@ -4933,7 +4977,7 @@ const Footer = () => {
             </p>
           </div>
           <div>
-            <div className="text-[13px] text-white/40 mb-4">Product</div>
+            <div className="text-[13px] text-white/60 mb-4">Product</div>
             <div className="flex flex-col gap-3 text-[15px]">
               <button
                 onClick={() => document.getElementById('converter')?.scrollIntoView({ behavior: 'smooth' })}
@@ -4946,7 +4990,7 @@ const Footer = () => {
             </div>
           </div>
           <div>
-            <div className="text-[13px] text-white/40 mb-4">Legal</div>
+            <div className="text-[13px] text-white/60 mb-4">Legal</div>
             <div className="flex flex-col gap-3 text-[15px]">
               <Link to="/privacy" className="text-white/80 hover:text-white transition-colors duration-300">Privacy Policy</Link>
               <Link to="/terms" className="text-white/80 hover:text-white transition-colors duration-300">Terms of Service</Link>
@@ -4957,10 +5001,10 @@ const Footer = () => {
         </div>
 
         <div className="mt-16 pt-8 hairline-invert border-l-0 border-r-0 border-b-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <p className="text-[13px] text-white/40">
+          <p className="text-[13px] text-white/60">
             &copy; {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.
           </p>
-          <p className="text-[13px] text-white/40">
+          <p className="text-[13px] text-white/60">
             OECD Common Reporting Standard &middot; Schema v3.0
           </p>
         </div>

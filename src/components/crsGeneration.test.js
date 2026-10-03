@@ -299,6 +299,64 @@ describe('"not reported" is transitional, and ends with the 2025 period', () => 
   });
 });
 
+describe('amounts are read exactly or refused', () => {
+  // Spreadsheet cells arrive as displayed text, so "#,##0.00" formatting gives
+  // "1,234,567.89". parseFloat read that as 1 and filed a balance of 1.00.
+  const balanceOf = (xml) => (xml.match(/<AccountBalance[^>]*>([^<]*)</) || [])[1];
+
+  it('reads a comma-grouped balance at its full value', () => {
+    const { xml, rejectedRows } = gen([individualRow({ account_balance: '1,234,567.89' })]);
+    expect(rejectedRows).toEqual([]);
+    expect(balanceOf(xml)).toBe('1234567.89');
+  });
+
+  // Equivalence partitions of malformed input: trailing text, European
+  // grouping, misplaced separators, words.
+  it.each(['15000abc', '1.234.567,89', '12,34', 'n/a'])('refuses "%s" rather than guessing', (value) => {
+    const { rejectedRows, accountReportCount } = gen([
+      individualRow(),
+      individualRow({ account_number: 'MU2', account_balance: value }),
+    ]);
+    expect(accountReportCount).toBe(1);
+    expect(rejectedRows[0].message).toContain(`"${value}" is not a valid amount`);
+  });
+
+  it('refuses a blank balance instead of filing 0.00', () => {
+    const { rejectedRows } = gen([individualRow(), individualRow({ account_number: 'MU2', account_balance: '' })]);
+    expect(rejectedRows[0].message).toBe('Account balance is required.');
+  });
+
+  it('reads a comma-grouped payment at its full value', () => {
+    const mappings = { ...COLUMN_MAPPINGS, dividend_amount: 'dividend_amount' };
+    const { xml } = generateCRSXML(
+      [individualRow({ dividend_amount: '2,500.00' })], SETTINGS, { columnMappings: mappings },
+    );
+    expect(xml).toMatch(/<Type>CRS501<\/Type>\s*<PaymentAmnt currCode="USD">2500\.00</);
+  });
+});
+
+describe('country and currency codes are checked against the ISO lists', () => {
+  it('rejects a country code with the right shape that is not a country', () => {
+    const { rejectedRows } = gen([individualRow(), individualRow({ account_number: 'MU2', residence_country: 'XX' })]);
+    expect(rejectedRows[0].message).toContain('"XX" is not an ISO 3166-1 country code');
+  });
+
+  it('rejects a currency code with the right shape that is not a currency', () => {
+    const { rejectedRows } = gen([individualRow(), individualRow({ account_number: 'MU2', currency_code: 'ABC' })]);
+    expect(rejectedRows[0].message).toContain('"ABC" is not an ISO 4217 currency code');
+  });
+
+  it('refuses a missing currency instead of assuming USD', () => {
+    const { rejectedRows } = gen([individualRow(), individualRow({ account_number: 'MU2', currency_code: '' })]);
+    expect(rejectedRows[0].message).toBe('Currency code is required.');
+  });
+
+  it('accepts real codes in any case', () => {
+    const { rejectedRows } = gen([individualRow({ residence_country: 'mu', address_country: 'mu', currency_code: 'mur' })]);
+    expect(rejectedRows).toEqual([]);
+  });
+});
+
 describe('closed accounts', () => {
   const genClosed = (rows) => generateCRSXML(
     rows, SETTINGS, { columnMappings: { ...COLUMN_MAPPINGS, closed_account: 'closed_account' } },
