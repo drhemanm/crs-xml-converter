@@ -222,6 +222,85 @@ describe('self-certification is never fabricated (audit finding C0)', () => {
   });
 });
 
+describe('"not reported" is transitional, and ends with the 2025 period', () => {
+  const V3_2026 = { ...SETTINGS, schemaVersion: '3.0', taxYear: 2026 };
+  const V3_2025 = { ...SETTINGS, schemaVersion: '3.0', taxYear: 2025 };
+
+  it('rejects a 2026 row whose account type and due diligence were not supplied', () => {
+    const { rejectedRows, accountReportCount } = gen(
+      [individualRow(), individualRow({ account_number: 'MU2', account_type: '', dd_procedure: '' })],
+      V3_2026,
+    );
+    expect(accountReportCount).toBe(1);
+    expect(rejectedRows).toHaveLength(1);
+    expect(rejectedRows[0].row).toBe(2);
+    expect(rejectedRows[0].message).toMatch(/account_type, dd_procedure are required for reporting periods after 2025/);
+  });
+
+  it('rejects a 2026 row that states "not_reported" outright, not only a blank one', () => {
+    const { rejectedRows } = gen(
+      [individualRow(), individualRow({ account_number: 'MU2', self_cert: 'not_reported' })],
+      V3_2026,
+    );
+    expect(rejectedRows.map((r) => r.message)).toEqual([expect.stringContaining('self_cert is required')]);
+  });
+
+  it('files a complete 2026 row with no sentinels in it', () => {
+    const { xml, rejectedRows } = gen([individualRow()], V3_2026);
+    expect(rejectedRows).toEqual([]);
+    expect(xml).not.toMatch(/CRS900|CRS1100|CRS1200/);
+  });
+
+  it('still accepts the sentinels for 2025, which the transition covers', () => {
+    const { xml, rejectedRows } = gen([individualRow({ account_type: '', dd_procedure: '' })], V3_2025);
+    expect(rejectedRows).toEqual([]);
+    expect(xml).toContain('<AccountType>CRS1100</AccountType>');
+  });
+
+  it('applies the rule to controlling persons', () => {
+    const mappings = {
+      ...COLUMN_MAPPINGS,
+      controlling_person_first_name: 'cp_first',
+      controlling_person_last_name: 'cp_last',
+      controlling_person_residence_country: 'cp_country',
+      controlling_person_city: 'cp_city',
+      controlling_person_type: 'cp_type',
+      controlling_person_self_cert: 'cp_self_cert',
+    };
+    const org = (overrides) => ({
+      ...individualRow({
+        holder_type: 'organization', organization_name: 'Test Holdings Ltd',
+        account_holder_type: 'passive_nfe_reportable', first_name: '', last_name: '',
+      }),
+      cp_first: 'Anna', cp_last: 'Schmidt', cp_country: 'DE', cp_city: 'Berlin',
+      cp_type: 'ownership', cp_self_cert: 'true',
+      ...overrides,
+    });
+    const result = generateCRSXML(
+      [org({}), org({ account_number: 'MU2', cp_type: '', cp_self_cert: '' })],
+      V3_2026,
+      { columnMappings: mappings },
+    );
+    expect(result.accountReportCount).toBe(1);
+    expect(result.rejectedRows[0].message).toContain('controlling_person_type, controlling_person_self_cert');
+  });
+
+  it('does not reject v2.0 rows for values v2.0 has no element for', () => {
+    const { rejectedRows } = gen(
+      [individualRow({ self_cert: '', account_type: '', dd_procedure: '' })],
+      { ...SETTINGS, schemaVersion: '2.0', taxYear: 2026 },
+    );
+    expect(rejectedRows).toEqual([]);
+  });
+});
+
+describe('no placeholder in place of a missing value', () => {
+  it('refuses a return with no institution name rather than writing "Unknown Institution"', () => {
+    expect(() => gen([individualRow()], { ...SETTINGS, reportingFI: { ...SETTINGS.reportingFI, name: '  ' } }))
+      .toThrow('The reporting institution name is required.');
+  });
+});
+
 describe('values that cannot be assumed', () => {
   it('rejects an organisation row with no account holder type', () => {
     const row = individualRow({

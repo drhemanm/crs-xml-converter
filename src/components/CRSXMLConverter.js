@@ -335,6 +335,13 @@ const CRS_SCHEMA_PROFILES = {
 
 const DEFAULT_SCHEMA_VERSION = '2.0';
 
+// The "not reported" sentinels are a transitional measure: the v3.0 schema
+// documents each one as available "to facilitate interoperability with the
+// previous version of the schema, particularly in respect of corrections".
+// They cover reporting periods up to this date. For a later period, a missing
+// value is a missing value, and the row is rejected -- never defaulted.
+const LAST_SENTINEL_PERIOD_YEAR = 2025;
+
 /** Every version the generator can emit, in registry order. */
 const SUPPORTED_SCHEMA_VERSIONS = Object.keys(CRS_SCHEMA_PROFILES);
 
@@ -2028,6 +2035,12 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
     );
   }
 
+  // The institution's name goes into the return as filed. It used to fall back
+  // to 'Unknown Institution', a made-up value in a regulatory document.
+  if (!reportingFI || !String(reportingFI.name || '').trim()) {
+    throw new Error('The reporting institution name is required.');
+  }
+
   // Values the chosen schema has no element for. Collected once for the whole
   // file rather than per row: dropping data the filer supplied without telling
   // them is the failure mode this exists to prevent.
@@ -2157,13 +2170,17 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
   // TIN
   const generateTIN = (tin, issuedBy) => {
     if (!tin) return '';
-    return `<TIN issuedBy="${escapeXML(issuedBy || 'XX')}">${escapeXML(tin)}</TIN>`;
+    // issuedBy is optional in the schema. Omitted when unknown: 'XX' is not a
+    // country code, and the schema rejects it.
+    const issuer = issuedBy ? ` issuedBy="${escapeXML(issuedBy)}"` : '';
+    return `<TIN${issuer}>${escapeXML(tin)}</TIN>`;
   };
 
   // Organisation identification number
   const generateOrganisationIN = (tin, issuedBy, inType = 'GIIN') => {
     if (!tin) return '';
-    return `<IN issuedBy="${escapeXML(issuedBy || 'XX')}" INType="${escapeXML(inType)}">${escapeXML(tin)}</IN>`;
+    const issuer = issuedBy ? ` issuedBy="${escapeXML(issuedBy)}"` : '';
+    return `<IN${issuer} INType="${escapeXML(inType)}">${escapeXML(tin)}</IN>`;
   };
 
   // Birth information
@@ -2426,8 +2443,33 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
   const serialisedAccountNumbers = new Set();
   let emittedCount = 0;
 
+  // Each sentinel that would appear in this file, with the column that would
+  // have supplied the real value. Fields the schema has no element for are
+  // left out: nothing is written for them, so nothing is misreported.
+  const sentinelsInFile = (account) => {
+    const cp = account.controllingPerson;
+    return [
+      profile.supportsSelfCert && account.selfCert === CRS_NOT_REPORTED.selfCert && 'self_cert',
+      profile.supportsAccountType && account.accountType === CRS_NOT_REPORTED.accountType && 'account_type',
+      profile.supportsDDProcedure && account.ddProcedure === CRS_NOT_REPORTED.ddProcedure && 'dd_procedure',
+      cp && cp.ctrlgPersonType === CRS_NOT_REPORTED.controllingPersonType && 'controlling_person_type',
+      cp && profile.supportsControllingPersonSelfCert &&
+        cp.selfCert === CRS_NOT_REPORTED.controllingPersonSelfCert && 'controlling_person_self_cert',
+    ].filter(Boolean);
+  };
+
   mappedAccounts.forEach((account) => {
     try {
+      if (Number(taxYear) > LAST_SENTINEL_PERIOD_YEAR) {
+        const missing = sentinelsInFile(account);
+        if (missing.length > 0) {
+          throw new Error(
+            `${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} required for reporting ` +
+            `periods after ${LAST_SENTINEL_PERIOD_YEAR}. "Not reported" is a transitional value ` +
+            'that is no longer accepted, and the real value cannot be assumed.'
+          );
+        }
+      }
       serialisedReports.push(generateAccountReport(account));
       serialisedAccountNumbers.add(account.accountNumber);
       emittedCount += 1;
@@ -2500,7 +2542,7 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
     <ReportingFI>
       <ResCountryCode>${escapeXML(reportingFI.country)}</ResCountryCode>
       ${generateOrganisationIN(reportingFI.giin, reportingFI.country, 'GIIN')}
-      <Name>${escapeXML(reportingFI.name || 'Unknown Institution')}</Name>
+      <Name>${escapeXML(reportingFI.name)}</Name>
       ${generateAddress({
         countryCode: reportingFI.country,
         street: reportingFI.address,

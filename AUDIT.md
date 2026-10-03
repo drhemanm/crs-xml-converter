@@ -373,6 +373,26 @@ It is not confirmed which identifier MRA requires in `ReportingFI/IN`; the
 platform pack records TAN from a secondary source. Filings recorded before
 this change are matched on the GIIN they were stored with.
 
+### A11. Transitional sentinels after 2025, placeholder values, and the latent webhook
+- **Sentinels after 2025.** The v3.0 schema documents every "not reported"
+  value as a transitional measure. For reporting periods after 2025, a row that
+  would carry one now gets rejected, naming the columns to supply. Rejection
+  applies whether the value was blank or stated as `not_reported`. It covers
+  self-certification, account type, due-diligence procedure, and controlling
+  person type and self-certification. Fields the chosen schema has no element
+  for are not checked, because nothing is written for them.
+- **Placeholders.** A missing institution name used to become
+  `Unknown Institution`; it is now refused. A missing issuing country used to
+  become `XX`, which is not a country code and fails the schema. The
+  `issuedBy` attribute is optional in the schema, so it is now left out.
+- **C2 (latent half): closed.** The unverified `paypalWebhook` is deleted from
+  `functions/index.js`. It had never run, only because the project is on
+  Spark. The deploy workflow deploys functions on every push to `main`, so
+  enabling billing would have put it live.
+  - Nothing grants a paid plan now; C5 (payments) was already open.
+  - `api/paypal-webhook.js` on Vercel remains as an unverified stub that acts
+    on nothing.
+
 ### A1. Firestore rules, indexes and functions were never deployed
 
 > **Rules and indexes deployed to `crs-xml-converter-saas` on 27 July 2026**
