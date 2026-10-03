@@ -526,6 +526,37 @@ Unit, functional and non-functional testing of `main` after #7.
 - **Not in CI.** The live app's browser and axe checks above ran in this
   session and are not yet wired into CI.
 
+### A15. Error monitoring and browser tests in CI
+**Browser tests now gate every push.** The `e2e` job in
+`.github/workflows/app.yml` builds the app and runs 26 Playwright tests under
+the production headers:
+- filing flows end to end, with every v3.0 file validated against the XSD;
+- axe WCAG 2.2 AA on all six routes, after an upload, and at phone width;
+- the CSP and security headers, and that an injected inline script is blocked;
+- no horizontal scroll at three widths;
+- a 5,000-account performance budget, and the upload size limit.
+
+Run against the build from before #8, the suite fails 9 tests: the 1.00
+balance, and accessibility on every route. So it catches both defect classes
+found in the A14 pass.
+
+**Error monitoring (Sentry), off until `REACT_APP_SENTRY_DSN` is set.**
+Failures that used to reach only a console are now reported: database
+refusals, ledger reads and writes, audit-trail writes, user loading, auth
+errors, and render crashes, which now show a notice instead of a blank page.
+Refused rows are the filer's to fix and are not reported.
+- Every event is scrubbed before it is sent (`src/monitoring.js`, 15 unit
+  tests): no user, request data or breadcrumbs except navigation, and quoted
+  values, digit runs and emails are redacted.
+- Verified end to end: a browser error containing an account number, email
+  and balance reached the transport as `Account "[redacted]" for [email] has
+  balance [n]`.
+- The CSP allows Sentry's ingest hosts.
+
+**Limit.** Monitoring catches failures. It would not have caught the 1.00
+balance, which produced a valid-looking file with no error. Only tests catch
+wrong output, which is why the browser suite runs in CI.
+
 ### A1. Firestore rules, indexes and functions were never deployed
 
 > **Rules and indexes deployed to `crs-xml-converter-saas` on 27 July 2026**

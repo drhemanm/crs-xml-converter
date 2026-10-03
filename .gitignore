@@ -29,3 +29,7 @@ firestore-debug.log
 
 # Environment variables
 .env
+
+# Playwright
+/test-results
+/playwright-report

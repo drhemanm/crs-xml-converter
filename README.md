@@ -85,7 +85,24 @@ REACT_APP_FIREBASE_MESSAGING_SENDER_ID=
 REACT_APP_FIREBASE_APP_ID=
 REACT_APP_FIREBASE_MEASUREMENT_ID=
 REACT_APP_PAYPAL_CLIENT_ID=
+
+# Optional: error monitoring. Off when unset.
+REACT_APP_SENTRY_DSN=
+REACT_APP_SENTRY_ENVIRONMENT=   # e.g. production, preview; defaults to NODE_ENV
 ```
+
+**Error monitoring (Sentry).** Create a Sentry project (platform: React). Set
+`REACT_APP_SENTRY_DSN` in Vercel for Production and Preview, then redeploy:
+`REACT_APP_*` values are fixed at build time. In the Sentry project's security
+settings, turn on **Prevent Storing of IP Addresses**. The client sends no IP,
+but Sentry otherwise records the one a report arrives from. `src/monitoring.js`
+scrubs every event before it leaves the browser:
+- user, extra data, headers and query strings are removed;
+- quoted values, digit runs and email addresses are redacted from messages;
+- every breadcrumb except page navigation is dropped.
+
+Refused rows are not reported, because they are the filer's to fix. Database
+refusals and programming errors are reported.
 
 The filing ledger needs Web Crypto, which browsers expose only over HTTPS or on
 `localhost`. Conversion itself works anywhere.
@@ -96,7 +113,21 @@ The filing ledger needs Web Crypto, which browsers expose only over HTTPS or on
 npm run verify          # lint exactly as the deploy does, then tests, then build
 npm run lint:ci         # just the lint gate
 npm test                # watch mode
+npm run test:e2e        # browser tests against the production build (build first)
 ```
+
+`npm run test:e2e` drives the built app in Chromium (`e2e/`, Playwright). It
+serves the build with the production headers from `vercel.json`, CSP included,
+and covers:
+- the filing flows end to end, with v3.0 output validated against the
+  official XSD (needs `xmllint`);
+- WCAG 2.2 AA via axe on every route;
+- the security headers, and that the CSP blocks injected scripts;
+- no horizontal scroll at 390, 768 and 1280px;
+- a 5,000-account performance budget.
+
+CI runs it on every push. Where a browser is already installed, point at it
+with `CHROMIUM_PATH=/path/to/chrome`.
 
 `npm run verify` exists because a plain `react-scripts build` **cannot** lint in
 this toolchain — the repo's ESLint config extends `react-app/jest` and the

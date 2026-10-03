@@ -69,3 +69,46 @@ jobs:
       - name: Firestore rules tests
         working-directory: firestore-tests
         run: npm test
+
+  e2e:
+    # The live app in a real browser: filing flows end to end (v3.0 output
+    # validated against the official XSD), WCAG 2.2 AA via axe on every route,
+    # the production CSP and headers, layout at phone width, and a performance
+    # budget. These are the checks that caught the 1.00-balance defect and the
+    # contrast failures; they block a merge rather than wait for a manual pass.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Production build
+        run: npm run build
+        env:
+          CI: true
+          DISABLE_ESLINT_PLUGIN: true
+
+      - name: Install xmllint and Chromium
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends libxml2-utils
+          npx playwright install --with-deps chromium
+
+      - name: Browser tests
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Upload failure report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7
