@@ -50,6 +50,7 @@ import {
 import { createRefMinter, resolveMessageRefId } from '../crs/refs';
 import { recordFiling, loadPeriodRecords, nextSequenceStart, institutionKey } from '../crs/ledger';
 import { ISO_COUNTRY_CODES, ISO_CURRENCY_CODES } from '../crs/isoCodes';
+import { reportError, isDataRejection } from '../monitoring';
 
 // ==========================================
 // FIREBASE CONFIGURATION
@@ -863,6 +864,7 @@ const logAuditEvent = async (eventType, eventData, user = null) => {
     if (process.env.NODE_ENV !== 'production') console.log(`Audit event logged: ${eventType}`);
   } catch (error) {
     console.error('Audit logging failed:', error);
+    reportError(error, 'audit.user_actions');
   }
 };
 
@@ -2756,6 +2758,7 @@ const logFileProcessing = async (fileData, validationResults, user = null) => {
     if (process.env.NODE_ENV !== 'production') console.log('File processing audit logged');
   } catch (error) {
     console.error('File processing audit failed:', error);
+    reportError(error, 'audit.file_processing');
   }
 };
 
@@ -2810,6 +2813,7 @@ const logXMLGeneration = async (conversionData, settingsUsed, user = null) => {
     if (process.env.NODE_ENV !== 'production') console.log('XML generation audit logged');
   } catch (error) {
     console.error('XML generation audit failed:', error);
+    reportError(error, 'audit.xml_generation');
   }
 };
 
@@ -2872,6 +2876,7 @@ const AuthProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('Auth state change error:', error);
+        reportError(error, 'auth.state_change');
         setAuthError(error.message);
       } finally {
         setLoading(false);
@@ -2980,6 +2985,7 @@ const AuthProvider = ({ children }) => {
       setUser(firebaseUser);
     } catch (error) {
       console.error('Error loading user data:', error);
+      reportError(error, 'user.load');
       setUser(firebaseUser);
       setUserDoc(null);
     }
@@ -3988,6 +3994,7 @@ const CRSConverter = () => {
       setPeriod({ key, loading: false, ...loaded, error: null });
     } catch (err) {
       if (latestPeriodKey.current !== key) return;
+      reportError(err, 'ledger.read');
       // A ledger we cannot read must not look like an empty one -- that would
       // turn a correction into a duplicate filing at the authority.
       setPeriod({
@@ -4093,6 +4100,7 @@ const CRSConverter = () => {
 
     } catch (err) {
       console.error('File processing error:', err);
+      if (!isDataRejection(err)) reportError(err, 'file.process');
       
       void logAuditEvent('file_processing_error', {
         filename: file.name,
@@ -4259,6 +4267,7 @@ const CRSConverter = () => {
           await loadPeriod();
         } catch (err) {
           ledgerError = err.message;
+          reportError(err, 'ledger.record');
         }
       }
 
@@ -4312,6 +4321,10 @@ const CRSConverter = () => {
 
     } catch (err) {
       console.error('Conversion error:', err);
+      // A refused row is the filer's to fix and is explained on screen. A
+      // database refusal or a programming error is ours: that is how signed-in
+      // conversions failed for months without anyone knowing.
+      if (!isDataRejection(err)) reportError(err, 'conversion');
       
       void logAuditEvent('xml_conversion_error', {
         error: err.message,
