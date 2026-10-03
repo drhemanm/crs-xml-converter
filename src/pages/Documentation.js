@@ -87,7 +87,7 @@ const Documentation = () => {
                       onClick={() => setActiveSection(section.id)}
                       className={`w-full text-left px-3 py-2 rounded-card transition-colors flex items-center ${
                         activeSection === section.id
-                          ? 'bg-accent text-ink'
+                          ? 'bg-accent text-white'
                           : 'text-ink-600 hover:bg-ink-50 hover:text-ink'
                       }`}
                     >
@@ -140,21 +140,21 @@ const Documentation = () => {
                     <h3 className="text-xl font-semibold text-ink mb-4">Quick Start Guide</h3>
                     <div className="space-y-4">
                       <div className="flex items-start">
-                        <div className="bg-accent text-ink rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 mt-1">1</div>
+                        <div className="bg-accent text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 mt-1">1</div>
                         <div>
                           <h4 className="font-semibold text-ink">Prepare Your Data</h4>
                           <p className="text-ink-600">Ensure your data is in Excel (.xlsx) or CSV format with proper CRS fields.</p>
                         </div>
                       </div>
                       <div className="flex items-start">
-                        <div className="bg-accent text-ink rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 mt-1">2</div>
+                        <div className="bg-accent text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 mt-1">2</div>
                         <div>
                           <h4 className="font-semibold text-ink">Upload Your File</h4>
                           <p className="text-ink-600">Click "Choose File" and select your prepared data file.</p>
                         </div>
                       </div>
                       <div className="flex items-start">
-                        <div className="bg-accent text-ink rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 mt-1">3</div>
+                        <div className="bg-accent text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 mt-1">3</div>
                         <div>
                           <h4 className="font-semibold text-ink">Convert & Download</h4>
                           <p className="text-ink-600">Click "Convert to XML" and download your compliant CRS XML file.</p>
@@ -337,7 +337,7 @@ const Documentation = () => {
                       
                       <div className="relative">
                         <div className="flex items-start">
-                          <div className="bg-accent text-ink rounded-full w-12 h-12 flex items-center justify-center font-bold mr-6 mt-2">1</div>
+                          <div className="bg-accent text-white rounded-full w-12 h-12 flex items-center justify-center font-bold mr-6 mt-2">1</div>
                           <div className="flex-1">
                             <h4 className="text-xl font-semibold text-ink mb-3">Data Preparation</h4>
                             <div className="bg-ink-50 rounded-card p-4 mb-4">
@@ -363,7 +363,7 @@ const Documentation = () => {
 
                       <div className="relative">
                         <div className="flex items-start">
-                          <div className="bg-accent text-ink rounded-full w-12 h-12 flex items-center justify-center font-bold mr-6 mt-2">2</div>
+                          <div className="bg-accent text-white rounded-full w-12 h-12 flex items-center justify-center font-bold mr-6 mt-2">2</div>
                           <div className="flex-1">
                             <h4 className="text-xl font-semibold text-ink mb-3">File Upload</h4>
                             <div className="bg-ink-50 rounded-card p-4 mb-4">
@@ -380,7 +380,7 @@ const Documentation = () => {
 
                       <div className="relative">
                         <div className="flex items-start">
-                          <div className="bg-accent text-ink rounded-full w-12 h-12 flex items-center justify-center font-bold mr-6 mt-2">3</div>
+                          <div className="bg-accent text-white rounded-full w-12 h-12 flex items-center justify-center font-bold mr-6 mt-2">3</div>
                           <div className="flex-1">
                             <h4 className="text-xl font-semibold text-ink mb-3">Validation & Processing</h4>
                             <div className="bg-ink-50 rounded-card p-4 mb-4">
@@ -397,7 +397,7 @@ const Documentation = () => {
 
                       <div className="relative">
                         <div className="flex items-start">
-                          <div className="bg-accent text-ink rounded-full w-12 h-12 flex items-center justify-center font-bold mr-6 mt-2">4</div>
+                          <div className="bg-accent text-white rounded-full w-12 h-12 flex items-center justify-center font-bold mr-6 mt-2">4</div>
                           <div className="flex-1">
                             <h4 className="text-xl font-semibold text-ink mb-3">XML Generation</h4>
                             <div className="bg-ink-50 rounded-card p-4 mb-4">
@@ -414,7 +414,7 @@ const Documentation = () => {
 
                       <div className="relative">
                         <div className="flex items-start">
-                          <div className="bg-accent text-ink rounded-full w-12 h-12 flex items-center justify-center font-bold mr-6 mt-2">5</div>
+                          <div className="bg-accent text-white rounded-full w-12 h-12 flex items-center justify-center font-bold mr-6 mt-2">5</div>
                           <div className="flex-1">
                             <h4 className="text-xl font-semibold text-ink mb-3">Download & Submit</h4>
                             <div className="bg-ink-50 rounded-card p-4 mb-4">
@@ -583,7 +583,7 @@ const Documentation = () => {
                       <div className="flex flex-wrap gap-4">
                         <Link 
                           to="/support"
-                          className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent text-ink rounded-card transition-colors"
+                          className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent text-white rounded-card transition-colors"
                         >
                           <Mail className="w-4 h-4 mr-2" />
                           Contact Support
@@ -643,7 +643,7 @@ const Documentation = () => {
                       <div className="flex flex-wrap gap-4">
                         <Link 
                           to="/support"
-                          className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent text-ink rounded-card transition-colors"
+                          className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent text-white rounded-card transition-colors"
                         >
                           <Mail className="w-4 h-4 mr-2" />
                           Join API Waitlist
@@ -690,7 +690,7 @@ const Documentation = () => {
         <div className="text-center mt-8 mb-12">
           <Link 
             to="/" 
-            className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent text-ink rounded-card transition-colors duration-200 font-medium"
+            className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent text-white rounded-card transition-colors duration-200 font-medium"
           >
             <Home className="w-5 h-5 mr-2" />
             Return to CRS Converter

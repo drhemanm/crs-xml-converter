@@ -331,7 +331,7 @@ const PrivacyPolicy = () => {
           <div className="flex flex-wrap justify-center gap-4 mb-6">
             <Link 
               to="/data-request"
-              className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent text-ink rounded-card transition-colors"
+              className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent text-white rounded-card transition-colors"
             >
               <Download className="w-4 h-4 mr-2" />
               Request Your Data

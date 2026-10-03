@@ -277,9 +277,10 @@ const CookieSettings = () => {
                             type="checkbox"
                             checked={isEnabled}
                             onChange={() => togglePreference(category.id)}
+                            aria-label={category.title}
                             className="sr-only peer"
                           />
-                          <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
+                          <div className="w-11 h-6 bg-gray-600 peer-focus-visible:ring-2 peer-focus-visible:ring-accent peer-focus-visible:ring-offset-2 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                         </label>
                       )}
                     </div>
@@ -344,7 +345,7 @@ const CookieSettings = () => {
           <div className="flex flex-wrap gap-4 justify-center">
             <button
               onClick={savePreferences}
-              className="px-8 py-3 bg-accent hover:bg-accent text-ink rounded-card font-medium transition-colors"
+              className="px-8 py-3 bg-accent hover:bg-accent text-white rounded-card font-medium transition-colors"
             >
               Save Preferences
             </button>
@@ -356,13 +357,13 @@ const CookieSettings = () => {
             </button>
             <button
               onClick={rejectAll}
-              className="px-8 py-3 bg-gray-600 hover:bg-ink-100 text-ink rounded-card font-medium transition-colors"
+              className="px-8 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-card font-medium transition-colors"
             >
               Necessary Only
             </button>
             <button
               onClick={resetPreferences}
-              className="px-8 py-3 bg-critical hover:bg-critical text-ink rounded-card font-medium transition-colors"
+              className="px-8 py-3 bg-critical hover:bg-critical text-white rounded-card font-medium transition-colors"
             >
               Reset All
             </button>
