@@ -1,5 +1,5 @@
 import { initializeTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDoc, collection, query, where, orderBy, limit, serverTimestamp, increment } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, addDoc, collection, query, where, orderBy, serverTimestamp, increment } from 'firebase/firestore';
 import fs from 'fs';
 
 const env = await initializeTestEnvironment({
@@ -218,7 +218,7 @@ await t('cannot store an account number in place of the hash', () => assertFails
 // was unreadable and corrections could not be planned. Single-document reads
 // above could not catch that.
 await t('the app\'s filings query is accepted', () => assertSucceeds(getDocs(query(collection(alice(), 'filings'),
-  where('userId', '==', 'alice'), where('country', '==', 'MU'), where('taxYear', '==', 2024), orderBy('createdAt', 'asc'), limit(200)))));
+  where('userId', '==', 'alice'), where('country', '==', 'MU'), where('taxYear', '==', 2024), orderBy('createdAt', 'asc')))));
 await t('the app\'s records query is accepted', () => assertSucceeds(getDocs(query(collection(alice(), 'filings', 'f1', 'records'),
   where('userId', '==', 'alice')))));
 await t('a records query without the owner filter is refused', () => assertFails(getDocs(query(collection(alice(), 'filings', 'f1', 'records')))));

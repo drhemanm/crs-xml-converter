@@ -48,7 +48,7 @@ import {
   describeFiling,
 } from '../crs/lifecycle';
 import { createRefMinter, resolveMessageRefId } from '../crs/refs';
-import { recordFiling, loadPeriodRecords, nextSequenceStart } from '../crs/ledger';
+import { recordFiling, loadPeriodRecords, nextSequenceStart, institutionKey } from '../crs/ledger';
 
 // ==========================================
 // FIREBASE CONFIGURATION
@@ -3807,31 +3807,51 @@ const CRSConverter = () => {
 
   const usageStatus = getUserConversionStatus(user, userDoc);
 
+  // The period a ledger belongs to: one institution, one country, one year.
+  // One account files for many institutions, so the institution is part of it.
+  // Only a well-formed identifier counts, so a half-typed one never triggers a
+  // read or matches another institution's filings.
+  const institutionId = validateGIIN(settings.reportingFI.giin).valid
+    ? institutionKey(settings.reportingFI.giin)
+    : null;
+  const periodKey = [institutionId, settings.reportingFI.country, settings.taxYear].join('|');
+  const latestPeriodKey = useRef(periodKey);
+  latestPeriodKey.current = periodKey;
+
   // What has already been filed for this institution and year. Corrections
   // reference it; a new return is checked against it for duplicates. Signed-out
   // users have no ledger, so they get the plain converter and are told why.
+  //
+  // Every result is tagged with the period it was read for, and a result for a
+  // period the filer has since moved off is discarded. Switching institution
+  // otherwise left the previous one's records in place until the new read
+  // landed, and a file planned in that window referenced the wrong institution.
   const loadPeriod = useCallback(async () => {
-    if (!user || !settings.reportingFI.country || !settings.taxYear) {
-      setPeriod({ loading: false, records: [], filings: [], reportingFiDocRefId: null, error: null });
+    const key = [institutionId, settings.reportingFI.country, settings.taxYear].join('|');
+    if (!user || !institutionId || !settings.reportingFI.country || !settings.taxYear) {
+      setPeriod({ key, loading: false, records: [], filings: [], reportingFiDocRefId: null, error: null });
       return;
     }
-    setPeriod((prev) => ({ ...prev, loading: true, error: null }));
+    setPeriod({ key, loading: true, records: [], filings: [], reportingFiDocRefId: null, error: null });
     try {
       const loaded = await loadPeriodRecords(db, {
         userId: user.uid,
+        institutionId,
         country: settings.reportingFI.country,
         taxYear: settings.taxYear,
       });
-      setPeriod({ loading: false, ...loaded, error: null });
+      if (latestPeriodKey.current !== key) return;
+      setPeriod({ key, loading: false, ...loaded, error: null });
     } catch (err) {
+      if (latestPeriodKey.current !== key) return;
       // A ledger we cannot read must not look like an empty one -- that would
       // turn a correction into a duplicate filing at the authority.
       setPeriod({
-        loading: false, records: [], filings: [], reportingFiDocRefId: null,
+        key, loading: false, records: [], filings: [], reportingFiDocRefId: null,
         error: err.message,
       });
     }
-  }, [user, settings.reportingFI.country, settings.taxYear]);
+  }, [user, institutionId, settings.reportingFI.country, settings.taxYear]);
 
   useEffect(() => { loadPeriod(); }, [loadPeriod]);
 
@@ -3990,6 +4010,12 @@ const CRSConverter = () => {
         `Sign in to file a ${FILING_MODE_LABELS[filingMode].toLowerCase()}. ` +
         'It has to reference the return it amends, and that record belongs to your account.'
       );
+      return;
+    }
+
+    // Plan only against the history of the institution on screen, fully read.
+    if (user && (period.loading || period.key !== periodKey)) {
+      setError('The filing history for this institution is still loading. Try again in a moment.');
       return;
     }
 
@@ -4297,7 +4323,9 @@ const CRSConverter = () => {
 
                 {user && (
                   <div className="mt-4 text-[13px] text-ink-500">
-                    {period.loading ? (
+                    {!institutionId ? (
+                      "Enter the institution's GIIN to see what has been filed for it."
+                    ) : period.loading ? (
                       'Reading your filing history…'
                     ) : period.error ? (
                       <span className="text-critical">
@@ -4305,11 +4333,11 @@ const CRSConverter = () => {
                         unsafe until this is readable.
                       </span>
                     ) : period.filings.length === 0 ? (
-                      `Nothing filed yet for ${settings.reportingFI.country} ${settings.taxYear}.`
+                      `Nothing filed yet for ${institutionId} in ${settings.reportingFI.country} ${settings.taxYear}.`
                     ) : (
                       <>
                         {period.filings.length} filing{period.filings.length === 1 ? '' : 's'} on
-                        record for {settings.reportingFI.country} {settings.taxYear}
+                        record for {institutionId} in {settings.reportingFI.country} {settings.taxYear}
                         {' '}&middot; {period.records.length} record
                         {period.records.length === 1 ? '' : 's'} available to correct
                       </>
@@ -4701,7 +4729,7 @@ const CRSConverter = () => {
               {user && !period.loading && period.filings.length > 0 && (
                 <div className="rounded-card hairline bg-white p-6">
                   <div className="text-[13px] text-ink-400">
-                    Filed for {settings.reportingFI.country} {settings.taxYear}
+                    Filed for {institutionId} in {settings.reportingFI.country} {settings.taxYear}
                   </div>
                   <ol className="mt-4 space-y-3">
                     {period.filings.slice().reverse().slice(0, 6).map((f) => (

@@ -349,6 +349,30 @@ the test fails instead of skipping.
 - A missing `issuedBy` falls back to `XX`, which is not a valid country code
   in the schema.
 
+### A10. The filing ledger mixed institutions filed from one login
+A period was keyed on (user, country, year). A management company files for
+every fund and GBC it administers from one login, so a correction for its
+second institution read the first one's filings and **resent the first
+institution's ReportingFI DocRefId**. The authority would match that
+correction to the wrong institution, or reject it. The filing history mixed
+the institutions together as well.
+
+**Fixed:** a period is now (user, institution, country, year).
+- The institution is the identifier the return carries in `ReportingFI/IN`.
+- Reads filter on it client-side, so no new index deploy is needed. The query
+  limit is removed, because a limit applied before that filter could drop the
+  filings being looked for.
+- Reading or recording without an identifier is refused.
+- Every ledger result is tagged with the period it was read for. A file can't
+  be planned while the history for the institution on screen is still loading,
+  or after the filer has switched institution.
+- Covered by `src/crs/ledger.test.js`, which fails against the previous code.
+
+**Still open:** the identifier is the GIIN field, and GIIN format is enforced.
+It is not confirmed which identifier MRA requires in `ReportingFI/IN`; the
+platform pack records TAN from a secondary source. Filings recorded before
+this change are matched on the GIIN they were stored with.
+
 ### A1. Firestore rules, indexes and functions were never deployed
 
 > **Rules and indexes deployed to `crs-xml-converter-saas` on 27 July 2026**

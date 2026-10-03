@@ -32,6 +32,21 @@ import {
 export const FILINGS = 'filings';
 export const FILING_RECORDS = 'records';
 
+/**
+ * The institution a ledger entry belongs to, normalised for comparison.
+ *
+ * One account files for many institutions -- a management company files for
+ * every fund and GBC it administers -- so a period is a (user, institution,
+ * country, year), never just (user, country, year). Keyed on the identifier
+ * the return carries in ReportingFI/IN (today the GIIN field), so a change of
+ * identifier type does not change the ledger.
+ */
+export function institutionKey(identifier) {
+  if (typeof identifier !== 'string') return null;
+  const key = identifier.trim().toUpperCase();
+  return key || null;
+}
+
 /** Firestore caps a batch at 500 operations. */
 const BATCH_LIMIT = 500;
 
@@ -45,6 +60,11 @@ const BATCH_LIMIT = 500;
 export async function recordFiling(db, {
   userId, settings, result, accountKeys, periodSequenceStart = 0,
 }) {
+  if (!institutionKey(settings.reportingFI.giin)) {
+    // A filing with no institution belongs to no period, so it could never be
+    // found again to correct.
+    throw new Error('The institution identifier is required to record a filing.');
+  }
   const filingRef = await addDoc(collection(db, FILINGS), {
     userId,
     country: settings.reportingFI.country,
@@ -90,17 +110,31 @@ export async function recordFiling(db, {
   return filingRef.id;
 }
 
-/** Every filing this user has made for one institution and reporting year. */
-export async function listFilings(db, { userId, country, taxYear }) {
+/**
+ * Every filing this user has made for one institution and reporting year.
+ *
+ * The institution is filtered here rather than in the query so that no new
+ * composite index has to be deployed first. That is also why there is no
+ * limit: a limit applied before the filter could cut off the very filings
+ * being looked for, and a correction would then reference the wrong record.
+ */
+export async function listFilings(db, { userId, institutionId, country, taxYear }) {
+  const key = institutionKey(institutionId);
+  if (!key) {
+    // Without an institution the period is ambiguous, and an ambiguous ledger
+    // is how one institution's records end up in another's correction.
+    throw new Error('The institution identifier is required to read its filing history.');
+  }
   const snap = await getDocs(query(
     collection(db, FILINGS),
     where('userId', '==', userId),
     where('country', '==', country),
     where('taxYear', '==', taxYear),
     orderBy('createdAt', 'asc'),
-    limit(200),
   ));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((f) => institutionKey(f.giin) === key);
 }
 
 /** Recent filings across all periods, for the filing history view. */
@@ -122,8 +156,8 @@ export async function listRecentFilings(db, { userId, max = 50 }) {
  * filed in the original return and corrected in a later one is only correct
  * when both are seen.
  */
-export async function loadPeriodRecords(db, { userId, country, taxYear }) {
-  const filings = await listFilings(db, { userId, country, taxYear });
+export async function loadPeriodRecords(db, { userId, institutionId, country, taxYear }) {
+  const filings = await listFilings(db, { userId, institutionId, country, taxYear });
   if (filings.length === 0) return { filings: [], records: [], reportingFiDocRefId: null };
 
   const records = [];
