@@ -26,7 +26,7 @@ const PrivacyPolicy = () => {
           </div>
           <div className="bg-accent/10 border border-accent/20 rounded-card p-4 max-w-2xl mx-auto">
             <p className="text-accent text-sm">
-              <strong>GDPR Compliant</strong> • Last updated: August 26, 2025
+              Last updated: 4 October 2026
             </p>
           </div>
         </div>
@@ -38,17 +38,20 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-2xl font-bold text-ink mb-4">1. Introduction</h2>
             <p className="text-ink-600 mb-4">
-              Evologics Ltd ("we," "our," or "us") is committed to protecting your privacy and personal data. 
-              This Privacy Policy explains how we collect, use, process, and protect your information when you use 
-              our CRS XML Converter service, in compliance with the General Data Protection Regulation (GDPR) and 
-              other applicable data protection laws.
+              Evologics Ltd ("we," "our," or "us") runs the CRS XML Converter. This policy explains what
+              personal data we collect, why, who processes it for us, and your rights under the General Data
+              Protection Regulation (GDPR) and the Mauritius Data Protection Act 2017.
             </p>
             <div className="bg-ink/10 border border-ink-200/20 rounded-card p-4">
               <div className="flex items-start">
                 <CheckCircle className="w-5 h-5 text-ink mr-2 mt-0.5 flex-shrink-0" />
                 <div className="text-ink">
-                  <p className="font-medium">Your Rights Under GDPR:</p>
-                  <p className="text-sm mt-1">You have the right to access, rectify, erase, restrict, port, and object to processing of your personal data.</p>
+                  <p className="font-medium">The short version</p>
+                  <p className="text-sm mt-1">
+                    The spreadsheet you convert is read and converted in your browser. Its contents (the
+                    names, account numbers, balances, addresses and tax identification numbers of the
+                    people you report on) are never sent to us.
+                  </p>
                 </div>
               </div>
             </div>
@@ -59,61 +62,56 @@ const PrivacyPolicy = () => {
             <h2 className="text-2xl font-bold text-ink mb-4">2. Data Controller</h2>
             <div className="bg-ink-50 rounded-card p-4">
               <p className="text-ink-600 mb-2"><strong>Data Controller:</strong> Evologics Ltd</p>
-              <p className="text-ink-600 mb-2"><strong>Address:</strong> [Your Business Address]</p>
               <p className="text-ink-600 mb-2"><strong>Email:</strong> contacts@evologics.ai</p>
-              <p className="text-ink-600 mb-2"><strong>DPO Contact:</strong> contacts@evologics.ai</p>
-              <p className="text-ink-600"><strong>EU Representative:</strong> [If applicable]</p>
+              <p className="text-ink-600"><strong>Data protection contact:</strong> contacts@evologics.ai</p>
             </div>
           </section>
 
           {/* Personal Data Collection */}
           <section>
             <h2 className="text-2xl font-bold text-ink mb-4">3. Personal Data We Collect</h2>
-            
             <div className="space-y-4">
               <div className="bg-ink-50 rounded-card p-4">
-                <h3 className="text-lg font-semibold text-ink mb-3">3.1 Account Information</h3>
+                <h3 className="text-lg font-semibold text-ink mb-3">3.1 Your account (if you create one)</h3>
                 <ul className="text-ink-600 space-y-2">
-                  <li>• Email address (for authentication and communication)</li>
-                  <li>• Name (for personalization and support)</li>
-                  <li>• Company information (if applicable)</li>
-                  <li>• Account preferences and settings</li>
+                  <li>• Email address and display name, and how you sign in (email and password, or Google)</li>
+                  <li>• Conversion counts for usage limits, and your account preferences</li>
+                  <li>• Whether you agreed to marketing email (off unless you opt in)</li>
                 </ul>
                 <p className="text-sm text-caution mt-2">
-                  <strong>Legal Basis:</strong> Contract performance and legitimate interests
+                  <strong>Legal Basis:</strong> Performance of our contract with you
                 </p>
               </div>
 
               <div className="bg-ink-50 rounded-card p-4">
-                <h3 className="text-lg font-semibold text-ink mb-3">3.2 File Processing Data</h3>
+                <h3 className="text-lg font-semibold text-ink mb-3">3.2 Your filings (signed-in users)</h3>
                 <ul className="text-ink-600 space-y-2">
-                  <li>• Financial data uploaded for conversion (temporarily processed)</li>
-                  <li>• File metadata (size, type, upload timestamp)</li>
-                  <li>• Conversion logs and error reports</li>
+                  <li>• <strong>Filing history:</strong> the reporting institution's name, TAN and GIIN, country, tax year, schema version, the message and document reference IDs of each filing, and record counts</li>
+                  <li>• <strong>Account keys:</strong> for each reported account, a SHA-256 hash of the account number, scoped to the institution and year. The account number itself is not stored. A hash reduces exposure but is not encryption: a short account number could in principle be recovered from it by trial.</li>
+                  <li>• <strong>Activity log:</strong> sign-ins, uploads and conversions, with the file name, size and type, row counts, and error messages with values from your file removed, plus your browser type, language and time zone</li>
                 </ul>
                 <div className="bg-critical/10 border border-critical/20 rounded p-3 mt-3">
                   <div className="flex items-start">
                     <AlertTriangle className="w-4 h-4 text-critical mr-2 mt-0.5 flex-shrink-0" />
                     <div className="text-critical text-sm">
-                      <p><strong>Important:</strong> Uploaded files are processed temporarily and automatically deleted within 24 hours. We do not permanently store your financial data.</p>
+                      <p><strong>Not collected:</strong> the contents of your spreadsheet or of the XML generated from it. Both stay in your browser, and the XML is saved only where you download it.</p>
                     </div>
                   </div>
                 </div>
                 <p className="text-sm text-caution mt-2">
-                  <strong>Legal Basis:</strong> Contract performance
+                  <strong>Legal Basis:</strong> Performance of our contract with you; legitimate interest in being able to show what was filed
                 </p>
               </div>
 
               <div className="bg-ink-50 rounded-card p-4">
-                <h3 className="text-lg font-semibold text-ink mb-3">3.3 Technical Data</h3>
+                <h3 className="text-lg font-semibold text-ink mb-3">3.3 Technical data</h3>
                 <ul className="text-ink-600 space-y-2">
-                  <li>• IP address (anonymized after 30 days)</li>
-                  <li>• Browser type and version</li>
-                  <li>• Usage analytics (anonymized)</li>
-                  <li>• Error logs and performance metrics</li>
+                  <li>• <strong>Usage analytics, only if you accept analytics cookies:</strong> pages and features used, through Google Analytics for Firebase</li>
+                  <li>• <strong>Error reports, if enabled:</strong> technical details of a failure, sent to Sentry with values, emails and numbers removed and without your IP address being stored</li>
+                  <li>• <strong>Server logs:</strong> our hosting provider records requests, including IP addresses, to operate and secure the service</li>
                 </ul>
                 <p className="text-sm text-caution mt-2">
-                  <strong>Legal Basis:</strong> Legitimate interests (service improvement and security)
+                  <strong>Legal Basis:</strong> Consent (analytics); legitimate interests (error reports, security)
                 </p>
               </div>
             </div>
@@ -122,43 +120,31 @@ const PrivacyPolicy = () => {
           {/* How We Use Data */}
           <section>
             <h2 className="text-2xl font-bold text-ink mb-4">4. How We Use Your Personal Data</h2>
-            <div className="space-y-4">
-              <div className="bg-ink-50 rounded-card p-4">
-                <h3 className="text-lg font-semibold text-ink mb-3">Service Provision</h3>
-                <ul className="text-ink-600 space-y-1">
-                  <li>• Process file conversions to CRS XML format</li>
-                  <li>• Provide user authentication and account management</li>
-                  <li>• Monitor usage limits and billing</li>
-                  <li>• Provide customer support</li>
-                </ul>
-              </div>
-              
-              <div className="bg-ink-50 rounded-card p-4">
-                <h3 className="text-lg font-semibold text-ink mb-3">Legal Obligations</h3>
-                <ul className="text-ink-600 space-y-1">
-                  <li>• Comply with financial regulations</li>
-                  <li>• Maintain audit logs as required by law</li>
-                  <li>• Respond to lawful requests from authorities</li>
-                </ul>
-              </div>
+            <div className="bg-ink-50 rounded-card p-4">
+              <ul className="text-ink-600 space-y-1">
+                <li>• To sign you in and apply usage limits</li>
+                <li>• To keep the filing history that corrections and voids depend on</li>
+                <li>• To find and fix failures, and to protect the service from abuse</li>
+                <li>• To answer support and data protection requests</li>
+                <li>• To understand how the service is used, only if you consent to analytics</li>
+              </ul>
+              <p className="text-ink-600 text-sm mt-3">We do not sell your data and do not use it for advertising.</p>
             </div>
           </section>
 
           {/* Data Sharing */}
           <section>
-            <h2 className="text-2xl font-bold text-ink mb-4">5. Data Sharing and Third Parties</h2>
+            <h2 className="text-2xl font-bold text-ink mb-4">5. Who Processes Data for Us</h2>
             <div className="bg-ink-50 rounded-card p-4">
-              <p className="text-ink-600 mb-4">We do not sell, rent, or share your personal data except in the following circumstances:</p>
               <ul className="text-ink-600 space-y-2">
-                <li>• <strong>Service Providers:</strong> Cloud hosting (AWS/Google Cloud), payment processing (Stripe), email services</li>
-                <li>• <strong>Legal Requirements:</strong> When required by law or to protect our legal rights</li>
-                <li>• <strong>Business Transfers:</strong> In case of merger, acquisition, or sale of assets</li>
+                <li>• <strong>Google (Firebase):</strong> sign-in, database (account, filing history, activity log), and analytics if you consent</li>
+                <li>• <strong>Vercel:</strong> hosting of the website</li>
+                <li>• <strong>Sentry:</strong> error reports, when enabled</li>
+                <li>• <strong>Authorities or courts:</strong> only when the law requires it</li>
               </ul>
-              <div className="bg-affirm/10 border border-affirm/20 rounded p-3 mt-4">
-                <p className="text-affirm text-sm">
-                  <strong>Data Processing Agreements:</strong> All third-party processors are bound by GDPR-compliant data processing agreements.
-                </p>
-              </div>
+              <p className="text-ink-600 text-sm mt-3">
+                We do not take payments, so no payment processor receives your data.
+              </p>
             </div>
           </section>
 
@@ -166,15 +152,10 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-2xl font-bold text-ink mb-4">6. International Data Transfers</h2>
             <div className="bg-ink-50 rounded-card p-4">
-              <p className="text-ink-600 mb-3">
-                Your data may be processed in countries outside the European Economic Area (EEA). 
-                We ensure adequate protection through:
+              <p className="text-ink-600">
+                The providers above may process data outside Mauritius and the European Economic Area. Where
+                the law requires it, these transfers rely on the providers' standard contractual clauses.
               </p>
-              <ul className="text-ink-600 space-y-2">
-                <li>• EU Standard Contractual Clauses</li>
-                <li>• Adequacy decisions by the European Commission</li>
-                <li>• Certification schemes (e.g., Privacy Shield successors)</li>
-              </ul>
             </div>
           </section>
 
@@ -183,19 +164,18 @@ const PrivacyPolicy = () => {
             <h2 className="text-2xl font-bold text-ink mb-4">7. Data Retention</h2>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="bg-ink-50 rounded-card p-4">
-                <h3 className="text-lg font-semibold text-ink mb-3">Account Data</h3>
+                <h3 className="text-lg font-semibold text-ink mb-3">Account and filings</h3>
                 <ul className="text-ink-600 text-sm space-y-1">
-                  <li>• Active accounts: Stored while account is active</li>
-                  <li>• Inactive accounts: Deleted after 3 years</li>
-                  <li>• Account deletion: 30 days after request</li>
+                  <li>• Account and filing history: while your account is open</li>
+                  <li>• After a deletion request: deleted within 30 days, except what the law requires us to keep</li>
                 </ul>
               </div>
               <div className="bg-ink-50 rounded-card p-4">
-                <h3 className="text-lg font-semibold text-ink mb-3">Processing Data</h3>
+                <h3 className="text-lg font-semibold text-ink mb-3">Logs</h3>
                 <ul className="text-ink-600 text-sm space-y-1">
-                  <li>• Uploaded files: never leave your browser &mdash; nothing to delete</li>
-                  <li>• Conversion logs (metadata only): 12 months</li>
-                  <li>• Technical logs: 30 days (anonymized)</li>
+                  <li>• Your spreadsheet and XML: never leave your browser, so there is nothing for us to delete</li>
+                  <li>• Activity log: up to 12 months</li>
+                  <li>• Error reports and server logs: the standard retention period of the provider</li>
                 </ul>
               </div>
             </div>
@@ -254,36 +234,27 @@ const PrivacyPolicy = () => {
           <section>
             <h2 className="text-2xl font-bold text-ink mb-4">9. Data Security</h2>
             <div className="bg-ink-50 rounded-card p-4">
-              <p className="text-ink-600 mb-3">We implement industry-standard security measures:</p>
-              <div className="grid md:grid-cols-2 gap-4">
-                <ul className="text-ink-600 space-y-2">
-                  <li>• End-to-end encryption (AES-256)</li>
-                  <li>• Secure data transmission (TLS 1.3)</li>
-                  <li>• Regular security audits</li>
-                  <li>• Access controls and monitoring</li>
-                </ul>
-                <ul className="text-ink-600 space-y-2">
-                  <li>• Data breach response procedures</li>
-                  <li>• Regular backup and recovery testing</li>
-                  <li>• Staff security training</li>
-                  <li>• Incident response plan</li>
-                </ul>
-              </div>
+              <ul className="text-ink-600 space-y-2">
+                <li>• All traffic is encrypted in transit over HTTPS</li>
+                <li>• Data at rest is encrypted by our database provider</li>
+                <li>• Database rules let each account read only its own records, and filing records cannot be changed once written</li>
+                <li>• Account numbers are stored only as hashes</li>
+                <li>• The website is served with a strict Content Security Policy and other security headers</li>
+              </ul>
             </div>
           </section>
 
           {/* Cookies */}
           <section>
-            <h2 className="text-2xl font-bold text-ink mb-4">10. Cookies and Tracking</h2>
+            <h2 className="text-2xl font-bold text-ink mb-4">10. Cookies and Local Storage</h2>
             <div className="bg-ink-50 rounded-card p-4">
-              <p className="text-ink-600 mb-3">We use the following types of cookies:</p>
               <ul className="text-ink-600 space-y-2">
-                <li>• <strong>Essential Cookies:</strong> Required for basic site functionality (no consent required)</li>
-                <li>• <strong>Analytics Cookies:</strong> Anonymous usage statistics (consent required)</li>
-                <li>• <strong>Preference Cookies:</strong> Remember your settings (consent required)</li>
+                <li>• <strong>Essential:</strong> keeping you signed in, your cookie choice, and the count of free conversions in this browser. These need no consent.</li>
+                <li>• <strong>Analytics:</strong> Google Analytics cookies, set only after you accept analytics. Withdrawing consent stops collection and removes them.</li>
               </ul>
               <p className="text-ink-600 text-sm mt-3">
-                You can manage cookie preferences in our <Link to="/cookie-settings" className="text-accent underline">Cookie Settings</Link>.
+                Fonts are served from this website, not from a third party. You can change your choice at any
+                time in <Link to="/cookie-settings" className="text-accent underline">Cookie Settings</Link>.
               </p>
             </div>
           </section>
@@ -345,7 +316,7 @@ const PrivacyPolicy = () => {
             </Link>
           </div>
           <p className="text-ink-500 text-sm">
-            This Privacy Policy is effective as of August 26, 2025
+            This Privacy Policy is effective as of 4 October 2026
           </p>
         </div>
       </div>

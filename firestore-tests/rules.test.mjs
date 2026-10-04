@@ -108,9 +108,9 @@ await t('client cannot write subscription audit events', () => assertFails(addDo
 
 console.log('\ndata subject requests');
 await env.clearFirestore();
-await t('can lodge a request about themselves', () => assertSucceeds(addDoc(collection(alice(), 'data_requests'), { userId: 'alice', status: 'received', submittedAt: serverTimestamp(), type: 'access' })));
-await t('cannot lodge one as somebody else', () => assertFails(addDoc(collection(alice(), 'data_requests'), { userId: 'bob', status: 'received', submittedAt: serverTimestamp(), type: 'access' })));
-await t('cannot mark their own request completed', () => assertFails(addDoc(collection(alice(), 'data_requests'), { userId: 'alice', status: 'completed', submittedAt: serverTimestamp(), type: 'access' })));
+await t('can lodge a request about themselves', () => assertSucceeds(addDoc(collection(alice(), 'data_requests'), { userId: 'alice', status: 'received', submittedAt: serverTimestamp(), requestType: 'access' })));
+await t('cannot lodge one as somebody else', () => assertFails(addDoc(collection(alice(), 'data_requests'), { userId: 'bob', status: 'received', submittedAt: serverTimestamp(), requestType: 'access' })));
+await t('cannot mark their own request completed', () => assertFails(addDoc(collection(alice(), 'data_requests'), { userId: 'alice', status: 'completed', submittedAt: serverTimestamp(), requestType: 'access' })));
 await t('anonymous cannot lodge a request', () => assertFails(addDoc(collection(anon(), 'data_requests'), { userId: 'alice', status: 'received', submittedAt: serverTimestamp() })));
 // The exact payload DataRequestPortal sends, so the rules are checked against
 // the shape the app actually writes rather than a convenient minimal one.
@@ -120,6 +120,8 @@ await t('accepts the payload the portal sends', () => assertSucceeds(addDoc(coll
   description: 'Please delete my account data.', urgency: 'normal',
   status: 'received', submittedAt: serverTimestamp(),
 })));
+await t('cannot add fields the portal does not send', () => assertFails(addDoc(collection(alice(), 'data_requests'), { userId: 'alice', status: 'received', submittedAt: serverTimestamp(), requestType: 'access', payload: 'x' })));
+await t('cannot send an unbounded description', () => assertFails(addDoc(collection(alice(), 'data_requests'), { userId: 'alice', status: 'received', submittedAt: serverTimestamp(), requestType: 'access', description: 'x'.repeat(5001) })));
 await t('cannot back-date a request', () => assertFails(addDoc(collection(alice(), 'data_requests'), { userId: 'alice', status: 'received', submittedAt: new Date('2020-01-01'), requestType: 'access' })));
 
 console.log('\nmonthly quota reset (no Cloud Functions, no billing)');

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Cookie, Settings, Check, X, AlertTriangle, Shield, Eye, Target } from 'lucide-react';
+import { readConsent, saveConsent } from '../consent';
 
 const CookieSettings = () => {
   const [cookiePreferences, setCookiePreferences] = useState({
@@ -14,13 +15,11 @@ const CookieSettings = () => {
 
   // Load existing preferences on component mount
   useEffect(() => {
-    const consent = localStorage.getItem('cookieConsent');
-    if (consent) {
-      const savedPreferences = JSON.parse(consent);
-      setCookiePreferences(savedPreferences);
-    }
-    
-    const consentDate = localStorage.getItem('cookieConsentDate');
+    const consent = readConsent();
+    if (consent) setCookiePreferences(consent);
+
+    let consentDate = null;
+    try { consentDate = localStorage.getItem('cookieConsentDate'); } catch { /* storage blocked */ }
     if (consentDate) {
       setLastSaved(new Date(consentDate));
     }
@@ -35,9 +34,7 @@ const CookieSettings = () => {
   };
 
   const savePreferences = () => {
-    localStorage.setItem('cookieConsent', JSON.stringify(cookiePreferences));
-    const now = new Date();
-    localStorage.setItem('cookieConsentDate', now.toISOString());
+    const { date: now } = saveConsent(cookiePreferences);
     setLastSaved(now);
     setSaved(true);
     

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Cookie,  X,  Info } from 'lucide-react';
+import { readConsent, saveConsent } from '../consent';
+import Dialog from './Dialog';
 
 const CookieConsent = () => {
   const [showBanner, setShowBanner] = useState(false);
@@ -12,11 +14,10 @@ const CookieConsent = () => {
   });
 
   useEffect(() => {
-    const consent = localStorage.getItem('cookieConsent');
-    if (!consent) {
+    const savedPreferences = readConsent();
+    if (!savedPreferences) {
       setTimeout(() => setShowBanner(true), 1500);
     } else {
-      const savedPreferences = JSON.parse(consent);
       setCookiePreferences(savedPreferences);
       initializeTracking(savedPreferences);
     }
@@ -41,8 +42,7 @@ const CookieConsent = () => {
   const acceptAll = () => {
     const allAccepted = { necessary: true, analytics: true, marketing: true, functional: true };
     setCookiePreferences(allAccepted);
-    localStorage.setItem('cookieConsent', JSON.stringify(allAccepted));
-    localStorage.setItem('cookieConsentDate', new Date().toISOString());
+    saveConsent(allAccepted);
     initializeTracking(allAccepted);
     setShowBanner(false);
     setShowSettings(false);
@@ -51,16 +51,14 @@ const CookieConsent = () => {
   const acceptNecessaryOnly = () => {
     const necessaryOnly = { necessary: true, analytics: false, marketing: false, functional: false };
     setCookiePreferences(necessaryOnly);
-    localStorage.setItem('cookieConsent', JSON.stringify(necessaryOnly));
-    localStorage.setItem('cookieConsentDate', new Date().toISOString());
+    saveConsent(necessaryOnly);
     initializeTracking(necessaryOnly);
     setShowBanner(false);
     setShowSettings(false);
   };
 
   const saveCustomPreferences = () => {
-    localStorage.setItem('cookieConsent', JSON.stringify(cookiePreferences));
-    localStorage.setItem('cookieConsentDate', new Date().toISOString());
+    saveConsent(cookiePreferences);
     initializeTracking(cookiePreferences);
     setShowBanner(false);
     setShowSettings(false);
@@ -141,17 +139,22 @@ const CookieConsent = () => {
 
       {/* Clean Settings Modal */}
       {showSettings && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50">
+        <Dialog
+          labelledBy="cookie-preferences-title"
+          onClose={() => setShowSettings(false)}
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50"
+        >
           <div className="bg-white rounded-field shadow-xl max-w-2xl w-full max-h-[85vh] overflow-hidden">
             
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-ink-100">
-              <h2 className="text-lg font-semibold text-ink">Cookie Preferences</h2>
+              <h2 id="cookie-preferences-title" className="text-lg font-semibold text-ink">Cookie Preferences</h2>
               <button
                 onClick={() => setShowSettings(false)}
-                className="text-ink-300 hover:text-ink-500"
+                aria-label="Close"
+                className="text-ink-400 hover:text-ink-600"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
 
@@ -180,9 +183,10 @@ const CookieConsent = () => {
                       type="checkbox"
                       checked={cookiePreferences.analytics}
                       onChange={() => togglePreference('analytics')}
+                      aria-label="Analytics cookies"
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-ink-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-ink-200 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
+                    <div className="w-9 h-5 bg-ink-200 peer-focus-visible:ring-2 peer-focus-visible:ring-ink peer-focus-visible:ring-offset-2 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-ink-200 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
                   </label>
                 </div>
                 <p className="text-ink-500 text-sm">
@@ -199,9 +203,10 @@ const CookieConsent = () => {
                       type="checkbox"
                       checked={cookiePreferences.functional}
                       onChange={() => togglePreference('functional')}
+                      aria-label="Functional cookies"
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-ink-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-ink-200 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
+                    <div className="w-9 h-5 bg-ink-200 peer-focus-visible:ring-2 peer-focus-visible:ring-ink peer-focus-visible:ring-offset-2 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-ink-200 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
                   </label>
                 </div>
                 <p className="text-ink-500 text-sm">
@@ -218,9 +223,10 @@ const CookieConsent = () => {
                       type="checkbox"
                       checked={cookiePreferences.marketing}
                       onChange={() => togglePreference('marketing')}
+                      aria-label="Marketing cookies"
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-ink-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-ink-200 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
+                    <div className="w-9 h-5 bg-ink-200 peer-focus-visible:ring-2 peer-focus-visible:ring-ink peer-focus-visible:ring-offset-2 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-ink-200 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-accent"></div>
                   </label>
                 </div>
                 <p className="text-ink-500 text-sm">
@@ -261,7 +267,7 @@ const CookieConsent = () => {
               </button>
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
     </>
   );

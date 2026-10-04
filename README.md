@@ -83,8 +83,7 @@ REACT_APP_FIREBASE_PROJECT_ID=
 REACT_APP_FIREBASE_STORAGE_BUCKET=
 REACT_APP_FIREBASE_MESSAGING_SENDER_ID=
 REACT_APP_FIREBASE_APP_ID=
-REACT_APP_FIREBASE_MEASUREMENT_ID=
-REACT_APP_PAYPAL_CLIENT_ID=
+REACT_APP_FIREBASE_MEASUREMENT_ID=   # Analytics runs only after cookie consent
 
 # Optional: error monitoring. Off when unset.
 REACT_APP_SENTRY_DSN=
@@ -189,7 +188,7 @@ src/
     CRSXMLConverter.js  code tables, validation, mapping, XML generation, auth, UI
   pages/                privacy, terms, documentation, cookies, GDPR requests
 firestore.rules         access control, tested in firestore-tests/
-functions/              scheduled jobs, admin callable, PayPal webhook (not wired)
+functions/              scheduled jobs and the admin callable (no billing: see AUDIT.md A17)
 platform/               a separate, stricter TypeScript implementation — see below
 ```
 

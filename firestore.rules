@@ -197,10 +197,19 @@ service cloud.firestore {
     // A signed-in user may lodge a request about themselves and read their own
     // back. Only staff may change the status of one.
     match /data_requests/{docId} {
+      // Only the fields the portal sends, and bounded free text, so the
+      // collection cannot be used to store arbitrary data.
       allow create: if isSignedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.status == 'received'
-        && request.resource.data.submittedAt == request.time;
+        && request.resource.data.submittedAt == request.time
+        && request.resource.data.keys().hasOnly([
+          'userId', 'accountEmail', 'contactEmail', 'firstName', 'lastName',
+          'requestType', 'description', 'urgency', 'status', 'submittedAt'
+        ])
+        && (!('description' in request.resource.data)
+            || (request.resource.data.description is string
+                && request.resource.data.description.size() <= 5000));
       allow read: if isOwner(resource.data.userId) || isAdmin();
       allow update: if isAdmin();
       allow delete: if false;

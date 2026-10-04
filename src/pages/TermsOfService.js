@@ -28,7 +28,7 @@ const TermsOfService = () => {
             Legal terms and conditions for using our services
           </p>
           <p className="text-sm text-ink-500 mt-2">
-            Last updated: August 26, 2025
+            Last updated: 4 October 2026
           </p>
         </div>
 
@@ -52,11 +52,9 @@ const TermsOfService = () => {
             <div className="space-y-4 text-ink-600">
               <p>Evologics Ltd provides:</p>
               <ul className="list-disc list-inside space-y-2 ml-4">
-                <li>CRS OECD XML conversion services</li>
-                <li>FATCA compliance reporting tools</li>
-                <li>Financial data processing and conversion</li>
-                <li>Regulatory compliance assistance</li>
-                <li>Customer support and documentation</li>
+                <li>Conversion of spreadsheets (CSV, XLSX) into OECD CRS XML, schema versions 2.0 and 3.0, carried out in your browser</li>
+                <li>For signed-in users, a filing history of references (not account data) so that later corrections and voids can point at what was filed</li>
+                <li>Documentation, a downloadable template and email support</li>
               </ul>
             </div>
           </section>
@@ -75,73 +73,15 @@ const TermsOfService = () => {
             </div>
           </section>
 
-          {/* Service Plans */}
+          {/* Plans */}
           <section>
             <div className="flex items-center mb-4">
               <CreditCard className="w-6 h-6 text-accent mr-3" />
-              <h2 className="text-2xl font-semibold text-ink">Service Plans and Pricing</h2>
+              <h2 className="text-2xl font-semibold text-ink">Plans and Charges</h2>
             </div>
-            <div className="space-y-6 text-ink-600">
-              
-              <div>
-                <h3 className="text-lg font-semibold text-ink mb-2">Free Plan - $0</h3>
-                <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>6 total conversions (3 anonymous + 3 after registration)</li>
-                  <li>Basic XML generation</li>
-                  <li>Email support</li>
-                  <li>Standard processing</li>
-                  <li>GDPR compliant</li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold text-ink mb-2">Professional Plan - $79/month</h3>
-                <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>100 conversions per month</li>
-                  <li>Priority email support</li>
-                  <li>Usage analytics dashboard</li>
-                  <li>Standard templates</li>
-                  <li>GIIN validation database</li>
-                  <li>Conversion history</li>
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold text-ink mb-2">Enterprise Plan - $299/month</h3>
-                <ul className="list-disc list-inside space-y-1 ml-4">
-                  <li>1,000 conversions per month</li>
-                  <li>Priority support</li>
-                  <li>All features included</li>
-                  <li>Dedicated account management</li>
-                  <li>Custom integrations</li>
-                </ul>
-              </div>
-
-            </div>
-          </section>
-
-          {/* Payment Terms */}
-          <section>
-            <h2 className="text-2xl font-semibold text-ink mb-4">Payment and Billing</h2>
             <div className="space-y-4 text-ink-600">
-              <p><strong>Payment Processing:</strong> All payments are processed securely through PayPal.</p>
-              <p><strong>Billing Cycle:</strong> Paid plans are billed monthly in advance.</p>
-              <p><strong>Payment Methods:</strong> We accept all major payment methods supported by PayPal.</p>
-              <p><strong>Currency:</strong> All prices are listed in USD.</p>
-              <p><strong>Taxes:</strong> You are responsible for any applicable taxes.</p>
-              <p><strong>Failed Payments:</strong> Service may be suspended if payment fails. Account will be restored upon successful payment.</p>
-            </div>
-          </section>
-
-          {/* Refund Policy */}
-          <section>
-            <h2 className="text-2xl font-semibold text-ink mb-4">Refund and Cancellation Policy</h2>
-            <div className="space-y-4 text-ink-600">
-              <p><strong>Cancellation:</strong> You may cancel your subscription at any time through your account settings.</p>
-              <p><strong>Service Continuation:</strong> Paid services continue until the end of the current billing period.</p>
-              <p><strong>Refund Eligibility:</strong> Refunds may be provided within 7 days of initial purchase for legitimate service issues.</p>
-              <p><strong>Refund Process:</strong> Contact support at contacts@evologics.ai to request a refund.</p>
-              <p><strong>No Partial Refunds:</strong> We do not provide partial refunds for unused conversions.</p>
+              <p><strong>Free use:</strong> 3 conversions in a browser without an account, and 3 conversions per calendar month (UTC) with an account.</p>
+              <p><strong>No paid plans:</strong> We do not currently sell paid plans and will not charge you. If we introduce paid plans, we will update these Terms and tell registered users before any charge applies.</p>
             </div>
           </section>
 
@@ -169,11 +109,9 @@ const TermsOfService = () => {
           <section>
             <h2 className="text-2xl font-semibold text-ink mb-4">Data Processing and Privacy</h2>
             <div className="space-y-4 text-ink-600">
-              <p><strong>File Processing:</strong> Uploaded files are processed temporarily and deleted immediately after conversion.</p>
-              <p><strong>Data Security:</strong> We implement industry-standard security measures to protect your data.</p>
+              <p><strong>Local Processing:</strong> Your spreadsheet is read and converted in your browser. Its contents are not uploaded to our servers, and we do not store your files or the XML generated from them.</p>
+              <p><strong>What We Store:</strong> For signed-in users we store account details, usage counts, an activity log and the filing history described in our Privacy Policy. None of these contain the account holders' names, account numbers, balances, addresses or tax identification numbers.</p>
               <p><strong>Privacy Policy:</strong> Our data handling practices are detailed in our Privacy Policy.</p>
-              <p><strong>Compliance:</strong> We comply with GDPR and other applicable data protection laws.</p>
-              <p><strong>No Data Storage:</strong> We do not permanently store your uploaded files or converted XML data.</p>
             </div>
           </section>
 
@@ -210,7 +148,7 @@ const TermsOfService = () => {
               <p><strong>No Warranties:</strong> We disclaim all warranties, express or implied, including warranties of merchantability and fitness.</p>
               <p><strong>Damage Limitation:</strong> Our liability shall not exceed the amount paid by you for the Service in the past 12 months.</p>
               <p><strong>Consequential Damages:</strong> We shall not be liable for any indirect, incidental, or consequential damages.</p>
-              <p><strong>Data Accuracy:</strong> While we strive for accuracy, you are responsible for verifying all converted data.</p>
+              <p><strong>Your Filing:</strong> You are responsible for the data you convert and for every file you submit. The Service does not validate its output against the official XSD and does not submit anything to a tax authority. Validate each file against the official schema and your authority's portal before filing. Acceptance by a tax authority is not guaranteed.</p>
             </div>
           </section>
 
@@ -226,10 +164,10 @@ const TermsOfService = () => {
           <section>
             <h2 className="text-2xl font-semibold text-ink mb-4">Termination</h2>
             <div className="space-y-4 text-ink-600">
-              <p><strong>By You:</strong> You may terminate your account at any time through your account settings.</p>
+              <p><strong>By You:</strong> You may close your account at any time by submitting a deletion request through our <Link to="/data-request" className="text-accent underline">Data Request page</Link> or by emailing contacts@evologics.ai.</p>
               <p><strong>By Us:</strong> We may terminate your account for violations of these Terms or other legitimate reasons.</p>
               <p><strong>Effect of Termination:</strong> Upon termination, your right to use the Service will cease immediately.</p>
-              <p><strong>Data Deletion:</strong> We will delete your account data within 30 days of termination.</p>
+              <p><strong>Data Deletion:</strong> We will delete your account data within 30 days of termination, except where the law requires us to keep it.</p>
             </div>
           </section>
 
