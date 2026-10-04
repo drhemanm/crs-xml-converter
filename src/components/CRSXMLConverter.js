@@ -50,6 +50,9 @@ import {
 import { createRefMinter, resolveMessageRefId } from '../crs/refs';
 import { recordFiling, loadPeriodRecords, nextSequenceStart, institutionKey } from '../crs/ledger';
 import { ISO_COUNTRY_CODES, ISO_CURRENCY_CODES } from '../crs/isoCodes';
+import {
+  IdentifierType, IDENTIFIER_LABELS, crsIdentifierType, crsInstitutionIdentifier, validateTAN,
+} from '../crs/identifiers';
 import { reportError, isDataRejection } from '../monitoring';
 
 // ==========================================
@@ -2128,7 +2131,7 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
   const enforceMraCharacters = reportingFI.country === 'MU';
   if (enforceMraCharacters) {
     const fiProblems = mraRestrictedFields(
-      { name: reportingFI.name, address: reportingFI.address, city: reportingFI.city, giin: reportingFI.giin },
+      { name: reportingFI.name, address: reportingFI.address, city: reportingFI.city, tan: reportingFI.tan },
       'reportingFI'
     );
     if (fiProblems.length > 0) {
@@ -2619,6 +2622,13 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
     throw new Error('Reporting jurisdiction is required for the message header.');
   }
 
+  // The institution as this jurisdiction's CRS return identifies it: the TAN
+  // for Mauritius, the GIIN elsewhere. See src/crs/identifiers.js.
+  const fiIdentifier = crsInstitutionIdentifier(reportingFI);
+  if (!fiIdentifier && crsIdentifierType(reportingFI.country) === IdentifierType.TAN) {
+    throw new Error("The institution's TAN is required for a Mauritius CRS return.");
+  }
+
   // Root element.
   //
   // `targetNamespace` and the FATCA namespace were previously declared here.
@@ -2633,7 +2643,7 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
           xsi:schemaLocation="${profile.namespace} ${profile.schemaFile}"
           version="${profile.version}">
   <MessageSpec>
-    ${reportingFI.giin ? `<SendingCompanyIN>${escapeXML(reportingFI.giin)}</SendingCompanyIN>` : ''}
+    ${fiIdentifier ? `<SendingCompanyIN>${escapeXML(fiIdentifier.value)}</SendingCompanyIN>` : ''}
     <TransmittingCountry>${escapeXML(reportingFI.country)}</TransmittingCountry>
     <ReceivingCountry>${escapeXML(reportingFI.country)}</ReceivingCountry>
     <MessageType>CRS</MessageType>
@@ -2645,7 +2655,7 @@ const generateCRSXML = (data, settings, validationResults, filingPlan = {}) => {
   <CrsBody>
     <ReportingFI>
       <ResCountryCode>${escapeXML(reportingFI.country)}</ResCountryCode>
-      ${generateOrganisationIN(reportingFI.giin, reportingFI.country, 'GIIN')}
+      ${fiIdentifier ? generateOrganisationIN(fiIdentifier.value, fiIdentifier.issuedBy, fiIdentifier.type) : ''}
       <Name>${escapeXML(reportingFI.name)}</Name>
       ${generateAddress({
         countryCode: reportingFI.country,
@@ -3942,6 +3952,7 @@ const CRSConverter = () => {
   const [settings, setSettings] = useState({
     reportingFI: {
       name: '',
+      tan: '',
       giin: '',
       country: 'MU',
       address: '',
@@ -3959,10 +3970,15 @@ const CRSConverter = () => {
 
   // The period a ledger belongs to: one institution, one country, one year.
   // One account files for many institutions, so the institution is part of it.
-  // Only a well-formed identifier counts, so a half-typed one never triggers a
-  // read or matches another institution's filings.
-  const institutionId = validateGIIN(settings.reportingFI.giin).valid
-    ? institutionKey(settings.reportingFI.giin)
+  // The institution is identified as its CRS return identifies it: the TAN
+  // for Mauritius, the GIIN elsewhere. Only a well-formed identifier counts,
+  // so a half-typed one never triggers a read or matches another
+  // institution's filings.
+  const crsIdType = crsIdentifierType(settings.reportingFI.country);
+  const crsId = crsInstitutionIdentifier(settings.reportingFI);
+  const institutionId = crsId
+    && (crsIdType === IdentifierType.TAN ? validateTAN(crsId.value) : validateGIIN(crsId.value)).valid
+    ? institutionKey(crsId.value)
     : null;
   const periodKey = [institutionId, settings.reportingFI.country, settings.taxYear].join('|');
   const latestPeriodKey = useRef(periodKey);
@@ -3987,6 +4003,8 @@ const CRSConverter = () => {
       const loaded = await loadPeriodRecords(db, {
         userId: user.uid,
         institutionId,
+        idType: crsIdType,
+        giin: settings.reportingFI.giin,
         country: settings.reportingFI.country,
         taxYear: settings.taxYear,
       });
@@ -4002,7 +4020,7 @@ const CRSConverter = () => {
         error: err.message,
       });
     }
-  }, [user, institutionId, settings.reportingFI.country, settings.taxYear]);
+  }, [user, institutionId, crsIdType, settings.reportingFI.giin, settings.reportingFI.country, settings.taxYear]);
 
   useEffect(() => { loadPeriod(); }, [loadPeriod]);
 
@@ -4117,7 +4135,14 @@ const CRSConverter = () => {
   const validateSettings = () => {
     const results = {};
     
-    results.giin = validateGIIN(settings.reportingFI.giin);
+    // CRS for Mauritius is filed under the TAN; the GIIN is the FATCA
+    // identifier there, optional for a CRS return but checked if entered.
+    if (crsIdentifierType(settings.reportingFI.country) === IdentifierType.TAN) {
+      results.tan = validateTAN(settings.reportingFI.tan);
+      if (settings.reportingFI.giin.trim()) results.giin = validateGIIN(settings.reportingFI.giin);
+    } else {
+      results.giin = validateGIIN(settings.reportingFI.giin);
+    }
     results.taxYear = validateTaxYear(settings.taxYear);
     results.fiName = validateFIName(settings.reportingFI.name);
     
@@ -4206,7 +4231,7 @@ const CRSConverter = () => {
       // never leave it.
       const accountKeys = user
         ? await buildAccountKeys(accountNumbers, {
-            giin: settings.reportingFI.giin,
+            institution: crsId ? crsId.value : '',
             country: settings.reportingFI.country,
             period: settings.taxYear,
           })
@@ -4481,7 +4506,7 @@ const CRSConverter = () => {
                 {user && (
                   <div className="mt-4 text-[13px] text-ink-500">
                     {!institutionId ? (
-                      "Enter the institution's GIIN to see what has been filed for it."
+                      `Enter the institution's ${IDENTIFIER_LABELS[crsIdType]} to see what has been filed for it.`
                     ) : period.loading ? (
                       'Reading your filing history…'
                     ) : period.error ? (
@@ -4610,8 +4635,28 @@ const CRSConverter = () => {
                     )}
                   </label>
 
+                  {crsIdType === IdentifierType.TAN && (
+                    <label className="block">
+                      <span className="block text-[13px] text-ink-500 mb-2">TAN (CRS identifier)</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={settings.reportingFI.tan}
+                        onChange={(e) => handleSettingsChange('reportingFI', 'tan', e.target.value.replace(/\s/g, ''))}
+                        className="w-full h-12 px-4 rounded-field bg-ink-50 border border-transparent focus:bg-white focus:border-ink-200 font-mono text-[14px] text-ink transition-colors duration-300 outline-none"
+                        placeholder="8-digit TAN"
+                        maxLength="8"
+                      />
+                      {settingsValidation.tan && !settingsValidation.tan.valid && (
+                        <span className="mt-2 block text-[13px] text-critical">{settingsValidation.tan.message}</span>
+                      )}
+                    </label>
+                  )}
+
                   <label className="block">
-                    <span className="block text-[13px] text-ink-500 mb-2">GIIN</span>
+                    <span className="block text-[13px] text-ink-500 mb-2">
+                      {crsIdType === IdentifierType.TAN ? 'GIIN (FATCA only, optional here)' : 'GIIN'}
+                    </span>
                     <input
                       type="text"
                       value={settings.reportingFI.giin}

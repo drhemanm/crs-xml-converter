@@ -36,7 +36,7 @@ const { createRefMinter } = require('./refs');
 
 const SETTINGS = {
   reportingFI: {
-    name: 'Test Bank Ltd', giin: 'ABC123.00000.MU.480', country: 'MU',
+    name: 'Test Bank Ltd', tan: '20123456', giin: 'ABC123.00000.MU.480', country: 'MU',
     address: '1 Test Street', city: 'Port Louis',
   },
   taxYear: 2024,

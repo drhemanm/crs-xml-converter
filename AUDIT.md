@@ -368,10 +368,7 @@ the institutions together as well.
   or after the filer has switched institution.
 - Covered by `src/crs/ledger.test.js`, which fails against the previous code.
 
-**Still open:** the identifier is the GIIN field, and GIIN format is enforced.
-It is not confirmed which identifier MRA requires in `ReportingFI/IN`; the
-platform pack records TAN from a secondary source. Filings recorded before
-this change are matched on the GIIN they were stored with.
+**Resolved by A16:** Mauritius periods are now keyed on the TAN.
 
 ### A11. Transitional sentinels after 2025, placeholder values, and the latent webhook
 - **Sentinels after 2025.** The v3.0 schema documents every "not reported"
@@ -556,6 +553,37 @@ Refused rows are the filer's to fix and are not reported.
 **Limit.** Monitoring catches failures. It would not have caught the 1.00
 balance, which produced a valid-looking file with no error. Only tests catch
 wrong output, which is why the browser suite runs in CI.
+
+### A16. Mauritius CRS returns were filed under the GIIN
+
+MRA's CRS sample carries the institution's domestic identifier, the TAN, in both
+`MessageSpec/SendingCompanyIN` and `ReportingFI/IN`. The converter sent the
+GIIN, which is the FATCA identifier, in both. A portal that checks those
+elements against the TAN the filer registered with would refuse the file. No
+published MRA validation rule says so explicitly, so this is a material
+validation risk, not a confirmed rejection.
+
+**Fixed:**
+- The TAN and the GIIN are separate fields. `src/crs/identifiers.js` maps which
+  one each regime carries. A Mauritius CRS return carries the TAN as
+  `<IN issuedBy="MU" INType="TAN">` and never the GIIN. Other jurisdictions keep
+  the GIIN until their own samples are checked.
+- A Mauritius return without a TAN is refused, not filled with the GIIN. The
+  GIIN stays optional there and is checked only if entered.
+- The ledger keys Mauritius periods on the TAN, and filings record `tan` and
+  `giin` separately. Filings recorded before the split hold only a GIIN, and
+  their account keys were hashed over it. They are not guessed into a TAN
+  period: a period that has any is blocked, with a message, so a correction
+  cannot quietly become a duplicate new filing.
+- `firestore.rules` allows the `tan` field. **Deploy the rules before the
+  app.** Until they are deployed, recording a signed-in Mauritius filing in
+  the ledger is denied. The XML itself still generates.
+
+**Not in CRS:** sponsors, intermediaries and FATCA filer categories. The CRS
+XSD has a `Sponsor` element, but the Mauritius mapping excludes it from CRS
+files. A sponsoring entity or trustee that files CRS does so as the
+`ReportingFI`, under the TAN MRA registered. Filer categories are mapped with
+the FATCA output.
 
 ### A1. Firestore rules, indexes and functions were never deployed
 
