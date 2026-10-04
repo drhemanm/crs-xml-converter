@@ -12,6 +12,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'crs-e2e-'));
 
 async function fillInstitution(page, { year } = {}) {
   await page.getByPlaceholder('Your institution').fill('Banque Exemple Ltd');
+  await page.getByPlaceholder('8-digit TAN').fill('20123456');
   await page.getByPlaceholder('XXXXXX.XXXXX.XX.XXX').fill('ABC123.00000.MU.480');
   await page.getByPlaceholder('Port Louis').fill('Port Louis');
   await page.getByPlaceholder('Registered office address').fill('1 Royal Road');

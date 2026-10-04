@@ -8,7 +8,7 @@
  * What is stored, deliberately:
  *
  *   filings/{filingId}
- *     userId, country, giin, taxYear, schemaVersion, filingMode,
+ *     userId, country, tan, giin, taxYear, schemaVersion, filingMode,
  *     messageRefId, reportingFiDocRefId, counts, createdAt
  *
  *   filings/{filingId}/records/{recordId}
@@ -21,10 +21,11 @@
  * data never leaves this browser") stays true, and it has to keep being true,
  * so anything added here needs to be checked against that sentence.
  *
- * The GIIN and the institution name are the filer's own identifiers, not their
+ * The TAN, GIIN and institution name are the filer's own identifiers, not their
  * customers', and they are needed to scope account keys and to show a filer
  * which of their own returns they are looking at.
  */
+import { IdentifierType, crsInstitutionIdentifier } from './identifiers';
 import {
   addDoc, collection, doc, getDocs, limit, orderBy, query, serverTimestamp, where, writeBatch,
 } from 'firebase/firestore';
@@ -38,8 +39,8 @@ export const FILING_RECORDS = 'records';
  * One account files for many institutions -- a management company files for
  * every fund and GBC it administers -- so a period is a (user, institution,
  * country, year), never just (user, country, year). Keyed on the identifier
- * the return carries in ReportingFI/IN (today the GIIN field), so a change of
- * identifier type does not change the ledger.
+ * the CRS return carries in ReportingFI/IN: the TAN for Mauritius, the GIIN
+ * elsewhere (src/crs/identifiers.js).
  */
 export function institutionKey(identifier) {
   if (typeof identifier !== 'string') return null;
@@ -60,7 +61,8 @@ const BATCH_LIMIT = 500;
 export async function recordFiling(db, {
   userId, settings, result, accountKeys, periodSequenceStart = 0,
 }) {
-  if (!institutionKey(settings.reportingFI.giin)) {
+  const identifier = crsInstitutionIdentifier(settings.reportingFI);
+  if (!identifier || !institutionKey(identifier.value)) {
     // A filing with no institution belongs to no period, so it could never be
     // found again to correct.
     throw new Error('The institution identifier is required to record a filing.');
@@ -68,6 +70,11 @@ export async function recordFiling(db, {
   const filingRef = await addDoc(collection(db, FILINGS), {
     userId,
     country: settings.reportingFI.country,
+    // Both, always: `tan` being present is also how a filing recorded after
+    // the TAN/GIIN split is told apart from one recorded before it.
+    // Only where the CRS return is filed under it, so a TAN typed in before
+    // switching jurisdiction is not attached to another country's filing.
+    tan: identifier.type === IdentifierType.TAN ? identifier.value : null,
     giin: settings.reportingFI.giin || null,
     institutionName: settings.reportingFI.name || null,
     taxYear: settings.taxYear,
@@ -118,7 +125,9 @@ export async function recordFiling(db, {
  * limit: a limit applied before the filter could cut off the very filings
  * being looked for, and a correction would then reference the wrong record.
  */
-export async function listFilings(db, { userId, institutionId, country, taxYear }) {
+export async function listFilings(db, {
+  userId, institutionId, idType = IdentifierType.GIIN, giin, country, taxYear,
+}) {
   const key = institutionKey(institutionId);
   if (!key) {
     // Without an institution the period is ambiguous, and an ambiguous ledger
@@ -132,9 +141,29 @@ export async function listFilings(db, { userId, institutionId, country, taxYear 
     where('taxYear', '==', taxYear),
     orderBy('createdAt', 'asc'),
   ));
-  return snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
-    .filter((f) => institutionKey(f.giin) === key);
+  const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  if (idType === IdentifierType.TAN) {
+    // Filings recorded before the TAN/GIIN split carry the GIIN only, and
+    // their account keys were hashed over it. Matching them to a TAN period
+    // is guesswork, and a wrong guess turns a correction into a duplicate new
+    // filing. So they are refused, never silently left out.
+    const legacy = all.filter((f) => !('tan' in f));
+    const entered = institutionKey(giin);
+    if (legacy.length > 0 && (!entered || legacy.some((f) => institutionKey(f.giin) === entered))) {
+      throw new Error(
+        entered
+          ? 'This institution has filings for this year recorded under its GIIN, before Mauritius CRS '
+            + 'returns moved to the TAN. They cannot be matched to the TAN safely, so corrections are '
+            + 'blocked for this period. Contact support to have them re-linked.'
+          : 'There are filings for this year recorded under a GIIN, before Mauritius CRS returns moved '
+            + 'to the TAN. Enter this institution\'s GIIN as well, so they can be told apart from it.',
+      );
+    }
+    return all.filter((f) => institutionKey(f.tan) === key);
+  }
+
+  return all.filter((f) => institutionKey(f.giin) === key);
 }
 
 /** Recent filings across all periods, for the filing history view. */
@@ -156,8 +185,12 @@ export async function listRecentFilings(db, { userId, max = 50 }) {
  * filed in the original return and corrected in a later one is only correct
  * when both are seen.
  */
-export async function loadPeriodRecords(db, { userId, institutionId, country, taxYear }) {
-  const filings = await listFilings(db, { userId, institutionId, country, taxYear });
+export async function loadPeriodRecords(db, {
+  userId, institutionId, idType, giin, country, taxYear,
+}) {
+  const filings = await listFilings(db, {
+    userId, institutionId, idType, giin, country, taxYear,
+  });
   if (filings.length === 0) return { filings: [], records: [], reportingFiDocRefId: null };
 
   const records = [];

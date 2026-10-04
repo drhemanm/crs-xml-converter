@@ -223,7 +223,7 @@ service cloud.firestore {
     // accident.
     function filingFields() {
       return [
-        'userId', 'country', 'giin', 'institutionName', 'taxYear',
+        'userId', 'country', 'tan', 'giin', 'institutionName', 'taxYear',
         'schemaVersion', 'filingMode', 'messageRefId', 'reportingFiDocRefId',
         'recordCount', 'createdAt'
       ];

@@ -88,7 +88,10 @@ export async function accountKey(accountNumber, scope) {
       'secure context (https). The conversion itself is unaffected.',
     );
   }
-  const material = `${scope.giin || ''}|${scope.country}|${scope.period}|${accountNumber}`;
+  // `institution` is the CRS identifier (src/crs/identifiers.js). For a
+  // GIIN-keyed jurisdiction it is the same value this field always held, so
+  // keys of earlier filings still match.
+  const material = `${scope.institution || ''}|${scope.country}|${scope.period}|${accountNumber}`;
   const digest = await subtle.digest('SHA-256', new TextEncoder().encode(material));
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, '0'))

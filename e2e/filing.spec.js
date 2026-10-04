@@ -37,7 +37,20 @@ test('a 2026 return is generated in v3.0 and passes the official schema', async 
   const out = await h.generate(page);
   expect(out.xml).toContain('urn:oecd:ties:crs:v3');
   expect(h.count(out.xml, 'AccountReport')).toBe(2);
+  // Mauritius CRS is filed under the TAN; the GIIN is FATCA's and stays out.
+  expect(out.xml).toContain('<SendingCompanyIN>20123456</SendingCompanyIN>');
+  expect(out.xml).toContain('<IN issuedBy="MU" INType="TAN">20123456</IN>');
+  expect(out.xml).not.toContain('ABC123.00000.MU.480');
   h.expectSchemaValid(out.path);
+});
+
+test('a Mauritius return without a TAN is not generated', async ({ page }) => {
+  const { file } = await h.templateRows(page);
+  await h.fillInstitution(page, { year: 2026 });
+  await page.getByPlaceholder('8-digit TAN').fill('');
+  await h.upload(page, file);
+  expect(await h.generate(page)).toBeNull();
+  await expect(page.getByText('TAN is required', { exact: false }).first()).toBeVisible();
 });
 
 // Regression: cells are read as displayed text, and a balance formatted

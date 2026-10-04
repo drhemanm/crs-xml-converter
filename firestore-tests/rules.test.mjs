@@ -176,7 +176,7 @@ await t('ordinary profile writes still work alongside all this', () => assertSuc
 console.log('\nthe filing ledger');
 await env.clearFirestore();
 const filing = () => ({
-  userId: 'alice', country: 'MU', giin: 'ABC123.00000.MU.480',
+  userId: 'alice', country: 'MU', tan: '20123456', giin: 'ABC123.00000.MU.480',
   institutionName: 'Test Bank Ltd', taxYear: 2024, schemaVersion: '2.0',
   filingMode: 'new', messageRefId: 'MU2024MSG1', reportingFiDocRefId: 'MU2024FI1',
   recordCount: 2, createdAt: serverTimestamp(),

@@ -106,3 +106,80 @@ describe('an unidentified institution', () => {
     expect(institutionKey(null)).toBeNull();
   });
 });
+
+describe('Mauritius periods are keyed on the TAN', () => {
+  const TAN_A = '20000001';
+  const TAN_B = '20000002';
+  const tanPeriod = (institutionId, giin) => loadPeriodRecords({}, {
+    userId: 'manco', institutionId, idType: 'TAN', giin, country: 'MU', taxYear: 2025,
+  });
+
+  beforeEach(() => {
+    mockStore.filings = [
+      { ...filing('fA', FUND_A, 'MU2025FI-A', 1), tan: TAN_A },
+      { ...filing('fB', FUND_B, 'MU2025FI-B', 2), tan: TAN_B },
+    ];
+  });
+
+  it("reads only the institution whose TAN was entered", async () => {
+    const b = await tanPeriod(TAN_B);
+    expect(b.filings.map((f) => f.id)).toEqual(['fB']);
+    expect(b.reportingFiDocRefId).toBe('MU2025FI-B');
+  });
+
+  it('does not match an institution by its GIIN once periods are TAN-keyed', async () => {
+    expect((await tanPeriod(FUND_B)).filings).toEqual([]);
+  });
+
+  describe('filings recorded before the TAN/GIIN split', () => {
+    beforeEach(() => {
+      // No `tan` field at all: recorded under the GIIN, account keys hashed over it.
+      mockStore.filings.push(filing('fLegacy', FUND_A, 'MU2025FI-OLD', 0));
+    });
+
+    it("block that institution's period instead of being silently left out", async () => {
+      await expect(tanPeriod(TAN_A, FUND_A)).rejects.toThrow(/recorded under its GIIN/);
+    });
+
+    it('ask for the GIIN when it is needed to tell whose they are', async () => {
+      await expect(tanPeriod(TAN_B)).rejects.toThrow(/Enter this institution's GIIN/);
+    });
+
+    it("leave another institution's period alone once its GIIN rules them out", async () => {
+      expect((await tanPeriod(TAN_B, FUND_B)).filings.map((f) => f.id)).toEqual(['fB']);
+    });
+  });
+
+  it('records the TAN and the GIIN as separate fields', async () => {
+    const firestore = require('firebase/firestore');
+    firestore.addDoc.mockResolvedValueOnce({ id: 'new' });
+    await recordFiling({}, {
+      userId: 'manco',
+      settings: { reportingFI: { tan: TAN_A, giin: FUND_A, country: 'MU', name: 'Fund A' }, taxYear: 2025 },
+      result: { ledgerEntries: [] },
+      accountKeys: new Map(),
+    });
+    expect(firestore.addDoc.mock.calls[0][1]).toMatchObject({ tan: TAN_A, giin: FUND_A });
+  });
+
+  it('refuses to record a Mauritius filing without a TAN, even with a GIIN', async () => {
+    await expect(recordFiling({}, {
+      userId: 'manco',
+      settings: { reportingFI: { tan: '', giin: FUND_A, country: 'MU' }, taxYear: 2025 },
+      result: { ledgerEntries: [] },
+      accountKeys: new Map(),
+    })).rejects.toThrow(/institution identifier is required/);
+  });
+});
+
+it('does not attach a TAN to a filing outside Mauritius', async () => {
+  const firestore = require('firebase/firestore');
+  firestore.addDoc.mockResolvedValueOnce({ id: 'ky' });
+  await recordFiling({}, {
+    userId: 'manco',
+    settings: { reportingFI: { tan: '20000001', giin: FUND_A, country: 'KY' }, taxYear: 2025 },
+    result: { ledgerEntries: [] },
+    accountKeys: new Map(),
+  });
+  expect(firestore.addDoc.mock.calls.at(-1)[1]).toMatchObject({ tan: null, giin: FUND_A });
+});

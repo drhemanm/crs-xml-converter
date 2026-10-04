@@ -61,6 +61,7 @@ const VALIDATION = { columnMappings: COLUMN_MAPPINGS };
 const SETTINGS = {
   reportingFI: {
     name: 'Test Bank Ltd',
+    tan: '20123456',
     giin: 'ABC123.00000.MU.480',
     country: 'MU',
     address: '1 Test Street',
@@ -608,6 +609,44 @@ describe('document structure', () => {
     expect(xml).not.toContain('<ControllingPerson>');
     // No phantom "controlling person self-certification not supplied" notice.
     expect(rowNotices.map((n) => n.message).join(' ')).not.toContain('Controlling person');
+  });
+});
+
+describe('the institution is identified as its CRS jurisdiction requires', () => {
+  const header = (xml) => {
+    const doc = parse(xml);
+    const fiIn = doc.getElementsByTagName('ReportingFI')[0].getElementsByTagName('IN')[0];
+    return {
+      sendingCompanyIN: doc.getElementsByTagName('SendingCompanyIN')[0].textContent,
+      in: fiIn.textContent,
+      inType: fiIn.getAttribute('INType'),
+      issuedBy: fiIn.getAttribute('issuedBy'),
+    };
+  };
+
+  it('files a Mauritius return under the TAN, in both places MRA reads it', () => {
+    const { xml } = gen([individualRow()]);
+    expect(header(xml)).toEqual({
+      sendingCompanyIN: '20123456', in: '20123456', inType: 'TAN', issuedBy: 'MU',
+    });
+  });
+
+  it('never puts the GIIN, the FATCA identifier, in a Mauritius CRS return', () => {
+    expect(gen([individualRow()]).xml).not.toContain('ABC123.00000.MU.480');
+  });
+
+  it('refuses a Mauritius return without a TAN rather than sending the GIIN', () => {
+    const noTan = { ...SETTINGS, reportingFI: { ...SETTINGS.reportingFI, tan: '' } };
+    expect(() => gen([individualRow()], noTan)).toThrow(/TAN is required/);
+  });
+
+  it('keeps the GIIN for jurisdictions whose CRS identifier has not been confirmed otherwise', () => {
+    const cayman = { ...SETTINGS, reportingFI: { ...SETTINGS.reportingFI, country: 'KY' } };
+    const { xml } = gen([individualRow()], cayman);
+    expect(header(xml)).toEqual({
+      sendingCompanyIN: 'ABC123.00000.MU.480', in: 'ABC123.00000.MU.480', inType: 'GIIN', issuedBy: 'KY',
+    });
+    expect(xml).not.toContain('20123456');
   });
 });
 
