@@ -585,6 +585,57 @@ files. A sponsoring entity or trustee that files CRS does so as the
 `ReportingFI`, under the TAN MRA registered. Filer categories are mapped with
 the FATCA output.
 
+### A17. Release blockers from the independent audit of 4 October 2026
+
+An independent audit rated the deployed app 5.5/10 and listed blockers for
+production filing. Each was checked against the code before it was fixed.
+
+**Fixed:**
+- **Row errors were never shown.** `validateCRSData` found them but the display
+  rendered only missing columns, so a filer was told to "fix the critical
+  errors above" with nothing above. Every blocking row is now listed with its
+  reasons, warnings likewise, and repeated advice is grouped. Generate moves
+  focus to the list. Browser test: a nameless individual row shows
+  `Row N` and the reason before generation.
+- **False assurance.** Analytics reported `xsd_compliant: true` while the app
+  records `xmlValidation: 'NOT_PERFORMED'`. The docs promised "compliant" files
+  with "digital signatures and validation included". All of it is removed, and
+  the result card now says the file was not validated against the XSD.
+- **Analytics before consent.** Firebase Analytics started on page load. It
+  now starts only after analytics consent (`src/consent.js`), stops when
+  consent is withdrawn and clears the `_ga` cookies. Fonts are bundled rather
+  than loaded from Google Fonts. Sign-up no longer opts users into marketing
+  email. Browser test: no request to Google Analytics, Tag Manager, Google
+  Fonts or PayPal before consent.
+- **Values in error text.** Raw error messages, which can quote a cell value
+  such as a date of birth, were sent to the audit log and to Analytics. Both
+  now go through the same `redact()` that Sentry uses.
+- **Billing stub.** `api/paypal-webhook.js` verified nothing and started the
+  Admin SDK on an open endpoint. It is deleted, along with `PayPalCheckout`,
+  the plan constants, the unused `firebase-admin-config.js`, the PayPal SDK
+  script and its CSP and Permissions-Policy entries, and every price in the
+  Terms and the documentation. Billing returns only as a verified,
+  server-side flow.
+- **Dialogs.** The sign-in, registration, cookie-preferences and mobile-menu
+  overlays use one `Dialog` component. It provides dialog semantics and a
+  label, moves focus in, traps Tab, closes on Escape, makes the page behind it
+  inert and returns focus. All icon-only close buttons are labelled. Browser
+  tests drive these with the keyboard.
+- **Policies.** The Privacy Policy and Terms contradicted the product: 24-hour
+  deletion of files never received, Stripe and AWS, AES-256 end-to-end
+  encryption, deletion of inactive accounts after 3 years, account settings
+  and paid plans. Both now describe the actual data flow and providers
+  (Firebase, Vercel, Sentry). **They have not had legal review.**
+- **GDPR requests.** `data_requests` accepts only the portal's fields, with a
+  bounded description. The page's "Sign in" instruction now comes with a
+  sign-in button.
+- The converter heading said "Three steps" over four numbered steps.
+
+**Still open from that audit:** in-browser XSD validation and a v2.0 XSD;
+replacing `xlsx@0.18.5`, whose fixed builds are published only on
+cdn.sheetjs.com; server-side metering and audit (prerequisite for billing);
+a staff workflow for data requests; migrating off Create React App.
+
 ### A1. Firestore rules, indexes and functions were never deployed
 
 > **Rules and indexes deployed to `crs-xml-converter-saas` on 27 July 2026**

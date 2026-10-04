@@ -25,7 +25,7 @@ import {
   collection,
   serverTimestamp
 } from 'firebase/firestore';
-import { getAnalytics, logEvent } from 'firebase/analytics';
+import { getAnalytics, logEvent, setAnalyticsCollectionEnabled } from 'firebase/analytics';
 
 // Icons
 import {
@@ -53,7 +53,9 @@ import { ISO_COUNTRY_CODES, ISO_CURRENCY_CODES } from '../crs/isoCodes';
 import {
   IdentifierType, IDENTIFIER_LABELS, crsIdentifierType, crsInstitutionIdentifier, validateTAN,
 } from '../crs/identifiers';
-import { reportError, isDataRejection } from '../monitoring';
+import { reportError, isDataRejection, redact } from '../monitoring';
+import Dialog from './Dialog';
+import { hasConsent, CONSENT_EVENT } from '../consent';
 
 // ==========================================
 // FIREBASE CONFIGURATION
@@ -73,7 +75,32 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const analytics = getAnalytics(app);
+
+// Analytics starts only once the filer accepts analytics cookies, and stops
+// collecting the moment they withdraw. Until then it is never initialised, so
+// Google Analytics sets no cookie and sends nothing.
+let analytics = null;
+const analyticsIfConsented = () => {
+  if (!hasConsent('analytics')) return null;
+  if (!analytics) analytics = getAnalytics(app);
+  return analytics;
+};
+if (typeof window !== 'undefined') {
+  window.addEventListener(CONSENT_EVENT, (event) => {
+    const granted = Boolean(event.detail && event.detail.analytics);
+    if (analytics) setAnalyticsCollectionEnabled(analytics, granted);
+    else if (granted) analyticsIfConsented();
+    if (!granted) {
+      // Withdrawal also removes what Analytics already stored.
+      document.cookie.split(';').map((c) => c.split('=')[0].trim())
+        .filter((name) => name === '_ga' || name.startsWith('_ga_'))
+        .forEach((name) => {
+          document.cookie = `${name}=; Max-Age=0; path=/`;
+          document.cookie = `${name}=; Max-Age=0; path=/; domain=.${window.location.hostname}`;
+        });
+    }
+  });
+}
 
 // Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
@@ -99,63 +126,9 @@ const AUDIT_COLLECTIONS = {
   SUBSCRIPTION_EVENTS: 'audit_subscription_events'
 };
 
-// Updated pricing plans
-const PRICING_PLANS = {
-  free: {
-    name: 'Free Plan',
-    price: 0,
-    conversions: 3,
-    paypalPlanId: null,
-    features: [
-      '3 conversions after registration',
-      'CRS v3.0 XML generation',
-      'Email support',
-      'Standard processing',
-      'GDPR compliant'
-    ],
-    buttonText: 'Current Plan',
-    popular: false,
-    color: 'gray'
-  },
-  professional: {
-    name: 'Professional',
-    price: 79,
-    conversions: 100,
-    paypalPlanId: process.env.REACT_APP_PAYPAL_PROFESSIONAL_PLAN_ID || 'P-37021577G4809293BNCWWCBI',
-    features: [
-      '100 conversions/month',
-      'CRS v3.0 & v2.0 XML generation',
-      'Priority email support',
-      'Usage analytics dashboard',
-      'Advanced validation',
-      'Conversion history',
-      'GIIN validation database'
-    ],
-    buttonText: 'Subscribe Now',
-    popular: true,
-    color: 'blue'
-  },
-  enterprise: {
-    name: 'Enterprise',
-    price: 299,
-    conversions: 1000,
-    paypalPlanId: process.env.REACT_APP_PAYPAL_ENTERPRISE_PLAN_ID || 'P-85257906JW695051MNCWWEIQ',
-    features: [
-      '1,000 conversions/month',
-      'CRS v3.0 & v2.0 XML generation',
-      'Priority phone + email support',
-      'Advanced analytics',
-      'Custom report branding',
-      'API access (rate limited)',
-      'Compliance consultation',
-      'Priority processing queue',
-      'Dedicated account management'
-    ],
-    buttonText: 'Subscribe Now',
-    popular: false,
-    color: 'purple'
-  }
-};
+// No paid plans are on sale. The plan constants, checkout component and
+// webhook stub that described them were removed until billing exists as a
+// verified, server-side flow; see AUDIT.md A17.
 
 // ==========================================
 // CRS CODE TABLES
@@ -877,7 +850,8 @@ const logAuditEvent = async (eventType, eventData, user = null) => {
 
 const trackEvent = (eventName, parameters = {}) => {
   try {
-    if (analytics) {
+    const instance = analyticsIfConsented();
+    if (instance) {
       const eventParams = {
         timestamp: new Date().toISOString(),
         session_id: getSessionId(),
@@ -892,7 +866,7 @@ const trackEvent = (eventName, parameters = {}) => {
         return acc;
       }, {});
 
-      logEvent(analytics, eventName, sanitizedParams);
+      logEvent(instance, eventName, sanitizedParams);
       if (process.env.NODE_ENV !== 'production') {
         console.log(`📊 Analytics Event: ${eventName}`, sanitizedParams);
       }
@@ -904,7 +878,6 @@ const trackEvent = (eventName, parameters = {}) => {
 
 export {
   // Constants
-  PRICING_PLANS,
   CRS_PAYMENT_TYPES,
   CRS_ACCOUNT_HOLDER_TYPES,
   CRS_ACCOUNT_TYPES,
@@ -3024,7 +2997,8 @@ const AuthProvider = ({ children }) => {
         savedGIINs: [],
         preferences: {
           emailNotifications: true,
-          marketingEmails: true,
+          // Marketing needs an explicit opt-in, which sign-up does not ask for.
+          marketingEmails: false,
           currency: 'USD',
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           crsVersion: '3.0',
@@ -3227,16 +3201,21 @@ const RegistrationPrompt = ({ onRegister, onLogin, onClose }) => {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-ink/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+    <Dialog
+      labelledBy="registration-prompt-title"
+      onClose={onClose}
+      className="fixed inset-0 z-50 bg-ink/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in"
+    >
       <div className="relative w-full max-w-[440px] rounded-card bg-white shadow-deep p-8 lg:p-10 animate-scale-in">
         <button
           onClick={onClose}
+          aria-label="Close"
           className="absolute top-5 right-5 p-1.5 text-ink-400 hover:text-ink transition-colors duration-300"
         >
-          <X className="w-5 h-5" strokeWidth={1.5} />
+          <X className="w-5 h-5" strokeWidth={1.5} aria-hidden="true" />
         </button>
 
-        <h2 className="font-display text-[30px] leading-[1.05] tracking-display text-ink pr-8">
+        <h2 id="registration-prompt-title" className="font-display text-[30px] leading-[1.05] tracking-display text-ink pr-8">
           You have used your free conversions
         </h2>
         <p className="mt-4 text-[15px] text-ink-500 leading-relaxed">
@@ -3264,7 +3243,7 @@ const RegistrationPrompt = ({ onRegister, onLogin, onClose }) => {
           {ANONYMOUS_LIMIT} without an account &middot; 3 more once registered
         </p>
       </div>
-    </div>
+    </Dialog>
   );
 };
 
@@ -3377,16 +3356,21 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-ink/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in">
+    <Dialog
+      labelledBy="auth-modal-title"
+      onClose={onClose}
+      className="fixed inset-0 z-50 bg-ink/60 backdrop-blur-sm flex items-center justify-center p-5 animate-fade-in"
+    >
       <div className="relative w-full max-w-[440px] max-h-[90vh] overflow-y-auto scroll-quiet rounded-card bg-white shadow-deep p-8 lg:p-10 animate-scale-in">
         <button
           onClick={onClose}
+          aria-label="Close"
           className="absolute top-5 right-5 p-1.5 text-ink-400 hover:text-ink transition-colors duration-300"
         >
-          <X className="w-5 h-5" strokeWidth={1.5} />
+          <X className="w-5 h-5" strokeWidth={1.5} aria-hidden="true" />
         </button>
 
-        <h2 className="font-display text-[30px] leading-[1.05] tracking-display text-ink pr-8">
+        <h2 id="auth-modal-title" className="font-display text-[30px] leading-[1.05] tracking-display text-ink pr-8">
           {showResetForm ? 'Reset your password' : isLogin ? 'Sign in' : 'Create an account'}
         </h2>
 
@@ -3549,7 +3533,7 @@ const AuthModal = ({ isOpen, onClose, initialMode = 'login' }) => {
           </>
         )}
       </div>
-    </div>
+    </Dialog>
   );
 };
 
@@ -3641,6 +3625,7 @@ const Navigation = () => {
                   <button
                     onClick={handleLogout}
                     title="Sign out"
+                    aria-label="Sign out"
                     className="p-2 text-ink-400 hover:text-ink transition-colors duration-300"
                   >
                     <LogOut className="w-[18px] h-[18px]" strokeWidth={1.5} />
@@ -3672,10 +3657,14 @@ const Navigation = () => {
       </nav>
 
       {isMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-ink/95 backdrop-blur-sm md:hidden animate-fade-in">
+        <Dialog
+          label="Menu"
+          onClose={() => setIsMenuOpen(false)}
+          className="fixed inset-0 z-50 bg-ink/95 backdrop-blur-sm md:hidden animate-fade-in"
+        >
           <div className="flex justify-end p-5">
-            <button onClick={() => setIsMenuOpen(false)} className="p-2 text-white">
-              <X className="w-7 h-7" strokeWidth={1.5} />
+            <button onClick={() => setIsMenuOpen(false)} aria-label="Close menu" className="p-2 text-white">
+              <X className="w-7 h-7" strokeWidth={1.5} aria-hidden="true" />
             </button>
           </div>
           <div className="flex flex-col items-center justify-center gap-8 h-[70vh]">
@@ -3709,7 +3698,7 @@ const Navigation = () => {
               )}
             </div>
           </div>
-        </div>
+        </Dialog>
       )}
 
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} initialMode={authMode} />
@@ -3855,11 +3844,47 @@ const HeroSection = () => {
 // VALIDATION RESULTS DISPLAY COMPONENT
 // ==========================================
 
+// How many rows a validation list shows before "and N more". The full list is
+// in the upload; this keeps a 5,000-row file from rendering 5,000 list items.
+const ROW_ISSUE_LIMIT = 25;
+
+/** Per-row problems from validateCRSData, each row with its reasons. */
+const RowIssueList = ({ entries }) => (
+  <>
+    <ul className="space-y-1.5 max-h-56 overflow-y-auto scroll-quiet">
+      {entries.slice(0, ROW_ISSUE_LIMIT).map((entry) => (
+        <li key={entry.row} className="text-[14px] text-ink-700 leading-snug">
+          <span className="tabular text-ink-400">Row {entry.row}</span> — {entry.errors.join('; ')}
+        </li>
+      ))}
+    </ul>
+    {entries.length > ROW_ISSUE_LIMIT && (
+      <p className="mt-2 text-[13px] text-ink-400">and {entries.length - ROW_ISSUE_LIMIT} more rows</p>
+    )}
+  </>
+);
+
+/**
+ * Advice that applies to many rows at once (e.g. "payment information
+ * recommended"), shown once per message with the number of rows it covers
+ * rather than repeated on every row.
+ */
+const groupByMessage = (entries) => {
+  const counts = new Map();
+  entries.forEach((entry) => entry.errors.forEach((message) => {
+    counts.set(message, (counts.get(message) || 0) + 1);
+  }));
+  return Array.from(counts, ([message, rows]) => ({ message, rows }));
+};
+
 const ValidationResultsDisplay = ({ validation }) => {
   if (!validation || Object.keys(validation).length === 0) return null;
+  const rowCritical = validation.dataIssues?.critical || [];
+  const rowWarnings = validation.dataIssues?.warnings || [];
+  const rowAdvice = groupByMessage(validation.dataIssues?.recommendations || []);
 
   return (
-    <div className="mt-6 rounded-card hairline bg-white overflow-hidden">
+    <div id="validation-results" tabIndex={-1} className="mt-6 rounded-card hairline bg-white overflow-hidden outline-none">
       <div className="px-6 py-5 hairline-b flex items-center justify-between gap-4">
         <div>
           <div className="text-[13px] text-ink-400">Validation</div>
@@ -3884,6 +3909,40 @@ const ValidationResultsDisplay = ({ validation }) => {
             <ul className="space-y-1.5">
               {validation.missingColumns.critical.map((col, index) => (
                 <li key={index} className="text-[14px] text-ink-700 leading-snug">{col.description}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {rowCritical.length > 0 && (
+          <div className="rounded-field bg-critical-wash border border-critical/15 p-4">
+            <p className="text-[13px] font-medium text-critical mb-2">
+              {rowCritical.length} {rowCritical.length === 1 ? 'row has' : 'rows have'} errors that block the file
+            </p>
+            <p className="text-[13px] text-ink-500 mb-3 leading-snug">
+              Row numbers count data rows, starting after the header row.
+            </p>
+            <RowIssueList entries={rowCritical} />
+          </div>
+        )}
+
+        {rowWarnings.length > 0 && (
+          <div className="rounded-field bg-caution-wash border border-caution/15 p-4">
+            <p className="text-[13px] font-medium text-caution mb-2">
+              {rowWarnings.length} {rowWarnings.length === 1 ? 'row has' : 'rows have'} warnings
+            </p>
+            <RowIssueList entries={rowWarnings} />
+          </div>
+        )}
+
+        {rowAdvice.length > 0 && (
+          <div className="rounded-field bg-ink-50 border border-ink-100 p-4">
+            <p className="text-[13px] font-medium text-ink-500 mb-2">Suggestions</p>
+            <ul className="space-y-1.5">
+              {rowAdvice.map(({ message, rows }) => (
+                <li key={message} className="text-[14px] text-ink-600 leading-snug">
+                  {message} <span className="tabular text-ink-400">({rows} {rows === 1 ? 'row' : 'rows'})</span>
+                </li>
               ))}
             </ul>
           </div>
@@ -4122,7 +4181,8 @@ const CRSConverter = () => {
       
       void logAuditEvent('file_processing_error', {
         filename: file.name,
-        error: err.message,
+        // Error text can quote a cell value; it leaves the browser redacted.
+        error: redact(err.message),
         crsVersion: '3.0'
       }, user);  
       
@@ -4171,7 +4231,13 @@ const CRSConverter = () => {
     const isNil = filingMode === FilingMode.Nil;
 
     if (!isNil && !validationResults.canGenerate) {
-      setError('Please fix the critical errors above before generating XML');
+      setError('Please fix the errors listed under Validation before generating XML');
+      // Take the filer to the reasons rather than leaving them to find them.
+      const panel = document.getElementById('validation-results');
+      if (panel) {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        panel.focus({ preventScroll: true });
+      }
       return;
     }
 
@@ -4352,14 +4418,16 @@ const CRSConverter = () => {
       if (!isDataRejection(err)) reportError(err, 'conversion');
       
       void logAuditEvent('xml_conversion_error', {
-        error: err.message,
+        // Error text can quote a cell value; it leaves the browser redacted.
+        error: redact(err.message),
         recordCount: data.length,
         crsVersion: settings.schemaVersion
       }, user);
 
       setError(`Conversion failed: ${err.message}`);
       trackEvent('conversion_error', {
-        error: err.message,
+        // Error text can quote a cell value; it leaves the browser redacted.
+        error: redact(err.message),
         user_type: user ? 'registered' : 'anonymous',
         crs_version: settings.schemaVersion
       });
@@ -4402,8 +4470,10 @@ const CRSConverter = () => {
       file_type: 'xml',
       record_count: result.recordCount,
       user_type: user ? 'registered' : 'anonymous',
-      crs_version: '3.0',
-      xsd_compliant: true
+      crs_version: result.crsVersion,
+      // The browser does not validate against the XSD, so nothing here may
+      // say the file is schema-valid.
+      xsd_validation: 'not_performed'
     });
   };
 
@@ -4449,11 +4519,11 @@ const CRSConverter = () => {
           <div className="max-w-prose">
             <div className="text-[13px] text-ink-400">Converter</div>
             <h2 className="mt-3 font-display text-[38px] sm:text-[52px] lg:text-[64px] leading-[0.98] tracking-display text-ink">
-              Three steps to a return
+              Four steps to a return
             </h2>
             <p className="mt-5 text-lg text-ink-500 leading-relaxed">
-              Upload your extract, tell us who is reporting, and generate. Nothing is sent anywhere
-              &mdash; the file is read and converted on this device.
+              Choose what you are filing, upload your extract, tell us who is reporting, and generate.
+              Your spreadsheet is never sent anywhere &mdash; it is read and converted on this device.
             </p>
           </div>
 
@@ -4885,6 +4955,12 @@ const CRSConverter = () => {
                         <div className="mt-1 text-[13px] text-white/50 tabular">
                           CRS v{result.crsVersion} &middot; Tax year {settings.taxYear} &middot;{' '}
                           {Math.round(result.xml.length / 1024)}KB &middot; {result.processingTime}ms
+                        </div>
+                        {/* Stated plainly so nobody files on the assumption the
+                            converter checked more than it did. */}
+                        <div className="mt-2 text-[13px] text-white/60">
+                          Not validated against the XSD here. Check it against the official schema
+                          and your authority&rsquo;s portal before filing.
                         </div>
                         {/* Whether this filing can be corrected later depends
                             entirely on whether its references were recorded. */}

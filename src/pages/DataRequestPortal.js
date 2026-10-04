@@ -5,7 +5,7 @@ import {
   addDoc, collection, getDocs, limit, orderBy, query, serverTimestamp, where,
 } from 'firebase/firestore';
 import { Download, Trash2, Edit, Eye, ArrowLeft, Shield, Calendar, AlertTriangle, CheckCircle, Clock, Mail } from 'lucide-react';
-import { auth, db } from '../components/CRSXMLConverter';
+import { auth, db, AuthProvider, AuthModal } from '../components/CRSXMLConverter';
 
 const SUPPORT_EMAIL = 'contacts@evologics.ai';
 
@@ -19,6 +19,8 @@ const DataRequestPortal = () => {
   // hold personal data only for registered accounts.
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
+  // The page tells signed-out visitors to sign in, so it has to offer a way to.
+  const [showSignIn, setShowSignIn] = useState(false);
   const [requests, setRequests] = useState([]);
   const [requestsError, setRequestsError] = useState(null);
   const [submitError, setSubmitError] = useState(null);
@@ -289,14 +291,29 @@ const DataRequestPortal = () => {
               </div>
             </div>
 
-            <a
-              href={requestType ? mailtoHref() : `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('GDPR request')}`}
-              className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent-soft text-white rounded-card font-medium transition-colors"
-            >
-              <Mail className="w-4 h-4 mr-2" />
-              Email {SUPPORT_EMAIL}
-            </a>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setShowSignIn(true)}
+                className="inline-flex items-center px-6 py-3 bg-ink hover:bg-ink-800 text-white rounded-card font-medium transition-colors"
+              >
+                Sign in
+              </button>
+              <a
+                href={requestType ? mailtoHref() : `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('GDPR request')}`}
+                className="inline-flex items-center px-6 py-3 bg-accent hover:bg-accent-soft text-white rounded-card font-medium transition-colors"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Email {SUPPORT_EMAIL}
+              </a>
+            </div>
           </div>
+        )}
+
+        {showSignIn && (
+          <AuthProvider>
+            <AuthModal isOpen onClose={() => setShowSignIn(false)} initialMode="login" />
+          </AuthProvider>
         )}
 
         {activeTab === 'request' && authReady && user && (
@@ -417,6 +434,7 @@ const DataRequestPortal = () => {
                         value={formData.description}
                         onChange={handleInputChange}
                         rows={4}
+                        maxLength={5000}
                         className="w-full px-4 py-3 bg-ink-50 border border-gray-600 rounded-card text-ink placeholder-gray-400 focus:outline-none focus:border-accent"
                         placeholder="Please provide any additional information that might help us process your request..."
                       />

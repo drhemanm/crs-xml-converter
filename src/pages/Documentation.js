@@ -126,7 +126,7 @@ const Documentation = () => {
                         <div className="text-accent">
                           <p className="font-medium">Key Benefits:</p>
                           <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
-                            <li>Automated compliance reporting</li>
+                            <li>Generates CRS XML in the OECD v2.0 or v3.0 structure</li>
                             <li>Standardized XML format</li>
                             <li>Reduced manual errors</li>
                             <li>Time-saving bulk conversions</li>
@@ -157,42 +157,20 @@ const Documentation = () => {
                         <div className="bg-accent text-white rounded-full w-8 h-8 flex items-center justify-center font-bold mr-4 mt-1">3</div>
                         <div>
                           <h4 className="font-semibold text-ink">Convert & Download</h4>
-                          <p className="text-ink-600">Click "Convert to XML" and download your compliant CRS XML file.</p>
+                          <p className="text-ink-600">Click "Generate" and download your CRS XML file. Validate it against the official schema and your authority's portal checks before filing.</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-xl font-semibold text-ink mb-4">Service Plans</h3>
-                    <div className="grid md:grid-cols-3 gap-4">
-                      <div className="bg-ink-50 rounded-card p-4 border border-ink-100">
-                        <h4 className="font-semibold text-ink mb-2">Free Plan</h4>
-                        <p className="text-2xl font-bold text-accent mb-2">$0</p>
-                        <ul className="text-sm text-ink-600 space-y-1">
-                          <li>• 6 total conversions</li>
-                          <li>• Basic XML generation</li>
-                          <li>• Email support</li>
-                        </ul>
-                      </div>
-                      <div className="bg-ink-50 rounded-card p-4 border border-accent/50">
-                        <h4 className="font-semibold text-ink mb-2">Professional</h4>
-                        <p className="text-2xl font-bold text-accent mb-2">$79/month</p>
-                        <ul className="text-sm text-ink-600 space-y-1">
-                          <li>• 100 conversions/month</li>
-                          <li>• Priority support</li>
-                          <li>• Analytics dashboard</li>
-                        </ul>
-                      </div>
-                      <div className="bg-ink-50 rounded-card p-4 border border-ink-100">
-                        <h4 className="font-semibold text-ink mb-2">Enterprise</h4>
-                        <p className="text-2xl font-bold text-accent mb-2">$299/month</p>
-                        <ul className="text-sm text-ink-600 space-y-1">
-                          <li>• 1,000 conversions/month</li>
-                          <li>• Dedicated support</li>
-                          <li>• Custom integrations</li>
-                        </ul>
-                      </div>
+                    <h3 className="text-xl font-semibold text-ink mb-4">Usage</h3>
+                    <div className="bg-ink-50 rounded-card p-4 border border-ink-100">
+                      <ul className="text-sm text-ink-600 space-y-1">
+                        <li>• 3 conversions in a browser without an account</li>
+                        <li>• 3 conversions per calendar month with a free account</li>
+                        <li>• No paid plans are on sale at present</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
@@ -402,10 +380,10 @@ const Documentation = () => {
                             <h4 className="text-xl font-semibold text-ink mb-3">XML Generation</h4>
                             <div className="bg-ink-50 rounded-card p-4 mb-4">
                               <ul className="text-ink-600 space-y-2">
-                                <li>• Compliant CRS XML file is generated</li>
-                                <li>• Proper XML schema and namespaces applied</li>
-                                <li>• Digital signatures and validation included</li>
-                                <li>• File ready for submission to tax authorities</li>
+                                <li>• A CRS XML file is generated in the schema version you chose</li>
+                                <li>• The OECD namespaces for that version are applied</li>
+                                <li>• Rows that cannot be converted are listed with the reason, not filled in</li>
+                                <li>• The file is not signed and is not validated against the XSD in the browser</li>
                               </ul>
                             </div>
                           </div>
@@ -419,8 +397,8 @@ const Documentation = () => {
                             <h4 className="text-xl font-semibold text-ink mb-3">Download & Submit</h4>
                             <div className="bg-ink-50 rounded-card p-4 mb-4">
                               <ul className="text-ink-600 space-y-2">
-                                <li>• Download your compliant XML file</li>
-                                <li>• Verify the XML structure if needed</li>
+                                <li>• Download your XML file</li>
+                                <li>• Validate it against the official XSD before submitting</li>
                                 <li>• Submit to relevant tax authorities</li>
                                 <li>• Keep a copy for your records</li>
                               </ul>
@@ -525,13 +503,12 @@ const Documentation = () => {
                           <AlertTriangle className="w-5 h-5 text-caution mr-2 mt-0.5 flex-shrink-0" />
                           <h4 className="font-semibold text-caution">Conversion taking longer than expected</h4>
                         </div>
-                        <p className="text-ink-600 mb-3">Large files may take several minutes to process.</p>
+                        <p className="text-ink-600 mb-3">Very large files take longer on slower devices.</p>
                         <div className="bg-ink-50 rounded p-3">
                           <p className="text-accent text-sm font-semibold">What to do:</p>
                           <ul className="text-ink-600 text-sm mt-2 space-y-1">
                             <li>• Please be patient, do not refresh the page</li>
-                            <li>• Large files (5,000+ records) can take 5-10 minutes</li>
-                            <li>• Professional and Enterprise users get priority processing</li>
+                            <li>• Conversion runs in your browser, so speed depends on your device; 5,000 accounts usually take seconds</li>
                           </ul>
                         </div>
                       </div>
@@ -638,7 +615,7 @@ const Documentation = () => {
                     <h3 className="text-xl font-semibold text-ink mb-4">Interested in API Access?</h3>
                     <div className="bg-ink-50 rounded-card p-6 border border-ink-100">
                       <p className="text-ink-600 mb-4">
-                        Join our waitlist to be notified when the API becomes available. Enterprise customers will get early access.
+                        Join our waitlist to be notified when the API becomes available.
                       </p>
                       <div className="flex flex-wrap gap-4">
                         <Link 

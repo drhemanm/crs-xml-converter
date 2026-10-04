@@ -87,6 +87,23 @@ test('a 2026 row without an account type is refused rather than sentinelled', as
   await expect(page.getByText(/account_type is required/).first()).toBeVisible();
 });
 
+// Regression: rows that block the file were counted ("1 of 2 rows ready") but
+// their reasons were never shown, so a filer could not tell what to fix.
+test('a row that blocks the file is shown with its reason before generating', async ({ page }) => {
+  const { rows } = await h.templateRows(page);
+  const i = rows.findIndex((r) => String(r.holder_type).toLowerCase() === 'individual');
+  expect(i).toBeGreaterThanOrEqual(0);
+  const file = h.writeCsv('nameless', rows.map((r, n) => (n === i ? { ...r, first_name: '' } : r)));
+  await h.fillInstitution(page, { year: 2026 });
+  await h.upload(page, file);
+  const panel = page.locator('#validation-results');
+  await expect(panel.getByText('1 row has errors that block the file')).toBeVisible();
+  await expect(panel.getByText(`Row ${i + 1}`)).toBeVisible();
+  await expect(panel.getByText(/Complete name \(first and last\) required/)).toBeVisible();
+  expect(await h.generate(page)).toBeNull();
+  await expect(panel).toBeFocused();
+});
+
 test('a file that is not a spreadsheet is refused with a message', async ({ page }) => {
   const fs = require('fs'); const os = require('os'); const path = require('path');
   const file = path.join(os.tmpdir(), 'notes.txt');

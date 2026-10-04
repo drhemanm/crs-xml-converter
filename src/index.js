@@ -1,5 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+// Fonts are bundled and served from this site. Loading them from Google Fonts
+// sent every visitor's IP address to Google before they could consent.
+import '@fontsource/dm-sans/400.css';
+import '@fontsource/dm-sans/500.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/jetbrains-mono/400.css';
 import './index.css';
 import App from './App';
 import { initMonitoring, ErrorBoundary } from './monitoring';

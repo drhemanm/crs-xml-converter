@@ -41,6 +41,52 @@ test.describe('accessibility (WCAG 2.2 AA)', () => {
     expect(summarise((await wcag(page)).violations)).toEqual([]);
   });
 
+  // axe does not see focus behaviour, so dialogs are driven with the keyboard.
+  const focusIsIn = (page, dialog) => dialog.evaluate((node) => node.contains(document.activeElement));
+
+  test('the sign-in dialog holds focus, closes on Escape and returns focus', async ({ page }) => {
+    await page.goto('/');
+    const opener = page.getByRole('button', { name: 'Sign in', exact: true });
+    await opener.click();
+    const dialog = page.getByRole('dialog', { name: 'Sign in' });
+    await expect(dialog).toBeVisible();
+    expect(await focusIsIn(page, dialog)).toBe(true);
+    for (let i = 0; i < 25; i++) {
+      await page.keyboard.press(i % 7 === 6 ? 'Shift+Tab' : 'Tab');
+      expect(await focusIsIn(page, dialog), `focus left the dialog after ${i + 1} presses`).toBe(true);
+    }
+    await settle(page);
+    expect(summarise((await wcag(page)).violations)).toEqual([]);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(opener).toBeFocused();
+  });
+
+  test('the mobile menu is a labelled dialog that Escape closes', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    const opener = page.getByRole('button', { name: 'Open menu' });
+    await opener.click();
+    const dialog = page.getByRole('dialog', { name: 'Menu' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Close menu' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(opener).toBeFocused();
+  });
+
+  test('the cookie preferences dialog has labelled toggles and closes on Escape', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Customize' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Cookie Preferences' });
+    await expect(dialog).toBeVisible();
+    for (const name of ['Analytics cookies', 'Functional cookies', 'Marketing cookies']) {
+      await expect(dialog.getByRole('checkbox', { name })).toHaveCount(1);
+    }
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+  });
+
   test('a file can be chosen with the keyboard alone', async ({ page }) => {
     await page.goto('/');
     let reached = false;
@@ -68,6 +114,16 @@ test.describe('security', () => {
     // Third-party origins (analytics, Firebase) are unreachable in CI; only
     // refusals of the app's own resources are failures.
     expect(violations.filter((v) => /127\.0\.0\.1|'self'|inline/i.test(v))).toEqual([]);
+  });
+
+  test('nothing third-party is requested before the visitor consents', async ({ page }) => {
+    const requested = [];
+    page.on('request', (r) => requested.push(r.url()));
+    await page.goto('/');
+    await page.waitForTimeout(3000);
+    const tracking = requested.filter((u) =>
+      /google-analytics\.com|googletagmanager\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|paypal\.com/.test(u));
+    expect(tracking).toEqual([]);
   });
 
   test('the CSP refuses an injected inline script', async ({ page }) => {
