@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSpy v2012 rel. 2 sp1 (x64) (http://www.altova.com) by Sebastien Michon (OECD) -->
+<xsd:schema xmlns:ftc="urn:oecd:ties:fatca:v1" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:cfc="urn:oecd:ties:commontypesfatcacrs:v2" xmlns:stf="urn:oecd:ties:crsstf:v5" xmlns:iso="urn:oecd:ties:isocrstypes:v1" targetNamespace="urn:oecd:ties:fatca:v1" elementFormDefault="qualified" attributeFormDefault="unqualified" version="1.2">
+	<xsd:import namespace="urn:oecd:ties:isocrstypes:v1" schemaLocation="isocrstypes_v1.1.xsd"/>
+	<xsd:import namespace="urn:oecd:ties:crsstf:v5" schemaLocation="oecdcrstypes_v5.0.xsd"/>
+	<xsd:import namespace="urn:oecd:ties:commontypesfatcacrs:v2" schemaLocation="CommonTypesFatcaCrs_v2.0.xsd"/>
+	<!--+++++++++++++++++++++++  Reusable Simple types ++++++++++++++++++++++++++++++++++++++ -->
+	<!-- -->
+	<!-- Pool Reporting for Recalcitrant and Dormant Accounts Type - 2 -->
+	<xsd:simpleType name="FatcaAcctPoolReportType_EnumType">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">Account Pool Reporting Type</xsd:documentation>
+		</xsd:annotation>
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="FATCA201">
+				<xsd:annotation>
+					<xsd:documentation>Recalcitrant account holders with US Indicia</xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+			<xsd:enumeration value="FATCA202">
+				<xsd:annotation>
+					<xsd:documentation>Recalcitrant account holders without US Indicia</xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+			<xsd:enumeration value="FATCA203">
+				<xsd:annotation>
+					<xsd:documentation>Dormant accounts</xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+			<xsd:enumeration value="FATCA204">
+				<xsd:annotation>
+					<xsd:documentation>Non-participating foreign financial institutions</xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+			<xsd:enumeration value="FATCA205">
+				<xsd:annotation>
+					<xsd:documentation>Recalcitrant account holders that are US persons</xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+			<xsd:enumeration value="FATCA206">
+				<xsd:annotation>
+					<xsd:documentation>Recalcitrant account holders that are passive NFFEs</xsd:documentation>
+				</xsd:annotation>
+			</xsd:enumeration>
+		</xsd:restriction>
+	</xsd:simpleType>
+	<!--  -->
+	<!-- Correctable Pool Report -->
+	<xsd:complexType name="CorrectablePoolReport_Type">
+		<xsd:sequence>
+			<xsd:element name="DocSpec" type="stf:DocSpec_Type"/>
+			<xsd:element name="AccountCount" type="xsd:integer"/>
+			<xsd:element name="AccountPoolReportType" type="ftc:FatcaAcctPoolReportType_EnumType"/>
+			<xsd:element name="PoolBalance" type="cfc:MonAmnt_Type"/>
+		</xsd:sequence>
+	</xsd:complexType>
+	<!--  -->
+</xsd:schema>
