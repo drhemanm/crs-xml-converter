@@ -22,9 +22,16 @@ and should be detected automatically:
 | Output Directory | `apps/web/dist` |
 | Node.js Version | 22.x |
 
-There are **no environment variables**. The application has no backend, no
-API keys and no analytics — which is the point: it makes no network requests
-at all after loading.
+The application has an optional connected workspace backed by the dedicated
+`taxmu` Supabase project. The browser uses a Supabase **publishable** key only;
+no service-role or database credential is shipped to the client. Optional
+environment overrides are `VITE_SUPABASE_URL` and
+`VITE_SUPABASE_PUBLISHABLE_KEY`.
+
+In local evaluation mode no filing data leaves the browser. In connected mode,
+only organisation/FI metadata, opaque DocRefIds, lifecycle state, pseudonymous
+business keys, hashes and authority-response metadata are synchronised.
+Spreadsheets, account-holder names, TINs and balances are not uploaded.
 
 > Leave "Include files outside the Root Directory" enabled (the default).
 > The web app imports the workspace packages at `platform/packages/*`, which
@@ -44,10 +51,10 @@ existing deployment.
 `platform/vercel.json` sets the build and a security header block. Two of
 those headers matter more than the rest:
 
-- **`Content-Security-Policy` with `connect-src 'self'`** — this is the
-  enforcement behind the claim that account data never leaves the browser.
-  The application makes no outbound requests, and this makes that a rule the
-  browser applies rather than a promise the vendor makes.
+- **`Content-Security-Policy` with a narrow `connect-src`** — only the app
+  origin and the dedicated `taxmu` Supabase HTTPS endpoint are allowed. This
+  permits authenticated filing-metadata persistence without allowing arbitrary
+  third-party exfiltration.
 - **`frame-ancestors 'none'`** — browsers *ignore* `frame-ancestors` when it
   arrives in a `<meta>` tag, so it can only be set here. The `<meta>` CSP in
   `apps/web/index.html` deliberately omits it rather than appearing to protect
@@ -61,10 +68,10 @@ validated without being uploaded.
 
 After the first deploy, confirm the two things that distinguish this product:
 
-1. Open the network panel, upload a file and generate a return. There should
-   be **no requests to any host other than the deployment's own origin**. This
-   is asserted by an end-to-end test (`apps/web/e2e/filing.spec.ts`) and should
-   hold in production too.
+1. In local evaluation mode, upload a file and generate a return. There should
+   be no request carrying spreadsheet or XML content. In connected mode,
+   requests may go only to the configured Supabase project and must contain
+   filing metadata, never account-holder source rows or generated XML.
 2. Check the response headers include the CSP above. `curl -sI <url> | grep -i
    content-security-policy`.
 
@@ -76,6 +83,7 @@ browsers will not load the app.
 
 ## Caveat worth stating to users
 
-The OECD XSDs are not vendored into this repository, so deployed builds report
-documents as *"not schema-validated"* rather than claiming a validation they
-have not performed. See the "Before production" section of `README.md`.
+CRS v2.0/v3.0 schema bundles are shipped with the platform and validation is a
+blocking generation gate. FATCA currently runs the IRS v2 structural backstop
+and remains explicitly in pre-validation mode until the exact v2.0.1 bundle
+and an MRA acceptance test are completed.
