@@ -14,6 +14,7 @@
 import { InMemoryLedger, type LedgerEntry } from "@crs/core";
 
 const KEY = "crs.ledger.v1";
+const HMAC_KEY = "crs.ledger.hmac.v1";
 
 export function loadLedger(): InMemoryLedger {
   try {
@@ -40,4 +41,24 @@ export function clearLedger(): void {
 
 export function exportLedger(ledger: InMemoryLedger): string {
   return JSON.stringify({ version: 1, entries: ledger.all() }, null, 2);
+}
+
+
+/**
+ * Evaluation-mode per-device HMAC key.
+ *
+ * Never derive this from TAN/GIIN or another public identifier. A predictable
+ * HMAC key turns the ledger's pseudonymous business keys into guessable data.
+ * Production replaces this with a per-tenant key managed outside the account
+ * data plane.
+ */
+export function getLocalLedgerHmacSecret(): string {
+  const existing = localStorage.getItem(HMAC_KEY);
+  if (existing) return existing;
+
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const secret = btoa(String.fromCharCode(...bytes));
+  localStorage.setItem(HMAC_KEY, secret);
+  return secret;
 }
