@@ -26,6 +26,25 @@
   --radius: 6px;
 }
 
+/* Company operations use the same workspace tokens and readable forms. */
+.commercial-nav { margin-top: 26px; border-top: 1px solid var(--border); padding-top: 18px; }
+.commercial-page { max-width: 1120px; margin: 0 auto; }
+.commercial-page h1 { margin-bottom: 8px; }
+.commercial-page > section, .commercial-page > section > section { margin-top: 24px; }
+.commercial-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+.commercial-heading h2 { margin: 0; }
+.commercial-metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 24px; }
+.commercial-metrics span { display: block; color: var(--fg-muted); font-size: 13px; }
+.commercial-metrics strong { display: block; font-size: 28px; margin-top: 8px; }
+.commercial-metrics small { color: var(--fg-muted); font-size: 17px; font-weight: 400; }
+.commercial-metrics progress { width: 100%; max-width: 320px; height: 8px; accent-color: var(--accent); }
+.commercial-summary .commercial-metrics { margin: 24px 0; }
+.commercial-form { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 22px; }
+.commercial-form > label { display: block; margin: 18px 0; }
+.commercial-checkbox { display: flex !important; gap: 10px; align-items: center; }
+.commercial-checkbox input { width: auto; min-height: auto; }
+.block { display: block; margin-top: 5px; }
+
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #14171b;

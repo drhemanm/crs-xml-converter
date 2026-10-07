@@ -22,6 +22,11 @@ gate before the product is described as MRA-approved or production-certified.
 
 See [DESIGN.md](DESIGN.md) for the interface philosophy and state-safety behaviour. Use Node.js 22 and the pinned pnpm 10.33.0 version.
 
+See [COMMERCIAL.md](COMMERCIAL.md) for Evologics operator administration,
+company usage, annual licences, payment requests and activation gates. Billing
+code is present but live payments require deployment, merchant configuration
+and sandbox acceptance. Prices are unset by default.
+
 ## Why it is built this way
 
 Four decisions drive everything else.
