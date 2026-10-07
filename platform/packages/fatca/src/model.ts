@@ -1,36 +1,37 @@
 /**
  * FATCA v2.0.1 domain types.
  *
- * FATCA is deliberately separate from CRS. They share low-level person,
- * address and amount shapes where that is safe, but never share lifecycle
- * codes or schema assumptions.
+ * FATCA is deliberately separate from CRS. They may share low-level concepts,
+ * but never lifecycle codes or schema assumptions.
  */
 
-export const FatcaMessageTypeIndic = {
+export const FatcaRecordDocTypeIndic = {
   New: "FATCA1",
   Corrected: "FATCA2",
   Void: "FATCA3",
   Amended: "FATCA4",
 } as const;
-export type FatcaMessageTypeIndic =
-  (typeof FatcaMessageTypeIndic)[keyof typeof FatcaMessageTypeIndic];
+export type FatcaRecordDocTypeIndic =
+  (typeof FatcaRecordDocTypeIndic)[keyof typeof FatcaRecordDocTypeIndic];
 
-export const FatcaDocTypeIndic = {
+export const FatcaAccountDocTypeIndic = {
   New: "FATCA11",
   Corrected: "FATCA12",
   Void: "FATCA13",
   Amended: "FATCA14",
 } as const;
-export type FatcaDocTypeIndic =
-  (typeof FatcaDocTypeIndic)[keyof typeof FatcaDocTypeIndic];
+export type FatcaAccountDocTypeIndic =
+  (typeof FatcaAccountDocTypeIndic)[keyof typeof FatcaAccountDocTypeIndic];
 
 export const FatcaFilerCategory = {
-  ReportingFI: "FATCA601",
-  ReportingFIOrBranch: "FATCA602",
-  SponsoringEntity: "FATCA603",
-  TrusteeOfTrusteeDocumentedTrust: "FATCA604",
-  SponsoredFfi: "FATCA605",
-  SponsoredDirectReportingNffe: "FATCA606",
+  ParticipatingFfi: "FATCA601",
+  ReportingModel1Ffi: "FATCA602",
+  LimitedBranchOrFfi: "FATCA603",
+  ReportingModel2Ffi: "FATCA604",
+  QiWpOrWt: "FATCA605",
+  DirectReportingNffe: "FATCA606",
+  WithholdingAgent: "FATCA610",
+  TerritoryFiTreatedAsUsPerson: "FATCA611",
 } as const;
 export type FatcaFilerCategory =
   (typeof FatcaFilerCategory)[keyof typeof FatcaFilerCategory];
@@ -94,6 +95,14 @@ export interface FatcaOrganisation {
 
 export type FatcaAccountHolder = FatcaIndividual | FatcaOrganisation;
 
+export interface FatcaSubstantialOwner {
+  firstName: string;
+  lastName: string;
+  tin?: string;
+  residenceCountry?: string;
+  address?: FatcaAddress;
+}
+
 export interface FatcaPayment {
   type: FatcaPaymentType;
   amount: string;
@@ -105,6 +114,7 @@ export interface FatcaAccountRecord {
   accountNumberType?: string;
   closed?: boolean;
   holder: FatcaAccountHolder;
+  substantialOwners?: readonly FatcaSubstantialOwner[];
   balance: string;
   currency: string;
   payments?: readonly FatcaPayment[];
@@ -114,23 +124,26 @@ export interface FatcaFilingInput {
   reportingFi: FatcaReportingFi;
   transmittingCountry: string;
   receivingCountry?: string;
+  contact?: string;
   reportingPeriod: string;
   timestamp?: string;
   messageRefId: string;
-  mode: FatcaMessageTypeIndic;
   corrMessageRefId?: string;
   reportingFiDocRefId: string;
-  reportingFiDocType: FatcaDocTypeIndic;
+  reportingFiDocType: FatcaRecordDocTypeIndic;
+  reportingFiCorrMessageRefId?: string;
   reportingFiCorrDocRefId?: string;
   nilReport?: {
     docRefId: string;
-    docType: FatcaDocTypeIndic;
+    docType: FatcaRecordDocTypeIndic;
+    corrMessageRefId?: string;
     corrDocRefId?: string;
   };
   accounts?: readonly {
     record: FatcaAccountRecord;
     docRefId: string;
-    docType: FatcaDocTypeIndic;
+    docType: FatcaAccountDocTypeIndic;
+    corrMessageRefId?: string;
     corrDocRefId?: string;
   }[];
 }
