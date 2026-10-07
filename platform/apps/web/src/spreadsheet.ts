@@ -40,7 +40,13 @@ export async function parseSpreadsheet(file: File): Promise<ParsedSheet[]> {
   }
 
   const lower = file.name.toLowerCase();
-  if (lower.endsWith(".csv")) {
+  const signature = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+  const isZip = signature[0] === 0x50 && signature[1] === 0x4b;
+  const isLegacyXls =
+    signature[0] === 0xd0 && signature[1] === 0xcf &&
+    signature[2] === 0x11 && signature[3] === 0xe0;
+
+  if (lower.endsWith(".csv") || (!isZip && !isLegacyXls && !lower.endsWith(".xlsx") && !lower.endsWith(".xls"))) {
     const { parse } = await import("csv-parse/browser/esm/sync");
     const rows = parse(await file.text(), {
       columns: true,
@@ -51,13 +57,13 @@ export async function parseSpreadsheet(file: File): Promise<ParsedSheet[]> {
     return [{ name: file.name, rows }];
   }
 
-  if (lower.endsWith(".xlsx")) {
+  if (lower.endsWith(".xlsx") || isZip) {
     const { default: readWorkbook } = await import("read-excel-file/browser");
     const sheets = await readWorkbook(file);
     return sheets.map((sheet) => rowsFromMatrix(sheet.data, sheet.sheet));
   }
 
-  if (lower.endsWith(".xls")) {
+  if (lower.endsWith(".xls") || isLegacyXls) {
     throw new Error("Legacy .xls files are not supported. Save the workbook as .xlsx or CSV and try again.");
   }
 
