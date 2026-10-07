@@ -11,9 +11,27 @@ import {
 } from "@aeoi/fatca";
 
 type Mode = "new" | "corrected" | "void" | "amended" | "nil";
-type Row = Record<string, string>;
 
-const today = new Date().toISOString().slice(0, 10);
+interface Row {
+  account_number?: string;
+  account_number_type?: string;
+  account_closed?: string;
+  holder_kind?: string;
+  first_name?: string;
+  last_name?: string;
+  holder_name?: string;
+  holder_tin?: string;
+  holder_residence_country?: string;
+  account_holder_type?: string;
+  account_balance?: string;
+  currency?: string;
+  payment_type?: string;
+  payment_amount?: string;
+  payment_currency?: string;
+  doc_ref_id?: string;
+  corr_message_ref_id?: string;
+  corr_doc_ref_id?: string;
+}
 
 const modeCode: Record<Mode, string> = {
   new: FatcaDocTypeIndic.New,
@@ -29,8 +47,7 @@ function money(value: string, field: string): string {
   return v;
 }
 
-function parseRows(rows: Row[], mode: Mode): FatcaFilingInput["accounts"] {
-  if (mode === "nil") return [];
+function parseRows(rows: Row[], mode: Exclude<Mode, "nil">): NonNullable<FatcaFilingInput["accounts"]> {
   return rows.map((r, i) => {
     const n = i + 2;
     const holderType = (r.holder_kind || "individual").trim().toLowerCase();
@@ -177,18 +194,23 @@ export default function FatcaApp() {
         messageRefId: msg,
         reportingFiDocRefId: fiRef,
         reportingFiDocType: modeCode[mode] as FatcaDocTypeIndic,
-        ...(correcting ? { corrMessageRefId: corrMessageRefId.trim() } : {}),
-        ...(correcting ? { reportingFiCorrMessageRefId: corrMessageRefId.trim() } : {}),
-        ...(correcting ? { reportingFiCorrDocRefId: corrFiDocRefId.trim() } : {}),
-        ...(mode === "nil"
-          ? {
-              nilReport: {
-                docRefId: generatedRefs.nil,
-                docType: FatcaDocTypeIndic.New,
-              },
-            }
-          : { accounts: parseRows(rows, mode) }),
       };
+
+      if (correcting) {
+        input.corrMessageRefId = corrMessageRefId.trim();
+        input.reportingFiCorrMessageRefId = corrMessageRefId.trim();
+        input.reportingFiCorrDocRefId = corrFiDocRefId.trim();
+      }
+
+      if (mode === "nil") {
+        input.nilReport = {
+          docRefId: generatedRefs.nil,
+          docType: FatcaDocTypeIndic.New,
+        };
+      } else {
+        input.accounts = parseRows(rows, mode);
+      }
+
       setXml(emitFatcaXml(input));
     } catch (e) {
       setError((e as Error).message);
