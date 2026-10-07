@@ -35,11 +35,13 @@ function address(a: FatcaAddress): XmlElement {
 function docSpec(
   docType: string,
   docRefId: string,
+  corrMessageRefId?: string,
   corrDocRefId?: string,
 ): XmlElement {
   return el("ftc:DocSpec", {}, [
     el("ftc:DocTypeIndic", {}, [text(docType)]),
     el("ftc:DocRefId", {}, [text(required(docRefId, "DocRefId"))]),
+    corrMessageRefId ? el("ftc:CorrMessageRefId", {}, [text(corrMessageRefId)]) : undefined,
     corrDocRefId ? el("ftc:CorrDocRefId", {}, [text(corrDocRefId)]) : undefined,
   ]);
 }
@@ -71,10 +73,10 @@ function holder(h: FatcaAccountHolder): XmlElement {
 
 function accountReport(
   record: FatcaAccountRecord,
-  spec: { docType: string; docRefId: string; corrDocRefId?: string },
+  spec: { docType: string; docRefId: string; corrMessageRefId?: string; corrDocRefId?: string },
 ): XmlElement {
   return el("ftc:AccountReport", {}, [
-    docSpec(spec.docType, spec.docRefId, spec.corrDocRefId),
+    docSpec(spec.docType, spec.docRefId, spec.corrMessageRefId, spec.corrDocRefId),
     el(
       "ftc:AccountNumber",
       {
@@ -84,6 +86,17 @@ function accountReport(
     ),
     record.closed !== undefined ? el("ftc:AccountClosed", {}, [text(String(record.closed))]) : undefined,
     holder(record.holder),
+    ...(record.substantialOwners ?? []).map((owner) =>
+      el("ftc:SubstantialOwner", {}, [
+        owner.residenceCountry ? el("sfa:ResCountryCode", {}, [text(owner.residenceCountry)]) : undefined,
+        owner.tin ? el("sfa:TIN", { issuedBy: "US" }, [text(owner.tin)]) : undefined,
+        el("sfa:Name", {}, [
+          el("sfa:FirstName", {}, [text(required(owner.firstName, "Substantial owner first name"))]),
+          el("sfa:LastName", {}, [text(required(owner.lastName, "Substantial owner last name"))]),
+        ]),
+        owner.address ? address(owner.address) : undefined,
+      ]),
+    ),
     el("ftc:AccountBalance", { currCode: required(record.currency, "Balance currency") }, [
       text(required(record.balance, "Account balance")),
     ]),
@@ -110,6 +123,7 @@ export function emitFatcaXml(input: FatcaFilingInput): string {
     el("sfa:TransmittingCountry", {}, [text(required(input.transmittingCountry, "Transmitting country"))]),
     el("sfa:ReceivingCountry", {}, [text(receivingCountry)]),
     el("sfa:MessageType", {}, [text("FATCA")]),
+    input.contact ? el("sfa:Contact", {}, [text(input.contact)]) : undefined,
     el("sfa:MessageRefId", {}, [text(required(input.messageRefId, "MessageRefId"))]),
     input.corrMessageRefId ? el("sfa:CorrMessageRefId", {}, [text(input.corrMessageRefId)]) : undefined,
     el("sfa:ReportingPeriod", {}, [text(required(input.reportingPeriod, "Reporting period"))]),
@@ -123,14 +137,24 @@ export function emitFatcaXml(input: FatcaFilingInput): string {
     el("sfa:Name", {}, [text(required(fi.name, "FI name"))]),
     fi.address ? address(fi.address) : undefined,
     el("ftc:FilerCategory", {}, [text(fi.filerCategory)]),
-    docSpec(input.reportingFiDocType, input.reportingFiDocRefId, input.reportingFiCorrDocRefId),
+    docSpec(
+      input.reportingFiDocType,
+      input.reportingFiDocRefId,
+      input.reportingFiCorrMessageRefId,
+      input.reportingFiCorrDocRefId,
+    ),
   ]);
 
   let groupChildren: XmlElement[];
   if (input.nilReport) {
     groupChildren = [
       el("ftc:NilReport", {}, [
-        docSpec(input.nilReport.docType, input.nilReport.docRefId, input.nilReport.corrDocRefId),
+        docSpec(
+          input.nilReport.docType,
+          input.nilReport.docRefId,
+          input.nilReport.corrMessageRefId,
+          input.nilReport.corrDocRefId,
+        ),
         el("ftc:NoAccountToReport", {}, [text("yes")]),
       ]),
     ];
@@ -139,6 +163,7 @@ export function emitFatcaXml(input: FatcaFilingInput): string {
       accountReport(x.record, {
         docType: x.docType,
         docRefId: x.docRefId,
+        ...(x.corrMessageRefId ? { corrMessageRefId: x.corrMessageRefId } : {}),
         ...(x.corrDocRefId ? { corrDocRefId: x.corrDocRefId } : {}),
       }),
     );
@@ -150,7 +175,7 @@ export function emitFatcaXml(input: FatcaFilingInput): string {
   const root = el(
     "ftc:FATCA_OECD",
     {
-      version: "2.0",
+      version: "2.0.1",
       "xmlns:ftc": NS_FTC,
       "xmlns:sfa": NS_SFA,
       "xmlns:iso": NS_ISO,
