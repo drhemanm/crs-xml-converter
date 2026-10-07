@@ -80,7 +80,11 @@ test("the page CSP permits only the configured workspace endpoint for authentica
   let called = false;
   await page.route("https://prlarcyfngvwkavmktex.supabase.co/auth/v1/token**", async (route) => {
     called = true;
-    await route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ msg: "Mock sign-in refused" }) });
+    await route.fulfill({ status: 400, headers: {
+      "access-control-allow-origin": new URL(page.url()).origin,
+      "access-control-allow-headers": "authorization,apikey,content-type,x-client-info",
+      "access-control-allow-methods": "POST,OPTIONS",
+    }, contentType: "application/json", body: JSON.stringify({ msg: "Mock sign-in refused" }) });
   });
   await page.getByLabel("Workspace email").fill("test@example.invalid");
   await page.getByLabel("Workspace password").fill("test-password-not-a-secret");
