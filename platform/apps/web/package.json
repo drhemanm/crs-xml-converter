@@ -15,6 +15,7 @@
     "@crs/jurisdictions": "workspace:*",
     "@crs/validate": "workspace:*",
     "csv-parse": "^5.6.0",
+    "read-excel-file": "9.3.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
