@@ -271,7 +271,11 @@ export default function App({ workspace }: Props) {
     if (!pack) return;
     setFatal(null);
 
-    const hmacSecret = workspace?.institution.pseudonym_key ?? getLocalLedgerHmacSecret();
+    if (workspace && !workspace.institution.pseudonym_key) {
+      setFatal("Your workspace role can view this institution but is not authorised to prepare filings.");
+      return;
+    }
+    const hmacSecret = workspace ? workspace.institution.pseudonym_key! : getLocalLedgerHmacSecret();
     const { businessKeys, digests } = await deriveKeys(records, hmacSecret);
     const ctx = buildContext(pack, businessKeys, digests);
 
