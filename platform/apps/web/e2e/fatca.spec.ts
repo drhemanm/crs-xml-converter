@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
 
 const FATCA_CSV = [
-  "account_number,account_number_type,holder_kind,first_name,last_name,holder_name,holder_tin,holder_residence_country,account_holder_type,account_balance,currency,payment_type,payment_amount,payment_currency,doc_ref_id,corr_message_ref_id,corr_doc_ref_id",
-  "ACC-001,OECD605,individual,Jane,Doe,,123456789,US,,1000.00,USD,FATCA502,25.00,USD,TEST-GIIN-DOC-001,,",
+  "account_number,account_number_type,holder_kind,first_name,last_name,holder_name,holder_tin,holder_residence_country,holder_address_country,holder_address_city,holder_address_street,account_holder_type,account_balance,currency,payment_type,payment_amount,payment_currency,doc_ref_id,corr_message_ref_id,corr_doc_ref_id",
+  "ACC-001,OECD605,individual,Jane,Doe,,123456789,US,US,New York,1 Main Street,,1000.00,USD,FATCA502,25.00,USD,TEST-GIIN-DOC-001,,",
 ].join("\n");
 
 async function openFatca(page: import("@playwright/test").Page) {
