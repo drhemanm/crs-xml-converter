@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   InMemoryLedger,
   RefIdAllocator,
@@ -15,6 +15,7 @@ import {
   type AccountRecord,
   type Diagnostic,
   type FilingPlan,
+  type LedgerEntry,
   type PlanContext,
 } from "@crs/core";
 import { inferColumns, mapRows, specFor, templateCsv, type ColumnMapping } from "@crs/ingest";
@@ -23,6 +24,14 @@ import { Diagnostics } from "./components/Diagnostics.js";
 import { clearLedger, exportLedger, getLocalLedgerHmacSecret, loadLedger, saveLedger } from "./ledger-storage.js";
 import { browserSchemaProvider } from "./schema-provider.js";
 import { firstUsableSheet, parseSpreadsheet, type ParsedSheet } from "./spreadsheet.js";
+import {
+  applyRemoteAuthorityStatus,
+  loadRemoteLedger,
+  recordRemoteFiling,
+  sha256Hex,
+  type RemoteLedgerEntry,
+  type WorkspaceSelection,
+} from "./backend.js";
 
 type Mode = "new" | "correct" | "nil";
 
@@ -79,7 +88,33 @@ async function deriveKeys(
   return { businessKeys, digests };
 }
 
-export default function App() {
+interface Props {
+  workspace: WorkspaceSelection | null;
+}
+
+function remoteToLedger(rows: readonly RemoteLedgerEntry[], jurisdiction: string): InMemoryLedger {
+  const entries: LedgerEntry[] = rows
+    .filter((row) => row.message_ref_id)
+    .map((row) => ({
+      docRefId: unsafeBrand.docRefId(row.doc_ref_id),
+      kind: row.record_kind === "ReportingFI" ? "ReportingFI" : "AccountReport",
+      state: row.record_state,
+      messageRefId: unsafeBrand.messageRefId(row.message_ref_id!),
+      reportingPeriodEnd: unsafeBrand.isoDate(row.reporting_period_end),
+      jurisdiction: unsafeBrand.iso3166(jurisdiction),
+      schemaTarget: row.schema_version as LedgerEntry["schemaTarget"],
+      docTypeIndic: row.doc_type_indic as LedgerEntry["docTypeIndic"],
+      ...(row.corr_doc_ref_id ? { corrDocRefId: unsafeBrand.docRefId(row.corr_doc_ref_id) } : {}),
+      ...(row.superseded_by ? { supersededBy: unsafeBrand.docRefId(row.superseded_by) } : {}),
+      ...(row.parent_doc_ref_id ? { parentDocRefId: unsafeBrand.docRefId(row.parent_doc_ref_id) } : {}),
+      businessKey: row.business_key,
+      payloadDigest: row.payload_digest,
+      createdAt: row.created_at,
+    }));
+  return new InMemoryLedger(entries);
+}
+
+export default function App({ workspace }: Props) {
   const [tab, setTab] = useState<"prepare" | "history">("prepare");
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [mode, setMode] = useState<Mode>("new");
@@ -99,11 +134,42 @@ export default function App() {
     }
   });
   const [fatal, setFatal] = useState<string | null>(null);
+  const [remoteRows, setRemoteRows] = useState<RemoteLedgerEntry[]>([]);
+  const [workspaceBusy, setWorkspaceBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const statusInput = useRef<HTMLInputElement>(null);
 
   const ledger = ledgerState.ledger;
+
+  useEffect(() => {
+    if (!workspace) {
+      setRemoteRows([]);
+      try {
+        setLedgerState({ ledger: loadLedger(), error: null });
+      } catch (e) {
+        setLedgerState({ ledger: new InMemoryLedger(), error: (e as Error).message });
+      }
+      return;
+    }
+
+    const fi = workspace.institution;
+    setSettings((current) => ({
+      ...current,
+      jurisdiction: fi.jurisdiction,
+      fiName: fi.legal_name,
+      fiId: fi.identifier_value,
+      fiCity: fi.city ?? "",
+    }));
+    setWorkspaceBusy(true);
+    void loadRemoteLedger(workspace.organization.id, fi.id)
+      .then((rows) => {
+        setRemoteRows(rows);
+        setLedgerState({ ledger: remoteToLedger(rows, fi.jurisdiction), error: null });
+      })
+      .catch((e) => setLedgerState({ ledger: new InMemoryLedger(), error: (e as Error).message }))
+      .finally(() => setWorkspaceBusy(false));
+  }, [workspace]);
 
   /** Re-read from storage so the view reflects what was actually persisted. */
   const reloadLedger = useCallback(() => {
@@ -204,7 +270,8 @@ export default function App() {
     if (!pack) return;
     setFatal(null);
 
-    const { businessKeys, digests } = await deriveKeys(records, getLocalLedgerHmacSecret());
+    const hmacSecret = workspace?.institution.pseudonym_key ?? getLocalLedgerHmacSecret();
+    const { businessKeys, digests } = await deriveKeys(records, hmacSecret);
     const ctx = buildContext(pack, businessKeys, digests);
 
     let plan: FilingPlan | Diagnostic[];
@@ -280,17 +347,55 @@ export default function App() {
       return;
     }
     setOutput({ xml, plan, note: `${note} ${describeOutcome(outcome)}.` });
-  }, [pack, records, settings, mode, buildContext, ledger]);
+  }, [pack, records, settings, mode, buildContext, ledger, workspace]);
 
-  const recordAsFiled = useCallback(() => {
+  const recordAsFiled = useCallback(async () => {
     if (!output) return;
-    ledger.apply(output.plan.mutations);
-    saveLedger(ledger);
-    reloadLedger();
-    setOutput(null);
-    setOutputDiagnostics([]);
-    setTab("history");
-  }, [output, ledger, reloadLedger]);
+    setWorkspaceBusy(true);
+    try {
+      if (workspace) {
+        const appendEntries = output.plan.mutations
+          .filter((m): m is Extract<(typeof output.plan.mutations)[number], { op: "append" }> => m.op === "append")
+          .map((m) => ({
+            record_kind: m.entry.kind,
+            doc_ref_id: m.entry.docRefId,
+            doc_type_indic: m.entry.docTypeIndic,
+            ...(m.entry.corrDocRefId ? { corr_doc_ref_id: m.entry.corrDocRefId } : {}),
+            ...(m.entry.parentDocRefId ? { parent_doc_ref_id: m.entry.parentDocRefId } : {}),
+            business_key: m.entry.businessKey,
+            payload_digest: m.entry.payloadDigest,
+            record_state: m.entry.state,
+            ...(m.entry.supersededBy ? { superseded_by: m.entry.supersededBy } : {}),
+          }));
+
+        await recordRemoteFiling({
+          organizationId: workspace.organization.id,
+          institutionId: workspace.institution.id,
+          regime: "CRS",
+          reportingPeriodEnd: settings.periodEnd,
+          schemaVersion: output.plan.schemaTarget,
+          filingKind: mode === "nil" ? "nil" : mode === "correct" ? "correction" : "new",
+          messageRefId: output.plan.messageRefId,
+          xmlSha256: await sha256Hex(output.xml),
+          entries: appendEntries,
+        });
+        const rows = await loadRemoteLedger(workspace.organization.id, workspace.institution.id);
+        setRemoteRows(rows);
+        setLedgerState({ ledger: remoteToLedger(rows, workspace.institution.jurisdiction), error: null });
+      } else {
+        ledger.apply(output.plan.mutations);
+        saveLedger(ledger);
+        reloadLedger();
+      }
+      setOutput(null);
+      setOutputDiagnostics([]);
+      setTab("history");
+    } catch (e) {
+      setFatal(`Could not save filing history: ${(e as Error).message}`);
+    } finally {
+      setWorkspaceBusy(false);
+    }
+  }, [output, ledger, reloadLedger, workspace, settings.periodEnd, mode]);
 
   const download = useCallback(() => {
     if (!output) return;
@@ -315,18 +420,67 @@ export default function App() {
 
   const applyStatus = useCallback(
     async (file: File) => {
-      const parsed = parseStatusMessage(await file.text());
+      const source = await file.text();
+      const parsed = parseStatusMessage(source);
       if (Array.isArray(parsed)) {
         setOutputDiagnostics(parsed);
         return;
       }
       const result = applyStatusMessage(ledger, parsed);
-      ledger.apply(result.mutations);
-      saveLedger(ledger);
-      reloadLedger();
+
+      if (workspace) {
+        const filing = remoteRows.find((row) => row.message_ref_id === parsed.originalMessageRefId);
+        if (!filing) {
+          setOutputDiagnostics([
+            ...result.diagnostics,
+            {
+              code: "LEDGER-REMOTE-001",
+              severity: "error",
+              message: "The authority response refers to a filing that is not present in this connected workspace.",
+              remediation: "Select the reporting institution that made the filing, then apply the status message again.",
+            },
+          ]);
+          return;
+        }
+        const updated = new Map<string, { state: LedgerEntry["state"]; supersededBy?: string }>();
+        for (const mutation of result.mutations) {
+          if (mutation.op === "setState") updated.set(mutation.docRefId, { state: mutation.state });
+          if (mutation.op === "supersede") updated.set(mutation.docRefId, { state: "superseded", supersededBy: mutation.by });
+        }
+        await applyRemoteAuthorityStatus({
+          organizationId: workspace.organization.id,
+          filingId: filing.filing_id,
+          authority: parsed.validatedBy ?? "MRA",
+          overallStatus: parsed.status,
+          responseRef: parsed.transmissionId,
+          responseSha256: await sha256Hex(source),
+          parsedErrors: [
+            ...parsed.fileErrors.map((e) => ({ scope: "file", ...e })),
+            ...parsed.recordErrors.map((e) => ({
+              scope: "record",
+              code: e.code,
+              details: e.details,
+              docRefIdsInError: e.docRefIdsInError,
+              fieldPaths: e.fieldPaths,
+            })),
+          ],
+          updates: [...updated.entries()].map(([docRefId, value]) => ({
+            doc_ref_id: docRefId,
+            record_state: value.state,
+            ...(value.supersededBy ? { superseded_by: value.supersededBy } : {}),
+          })),
+        });
+        const rows = await loadRemoteLedger(workspace.organization.id, workspace.institution.id);
+        setRemoteRows(rows);
+        setLedgerState({ ledger: remoteToLedger(rows, workspace.institution.jurisdiction), error: null });
+      } else {
+        ledger.apply(result.mutations);
+        saveLedger(ledger);
+        reloadLedger();
+      }
       setOutputDiagnostics(result.diagnostics);
     },
-    [ledger, reloadLedger],
+    [ledger, reloadLedger, remoteRows, workspace],
   );
 
   const settingsComplete = settings.fiName.trim() !== "" && settings.fiId.trim() !== "";
@@ -594,7 +748,7 @@ export default function App() {
             <h2>{mode === "nil" ? "3" : "4"} · Generate</h2>
             <div className="panel">
               <div className="actions" style={{ marginTop: 0 }}>
-                <button className="primary" disabled={!canGenerate} onClick={() => void generate()}>
+                <button className="primary" disabled={!canGenerate || workspaceBusy} onClick={() => void generate()}>
                   Generate return
                 </button>
                 {!settingsComplete ? (
@@ -630,9 +784,13 @@ export default function App() {
                     <button className="primary" onClick={download}>
                       Download XML
                     </button>
-                    <button onClick={recordAsFiled}>Record as submitted</button>
+                    <button disabled={workspaceBusy} onClick={() => void recordAsFiled()}>
+                      {workspace ? "Save filing to workspace" : "Record in local history"}
+                    </button>
                     <span className="hint">
-                      Evaluation mode stores DocRefIds on this device. Production mode will synchronise filing metadata to the protected ledger so corrections work across devices and users.
+                      {workspace
+                        ? "The connected ledger stores reference IDs, lifecycle state and hashes only. Account-holder data remains in this browser."
+                        : "Local evaluation history stays on this device. Sign in to persist correction history across devices."}
                     </span>
                   </div>
                 </div>
