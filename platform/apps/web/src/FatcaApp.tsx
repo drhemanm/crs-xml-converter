@@ -65,8 +65,7 @@ function parseRows(rows: Row[], mode: Exclude<Mode, "nil">): NonNullable<FatcaFi
               ? { residenceCountry: r.holder_residence_country.trim().toUpperCase() }
               : {}),
             holderType:
-              (r.account_holder_type?.trim() as FatcaAccountHolderType) ||
-              FatcaAccountHolderType.SpecifiedUsPerson,
+              (r.account_holder_type?.trim() as FatcaAccountHolderType),
           }
         : {
             kind: "individual",
@@ -99,6 +98,11 @@ function parseRows(rows: Row[], mode: Exclude<Mode, "nil">): NonNullable<FatcaFi
     if (record.holder.kind === "organisation" && !record.holder.name) {
       throw new Error(`Row ${n}: holder_name is required for an organisation`);
     }
+    if (record.holder.kind === "organisation" && !r.account_holder_type?.trim()) {
+      throw new Error(
+        `Row ${n}: account_holder_type is required for an organisation; the tool will not infer a FATCA classification`,
+      );
+    }
 
     const docRefId = (r.doc_ref_id || "").trim();
     if (!docRefId) throw new Error(`Row ${n}: doc_ref_id is required`);
@@ -129,7 +133,7 @@ export default function FatcaApp() {
   const [tan, setTan] = useState("");
   const [fiName, setFiName] = useState("");
   const [fiCity, setFiCity] = useState("Port Louis");
-  const [filerCategory, setFilerCategory] = useState<string>(FatcaFilerCategory.ReportingModel1Ffi);
+  const [filerCategory, setFilerCategory] = useState<string>("");
   const [period, setPeriod] = useState("2025-12-31");
   const [messageRefId, setMessageRefId] = useState("");
   const [fiDocRefId, setFiDocRefId] = useState("");
@@ -175,6 +179,7 @@ export default function FatcaApp() {
       if (!giin.trim()) throw new Error("GIIN is required.");
       if (!fiName.trim()) throw new Error("Financial institution name is required.");
       if (!period) throw new Error("Reporting period is required.");
+      if (!filerCategory) throw new Error("FATCA filer category is required; select the institution's actual IRS category.");
       if (correcting && (!corrMessageRefId.trim() || !corrFiDocRefId.trim())) {
         throw new Error("Corrected, amended and void filings require the previous MessageRefId and ReportingFI DocRefId.");
       }
@@ -270,6 +275,7 @@ export default function FatcaApp() {
             <label>Institution city<input value={fiCity} onChange={(e) => setFiCity(e.target.value)} /></label>
             <label>Filer category
               <select value={filerCategory} onChange={(e) => setFilerCategory(e.target.value)}>
+                <option value="">Select the actual filer category</option>
                 {Object.entries(FatcaFilerCategory).map(([name, value]) => <option key={value} value={value}>{value} — {name}</option>)}
               </select>
             </label>
