@@ -23,6 +23,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
   const [session, setSession] = useState<BackendSession | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [institutions, setInstitutions] = useState<ReportingInstitution[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [orgName, setOrgName] = useState("");
@@ -44,6 +45,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
     const org = value?.organization && rows.some((o) => o.id === value.organization.id)
       ? value.organization
       : rows[0]!;
+    setSelectedOrgId(org.id);
     const fis = await listInstitutions(org.id);
     setInstitutions(fis);
     if (fis.length) {
@@ -98,6 +100,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
       const org = await createOrganization(orgName);
       const rows = await listOrganizations();
       setOrganizations(rows);
+      setSelectedOrgId(org.id);
       setInstitutions([]);
       setOrgName("");
       onChange(null);
@@ -115,6 +118,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
     if (!org) return;
     setBusy(true);
     setMessage("");
+    setSelectedOrgId(org.id);
     try {
       const fis = await listInstitutions(org.id);
       setInstitutions(fis);
@@ -128,7 +132,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
 
   const addInstitution = async () => {
     if (!session) return;
-    const org = value?.organization ?? organizations[0];
+    const org = organizations.find((o) => o.id === selectedOrgId) ?? value?.organization ?? organizations[0];
     if (!org) {
       setMessage("Create an organization first.");
       return;
@@ -174,7 +178,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
     );
   }
 
-  const activeOrg = value?.organization ?? organizations[0] ?? null;
+  const activeOrg = organizations.find((o) => o.id === selectedOrgId) ?? value?.organization ?? organizations[0] ?? null;
   return (
     <section className="workspace-bar connected" aria-label="Connected workspace">
       <div className="workspace-title">
@@ -187,7 +191,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
         {organizations.length ? (
           <select
             aria-label="Organization"
-            value={activeOrg?.id ?? ""}
+            value={activeOrg?.id ?? selectedOrgId}
             onChange={(e) => void selectOrganization(e.target.value)}
           >
             {organizations.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
@@ -224,6 +228,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
             setSession(null);
             setOrganizations([]);
             setInstitutions([]);
+            setSelectedOrgId("");
             onChange(null);
           })}
         >
