@@ -89,6 +89,12 @@ importers:
         specifier: ^4.5.1
         version: 4.5.7
 
+  packages/fatca:
+    dependencies:
+      '@crs/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/ingest:
     dependencies:
       '@crs/core':
