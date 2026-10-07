@@ -1,9 +1,9 @@
 const DEFAULT_URL = "https://prlarcyfngvwkavmktex.supabase.co";
 const DEFAULT_KEY = "sb_publishable_-ho_gmFMykjbQdHRKO4h9A_X6qtSz_U";
 
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || DEFAULT_URL;
+export const SUPABASE_URL = import.meta.env["VITE_SUPABASE_URL"] || DEFAULT_URL;
 export const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || DEFAULT_KEY;
+  import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || DEFAULT_KEY;
 
 const SESSION_KEY = "aeoi.supabase.session.v1";
 
@@ -103,10 +103,10 @@ async function parseResponse<T>(response: Response): Promise<T> {
     const message =
       body && typeof body === "object"
         ? String(
-            (body as Record<string, unknown>).msg ??
-              (body as Record<string, unknown>).message ??
-              (body as Record<string, unknown>).error_description ??
-              (body as Record<string, unknown>).error ??
+            (body as Record<string, unknown>)["msg"] ??
+              (body as Record<string, unknown>)["message"] ??
+              (body as Record<string, unknown>)["error_description"] ??
+              (body as Record<string, unknown>)["error"] ??
               response.statusText,
           )
         : response.statusText;
