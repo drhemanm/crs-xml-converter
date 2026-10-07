@@ -172,13 +172,14 @@ test("fails loudly for a jurisdiction whose schema is not implemented", async ({
   await expect(page.locator("pre.xml")).toHaveCount(0);
 });
 
-test("switches to the amended schema once the filing date crosses the 2027 cutover", async ({ page }) => {
+test("uses amended CRS v3.0 for Mauritius reporting year 2026", async ({ page }) => {
   await fillInstitution(page);
-  await expect(page.getByText("crs-v2.0", { exact: true })).toBeVisible();
+  await page.getByLabel("Reporting period end").fill("2026-12-31");
+  await expect(page.getByText("crs-v3.0", { exact: true })).toBeVisible();
 
-  // Same reporting period, filed after the cutover — several authorities then
-  // require the amended schema even for earlier years.
-  await page.getByLabel("Filing date").fill("2027-03-01");
+  // MRA ties the amended CRS to calendar year 2026 onward, not merely to a
+  // generic filing-date cutover.
+  await page.getByLabel("Filing date").fill("2026-10-07");
   await expect(page.getByText("crs-v3.0", { exact: true })).toBeVisible();
 });
 
