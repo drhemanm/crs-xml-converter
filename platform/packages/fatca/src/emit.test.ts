@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   FatcaAccountHolderType,
-  FatcaDocTypeIndic,
+  FatcaAccountDocTypeIndic,
   FatcaFilerCategory,
-  FatcaMessageTypeIndic,
+  FatcaRecordDocTypeIndic,
   FatcaPaymentType,
   emitFatcaXml,
   type FatcaFilingInput,
@@ -14,7 +14,7 @@ const base: FatcaFilingInput = {
     giin: "ABCDEF.00000.ME.480",
     name: "Example Mauritius FI",
     residenceCountry: "MU",
-    filerCategory: FatcaFilerCategory.ReportingFI,
+    filerCategory: FatcaFilerCategory.ReportingModel1Ffi,
     address: { countryCode: "MU", city: "Port Louis" },
   },
   transmittingCountry: "MU",
@@ -22,9 +22,8 @@ const base: FatcaFilingInput = {
   reportingPeriod: "2025-12-31",
   timestamp: "2026-05-01T10:00:00Z",
   messageRefId: "MU2025FATCA0001",
-  mode: FatcaMessageTypeIndic.New,
-  reportingFiDocRefId: "MU2025FI0001",
-  reportingFiDocType: FatcaDocTypeIndic.New,
+    reportingFiDocRefId: "MU2025FI0001",
+  reportingFiDocType: FatcaRecordDocTypeIndic.New,
 };
 
 describe("FATCA XML emitter", () => {
@@ -33,7 +32,7 @@ describe("FATCA XML emitter", () => {
       ...base,
       accounts: [{
         docRefId: "MU2025AR0001",
-        docType: FatcaDocTypeIndic.New,
+        docType: FatcaAccountDocTypeIndic.New,
         record: {
           accountNumber: "ACC-001",
           holder: {
@@ -51,8 +50,9 @@ describe("FATCA XML emitter", () => {
     });
 
     expect(xml).toContain("<ftc:FATCA_OECD");
+    expect(xml).toContain('version="2.0.1"');
     expect(xml).toContain("<sfa:MessageType>FATCA</sfa:MessageType>");
-    expect(xml).toContain("<ftc:FilerCategory>FATCA601</ftc:FilerCategory>");
+    expect(xml).toContain("<ftc:FilerCategory>FATCA602</ftc:FilerCategory>");
     expect(xml).toContain("<ftc:DocTypeIndic>FATCA11</ftc:DocTypeIndic>");
     expect(xml).toContain("<ftc:AcctHolderType>FATCA104</ftc:AcctHolderType>");
     expect(xml).toContain("<ftc:PaymentAmnt currCode=\"USD\">25.00</ftc:PaymentAmnt>");
@@ -63,7 +63,7 @@ describe("FATCA XML emitter", () => {
       ...base,
       nilReport: {
         docRefId: "MU2025NIL0001",
-        docType: FatcaDocTypeIndic.New,
+        docType: FatcaRecordDocTypeIndic.New,
       },
     });
 
