@@ -1,7 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.js";
-import { AppErrorBoundary } from "./components/AppErrorBoundary.js";
 import { ErrorBoundary } from "./components/ErrorBoundary.js";
 import "./styles.css";
 
@@ -10,6 +9,6 @@ if (!root) throw new Error("Missing #root element");
 
 createRoot(root).render(
   <StrictMode>
-    <ErrorBoundary><AppErrorBoundary><App /></AppErrorBoundary></ErrorBoundary>
+    <ErrorBoundary><App /></ErrorBoundary>
   </StrictMode>,
 );
