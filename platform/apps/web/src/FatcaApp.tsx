@@ -9,6 +9,7 @@ import {
   type FatcaAccountRecord,
   type FatcaFilingInput,
 } from "@aeoi/fatca";
+import { validateFatcaStructure } from "./fatca-validator.js";
 
 type Mode = "new" | "corrected" | "void" | "amended" | "nil";
 
@@ -143,6 +144,7 @@ export default function FatcaApp() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [xml, setXml] = useState("");
   const [error, setError] = useState("");
+  const [structuralStatus, setStructuralStatus] = useState<string>("");
 
   const correcting = mode === "corrected" || mode === "void" || mode === "amended";
   const generatedRefs = useMemo(() => {
@@ -170,9 +172,10 @@ export default function FatcaApp() {
     }
   };
 
-  const generate = () => {
+  const generate = async () => {
     setError("");
     setXml("");
+    setStructuralStatus("");
     try {
       const msg = messageRefId.trim() || generatedRefs.message;
       const fiRef = fiDocRefId.trim() || generatedRefs.fi;
@@ -216,7 +219,13 @@ export default function FatcaApp() {
         input.accounts = parseRows(rows, mode);
       }
 
-      setXml(emitFatcaXml(input));
+      const generated = emitFatcaXml(input);
+      const structural = validateFatcaStructure(generated);
+      if (!structural.valid) {
+        throw new Error(`FATCA structural XSD validation failed: ${structural.message}`);
+      }
+      setStructuralStatus(structural.message);
+      setXml(generated);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -308,14 +317,17 @@ export default function FatcaApp() {
 
         <section className="card">
           <h2>{mode === "nil" ? "3" : "4"}. Generate</h2>
-          <button type="button" className="primary" onClick={generate}>Generate FATCA XML</button>
+          <button type="button" className="primary" onClick={() => void generate()}>Generate FATCA XML</button>
           {error && <div className="diagnostic error">{error}</div>}
           {xml && (
             <>
-              <div className="diagnostic warning">
-                XML generated. The FATCA v2.0.1 XSD must pass before this is treated as production-ready.
+              <div className="diagnostic info">
+                {structuralStatus}
               </div>
-              <div className="actions"><button type="button" onClick={downloadXml}>Download XML</button></div>
+              <div className="diagnostic warning">
+                Pre-validation mode: this file is not yet authorised for production submission. Exact FATCA v2.0.1 validation and an MRA acceptance test remain mandatory.
+              </div>
+              <div className="actions"><button type="button" onClick={downloadXml}>Download test XML</button></div>
               <pre className="xml">{xml}</pre>
             </>
           )}
