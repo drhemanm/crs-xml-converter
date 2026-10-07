@@ -162,7 +162,7 @@ export default function App({ workspace }: Props) {
       fiCity: fi.city ?? "",
     }));
     setWorkspaceBusy(true);
-    void loadRemoteLedger(workspace.organization.id, fi.id)
+    void loadRemoteLedger(workspace.organization.id, fi.id, "CRS")
       .then((rows) => {
         setRemoteRows(rows);
         setLedgerState({ ledger: remoteToLedger(rows, fi.jurisdiction), error: null });
@@ -379,7 +379,7 @@ export default function App({ workspace }: Props) {
           xmlSha256: await sha256Hex(output.xml),
           entries: appendEntries,
         });
-        const rows = await loadRemoteLedger(workspace.organization.id, workspace.institution.id);
+        const rows = await loadRemoteLedger(workspace.organization.id, workspace.institution.id, "CRS");
         setRemoteRows(rows);
         setLedgerState({ ledger: remoteToLedger(rows, workspace.institution.jurisdiction), error: null });
       } else {
@@ -470,7 +470,7 @@ export default function App({ workspace }: Props) {
             ...(value.supersededBy ? { superseded_by: value.supersededBy } : {}),
           })),
         });
-        const rows = await loadRemoteLedger(workspace.organization.id, workspace.institution.id);
+        const rows = await loadRemoteLedger(workspace.organization.id, workspace.institution.id, "CRS");
         setRemoteRows(rows);
         setLedgerState({ ledger: remoteToLedger(rows, workspace.institution.jurisdiction), error: null });
       } else {
