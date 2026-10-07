@@ -37,6 +37,7 @@ export interface ReportingInstitution {
   identifier_value: string;
   city: string | null;
   active: boolean;
+  pseudonym_key: string;
 }
 
 export interface RemoteLedgerEntry {
@@ -209,7 +210,7 @@ export async function createOrganization(name: string): Promise<Organization> {
 
 export async function listInstitutions(organizationId: string): Promise<ReportingInstitution[]> {
   const query = new URLSearchParams({
-    select: "id,organization_id,legal_name,jurisdiction,identifier_type,identifier_value,city,active",
+    select: "id,organization_id,legal_name,jurisdiction,identifier_type,identifier_value,city,active,pseudonym_key",
     organization_id: `eq.${organizationId}`,
     active: "eq.true",
     order: "legal_name.asc",
