@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   FatcaAccountHolderType,
   FatcaDocTypeIndic,
@@ -187,10 +187,24 @@ export default function FatcaApp({ workspace }: Props) {
   const [structuralStatus, setStructuralStatus] = useState<string>("");
   const [lastInput, setLastInput] = useState<FatcaFilingInput | null>(null);
   const [workspaceBusy, setWorkspaceBusy] = useState(false);
+  const fileReadVersion = useRef(0);
   const [workspaceHistoryCount, setWorkspaceHistoryCount] = useState(0);
 
   useEffect(() => {
+    let active = true;
+    fileReadVersion.current += 1;
+    setError("");
+    setGiin("");
+    setMessageRefId("");
+    setFiDocRefId("");
+    setCorrMessageRefId("");
+    setCorrFiDocRefId("");
+    setFileName(null);
+    setRows([]);
+    setSheets([]);
+    setSelectedSheet("");
     if (!workspace) {
+      setWorkspaceBusy(false);
       setWorkspaceHistoryCount(0);
       return;
     }
@@ -199,10 +213,24 @@ export default function FatcaApp({ workspace }: Props) {
     setFiCity(workspace.institution.city ?? "Port Louis");
     setWorkspaceBusy(true);
     void loadRemoteLedger(workspace.organization.id, workspace.institution.id, "FATCA")
-      .then((rows) => setWorkspaceHistoryCount(rows.length))
-      .catch((e) => setError((e as Error).message))
-      .finally(() => setWorkspaceBusy(false));
+      .then((rows) => { if (active) setWorkspaceHistoryCount(rows.length); })
+      .catch((e) => { if (active) setError((e as Error).message); })
+      .finally(() => { if (active) setWorkspaceBusy(false); });
+    return () => { active = false; };
   }, [workspace]);
+
+  useEffect(() => {
+    setXml("");
+    setLastInput(null);
+    setStructuralStatus("");
+  }, [mode, giin, tan, fiName, fiCity, filerCategory, period, messageRefId, fiDocRefId, corrMessageRefId, corrFiDocRefId, rows, selectedSheet, workspace]);
+
+  useEffect(() => {
+    if (!fileName && !giin && !fiName && !xml) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [fileName, giin, fiName, xml]);
 
   const correcting = mode === "corrected" || mode === "void" || mode === "amended";
   const generatedRefs = useMemo(() => {
@@ -221,16 +249,20 @@ export default function FatcaApp({ workspace }: Props) {
   };
 
   const readFile = async (file: File) => {
+    const version = ++fileReadVersion.current;
+    setRows([]);
     setError("");
     setXml("");
     setLastInput(null);
     try {
       const parsed = await parseSpreadsheet(file);
+      if (version !== fileReadVersion.current) return;
       const usable = firstUsableSheet(parsed);
       setSheets(parsed);
       applySheet(usable);
       setFileName(file.name);
     } catch (e) {
+      if (version !== fileReadVersion.current) return;
       setRows([]);
       setSheets([]);
       setSelectedSheet("");
@@ -390,7 +422,7 @@ export default function FatcaApp({ workspace }: Props) {
   };
 
   return (
-    <div className="shell">
+    <div className="shell" onChange={() => setError("")}>
       <header className="masthead">
         <h1>FATCA reporting</h1>
         <p>Prepare Mauritius FATCA XML for submission through MRA eServices.</p>
@@ -400,12 +432,13 @@ export default function FatcaApp({ workspace }: Props) {
         </div>
       </header>
 
-      <main>
+      <div className="filing-guidance"><strong>Your filing workflow</strong><p>Choose a filing type, confirm the institution and review your account data. Generated files remain in pre-validation until controlled MRA acceptance.</p></div>
+      <div>
         <section className="card">
           <h2>1. Filing type</h2>
           <div className="mode-grid">
             {(["new", "corrected", "amended", "void", "nil"] as Mode[]).map((x) => (
-              <button key={x} type="button" className={mode === x ? "active" : ""} onClick={() => { setMode(x); setXml(""); setError(""); }}>
+              <button key={x} type="button" aria-pressed={mode === x} className={mode === x ? "active" : ""} onClick={() => { setMode(x); setXml(""); setError(""); }}>
                 {x[0]!.toUpperCase() + x.slice(1)}
               </button>
             ))}
@@ -443,9 +476,9 @@ export default function FatcaApp({ workspace }: Props) {
             <p>Use the controlled template. For corrected, amended or void records, include the prior message and document reference IDs in each row.</p>
             <div className="actions">
               <button type="button" onClick={downloadTemplate}>Download FATCA template</button>
-              <label className="button">
+              <label className="button upload-button">
                 Upload CSV / XLSX
-                <input hidden type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => e.target.files?.[0] && void readFile(e.target.files[0])} />
+                <input aria-label="Upload FATCA account data" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => e.target.files?.[0] && void readFile(e.target.files[0])} />
               </label>
             </div>
             {fileName && <p><strong>{fileName}</strong> — {rows.length} row(s) loaded.</p>}
@@ -481,8 +514,9 @@ export default function FatcaApp({ workspace }: Props) {
             <div className="readiness-item"><span className={workspace ? "state live" : "state pending"}>{workspace ? "durable" : "local"}</span><strong>Filing history</strong></div>
             <div className="readiness-item"><span className="state pending">pending</span><strong>MRA acceptance</strong></div>
           </div>
+          <p className="hint">{!giin.trim() || !fiName.trim() || !filerCategory ? "Enter the GIIN, institution name and actual filer category." : mode !== "nil" && !rows.length ? "Upload account data, or select Nil if there is nothing to report." : "Ready to run schema and reporting checks."}</p>
           <button type="button" className="primary" disabled={workspaceBusy} onClick={() => void generate()}>Generate FATCA XML</button>
-          {error && <div className="diagnostic error">{error}</div>}
+          {error && <div className="diagnostic error" role="alert">{error}</div>}
           {xml && (
             <>
               <div className="diagnostic info">
@@ -506,7 +540,7 @@ export default function FatcaApp({ workspace }: Props) {
             </>
           )}
         </section>
-      </main>
+      </div>
     </div>
   );
 }
