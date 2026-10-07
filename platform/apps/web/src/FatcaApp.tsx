@@ -464,7 +464,7 @@ export default function FatcaApp({ workspace }: Props) {
                 {structuralStatus}
               </div>
               <div className="diagnostic warning">
-                Pre-validation mode: this file is not yet authorised for production submission. Exact FATCA v2.0.1 validation and an MRA acceptance test remain mandatory.
+                Pre-validation mode: the FATCA v2.0.1 current-rule schema check passed, but this file is not yet authorised for production submission. A controlled MRA acceptance test remains mandatory.
               </div>
               <div className="actions">
                 <button type="button" onClick={downloadXml}>Download test XML</button>
