@@ -3,7 +3,6 @@ import {
   FatcaAccountHolderType,
   FatcaDocTypeIndic,
   FatcaFilerCategory,
-  FatcaDocTypeIndic,
   FatcaPaymentType,
   emitFatcaXml,
   type FatcaFilingInput,
@@ -22,7 +21,7 @@ const base: FatcaFilingInput = {
   reportingPeriod: "2025-12-31",
   timestamp: "2026-05-01T10:00:00Z",
   messageRefId: "MU2025FATCA0001",
-    reportingFiDocRefId: "MU2025FI0001",
+  reportingFiDocRefId: "MU2025FI0001",
   reportingFiDocType: FatcaDocTypeIndic.New,
 };
 
