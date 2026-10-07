@@ -22,6 +22,7 @@ import { inferColumns, mapRows, specFor, templateCsv, type ColumnMapping, type R
 import { PACKS, deadlineFor, packFor, type JurisdictionPack } from "@crs/jurisdictions";
 import { Diagnostics } from "./components/Diagnostics.js";
 import { clearLedger, exportLedger, loadLedger, saveLedger } from "./ledger-storage.js";
+import { browserSchemaProvider } from "./schema-provider.js";
 
 type Mode = "new" | "correct" | "nil";
 
@@ -254,11 +255,15 @@ export default function App() {
     // The libxml2 WebAssembly module is ~1 MB and is only needed once a
     // document exists, so it is loaded on demand rather than at startup.
     const { SchemaValidator, describeOutcome } = await import("@crs/validate");
-    const outcome = new SchemaValidator().validate(xml, plan.schemaTarget);
+    const outcome = new SchemaValidator(browserSchemaProvider).validate(xml, plan.schemaTarget);
     const all = [...plan.diagnostics, ...invariants, ...emitDiagnostics, ...outcome.diagnostics];
 
     setOutputDiagnostics(all);
-    setOutput(hasErrors(all) ? null : { xml, plan, note: `${note} ${describeOutcome(outcome)}.` });
+    if (!outcome.available || !outcome.valid || hasErrors(all)) {
+      setOutput(null);
+      return;
+    }
+    setOutput({ xml, plan, note: `${note} ${describeOutcome(outcome)}.` });
   }, [pack, records, settings, mode, buildContext, ledger]);
 
   const recordAsFiled = useCallback(() => {
