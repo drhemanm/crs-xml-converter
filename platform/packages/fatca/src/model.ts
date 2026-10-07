@@ -5,23 +5,18 @@
  * but never lifecycle codes or schema assumptions.
  */
 
-export const FatcaRecordDocTypeIndic = {
+export const FatcaDocTypeIndic = {
   New: "FATCA1",
   Corrected: "FATCA2",
   Void: "FATCA3",
   Amended: "FATCA4",
+  TestNew: "FATCA11",
+  TestCorrected: "FATCA12",
+  TestVoid: "FATCA13",
+  TestAmended: "FATCA14",
 } as const;
-export type FatcaRecordDocTypeIndic =
-  (typeof FatcaRecordDocTypeIndic)[keyof typeof FatcaRecordDocTypeIndic];
-
-export const FatcaAccountDocTypeIndic = {
-  New: "FATCA11",
-  Corrected: "FATCA12",
-  Void: "FATCA13",
-  Amended: "FATCA14",
-} as const;
-export type FatcaAccountDocTypeIndic =
-  (typeof FatcaAccountDocTypeIndic)[keyof typeof FatcaAccountDocTypeIndic];
+export type FatcaDocTypeIndic =
+  (typeof FatcaDocTypeIndic)[keyof typeof FatcaDocTypeIndic];
 
 export const FatcaFilerCategory = {
   ParticipatingFfi: "FATCA601",
@@ -30,6 +25,9 @@ export const FatcaFilerCategory = {
   ReportingModel2Ffi: "FATCA604",
   QiWpOrWt: "FATCA605",
   DirectReportingNffe: "FATCA606",
+  SponsorOfSponsoredFfi: "FATCA607",
+  SponsorOfSponsoredDirectReportingNffe: "FATCA608",
+  TrusteeOfTrusteeDocumentedTrust: "FATCA609",
   WithholdingAgent: "FATCA610",
   TerritoryFiTreatedAsUsPerson: "FATCA611",
 } as const;
@@ -130,19 +128,19 @@ export interface FatcaFilingInput {
   messageRefId: string;
   corrMessageRefId?: string;
   reportingFiDocRefId: string;
-  reportingFiDocType: FatcaRecordDocTypeIndic;
+  reportingFiDocType: FatcaDocTypeIndic;
   reportingFiCorrMessageRefId?: string;
   reportingFiCorrDocRefId?: string;
   nilReport?: {
     docRefId: string;
-    docType: FatcaRecordDocTypeIndic;
+    docType: FatcaDocTypeIndic;
     corrMessageRefId?: string;
     corrDocRefId?: string;
   };
   accounts?: readonly {
     record: FatcaAccountRecord;
     docRefId: string;
-    docType: FatcaAccountDocTypeIndic;
+    docType: FatcaDocTypeIndic;
     corrMessageRefId?: string;
     corrDocRefId?: string;
   }[];
