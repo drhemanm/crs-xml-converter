@@ -76,3 +76,13 @@ Pricing should be tested with local accounting firms, management companies,
 fund administrators and financial institutions before hard-coding a number.
 The product should charge for operational risk reduction and filing workflow,
 not for "number of XML tags generated".
+
+
+## Pre-validation release gate
+
+The software may be deployed for evaluation before regulator acceptance, but
+must not be marketed as MRA-approved or production-certified until controlled
+CRS v3.0 and FATCA v2.0.1 files have been accepted by MRA.
+
+The connected workspace stores filing metadata only. Source spreadsheets,
+account-holder names, TINs, addresses and balances remain in the browser.
