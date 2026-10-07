@@ -305,6 +305,9 @@ export default function FatcaApp({ workspace }: Props) {
     setError("");
     try {
       const secret = workspace.institution.pseudonym_key;
+      if (!secret) {
+        throw new Error("Your workspace role can view this institution but is not authorised to prepare FATCA filings.");
+      }
       const entries = [];
 
       entries.push({
