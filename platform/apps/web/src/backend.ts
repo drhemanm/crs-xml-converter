@@ -13,7 +13,7 @@ async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    return await fetchWithTimeout(input, { ...init, signal: controller.signal });
+    return await fetch(input, { ...init, signal: controller.signal });
   } catch (cause) {
     if ((cause as Error)?.name === "AbortError") {
       throw new Error("The filing workspace did not respond within 20 seconds. No retry was performed for this write.");
