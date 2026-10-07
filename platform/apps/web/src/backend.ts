@@ -55,7 +55,7 @@ export interface ReportingInstitution {
   identifier_value: string;
   city: string | null;
   active: boolean;
-  pseudonym_key: string;
+  pseudonym_key?: string;
 }
 
 export interface RemoteLedgerEntry {
@@ -229,7 +229,7 @@ export async function createOrganization(name: string): Promise<Organization> {
 
 export async function listInstitutions(organizationId: string): Promise<ReportingInstitution[]> {
   const query = new URLSearchParams({
-    select: "id,organization_id,legal_name,jurisdiction,identifier_type,identifier_value,city,active,pseudonym_key",
+    select: "id,organization_id,legal_name,jurisdiction,identifier_type,identifier_value,city,active",
     organization_id: `eq.${organizationId}`,
     active: "eq.true",
     order: "legal_name.asc",
@@ -245,7 +245,7 @@ export async function createInstitution(
     "legal_name" | "jurisdiction" | "identifier_type" | "identifier_value" | "city"
   >,
 ): Promise<ReportingInstitution> {
-  const r = await authedFetch("/rest/v1/reporting_institutions?select=id,organization_id,legal_name,jurisdiction,identifier_type,identifier_value,city,active,pseudonym_key", {
+  const r = await authedFetch("/rest/v1/reporting_institutions?select=id,organization_id,legal_name,jurisdiction,identifier_type,identifier_value,city,active", {
     method: "POST",
     headers: { Prefer: "return=representation" },
     body: JSON.stringify({ organization_id: organizationId, ...input }),
@@ -352,4 +352,24 @@ export async function applyRemoteAuthorityStatus(input: {
     }),
   });
   if (!r.ok) await parseResponse<unknown>(r);
+}
+
+
+export async function getInstitutionPseudonymKey(institutionId: string): Promise<string> {
+  const r = await authedFetch("/rest/v1/rpc/aeoi_get_pseudonym_key", {
+    method: "POST",
+    body: JSON.stringify({ p_institution_id: institutionId }),
+  });
+  return parseResponse<string>(r);
+}
+
+export async function hydrateInstitutionForFiling(
+  institution: ReportingInstitution,
+): Promise<ReportingInstitution> {
+  try {
+    const pseudonym_key = await getInstitutionPseudonymKey(institution.id);
+    return { ...institution, pseudonym_key };
+  } catch {
+    return institution;
+  }
 }
