@@ -84,6 +84,6 @@ browsers will not load the app.
 ## Caveat worth stating to users
 
 CRS v2.0/v3.0 schema bundles are shipped with the platform and validation is a
-blocking generation gate. FATCA currently runs the IRS v2 structural backstop
-and remains explicitly in pre-validation mode until the exact v2.0.1 bundle
-and an MRA acceptance test are completed.
+blocking generation gate. FATCA runs a current-rule v2.0.1 bundle built from the IRS-published v2
+schemas plus the IRS-documented v1.2 ISO amendments. It remains explicitly in
+pre-validation mode until a controlled MRA acceptance test is completed.
