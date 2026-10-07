@@ -20,7 +20,7 @@ export type FatcaDocTypeIndic =
 
 export const FatcaFilerCategory = {
   ParticipatingFfi: "FATCA601",
-  ReportingModel1Ffi: "FATCA602",
+  RegisteredDeemedCompliantFfi: "FATCA602",
   LimitedBranchOrFfi: "FATCA603",
   ReportingModel2Ffi: "FATCA604",
   QiWpOrWt: "FATCA605",
@@ -39,6 +39,7 @@ export const FatcaAccountHolderType = {
   PassiveNffeWithSubstantialUsOwners: "FATCA102",
   NonParticipatingFfi: "FATCA103",
   SpecifiedUsPerson: "FATCA104",
+  DirectReportingNffe: "FATCA105",
 } as const;
 export type FatcaAccountHolderType =
   (typeof FatcaAccountHolderType)[keyof typeof FatcaAccountHolderType];

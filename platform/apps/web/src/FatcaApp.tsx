@@ -11,9 +11,27 @@ import {
 } from "@aeoi/fatca";
 
 type Mode = "new" | "corrected" | "void" | "amended" | "nil";
-type Row = Record<string, string>;
 
-const today = new Date().toISOString().slice(0, 10);
+interface Row {
+  account_number?: string;
+  account_number_type?: string;
+  account_closed?: string;
+  holder_kind?: string;
+  first_name?: string;
+  last_name?: string;
+  holder_name?: string;
+  holder_tin?: string;
+  holder_residence_country?: string;
+  account_holder_type?: string;
+  account_balance?: string;
+  currency?: string;
+  payment_type?: string;
+  payment_amount?: string;
+  payment_currency?: string;
+  doc_ref_id?: string;
+  corr_message_ref_id?: string;
+  corr_doc_ref_id?: string;
+}
 
 const modeCode: Record<Mode, string> = {
   new: FatcaDocTypeIndic.New,
@@ -29,8 +47,7 @@ function money(value: string, field: string): string {
   return v;
 }
 
-function parseRows(rows: Row[], mode: Mode): FatcaFilingInput["accounts"] {
-  if (mode === "nil") return [];
+function parseRows(rows: Row[], mode: Exclude<Mode, "nil">): NonNullable<FatcaFilingInput["accounts"]> {
   return rows.map((r, i) => {
     const n = i + 2;
     const holderType = (r.holder_kind || "individual").trim().toLowerCase();
@@ -38,7 +55,7 @@ function parseRows(rows: Row[], mode: Mode): FatcaFilingInput["accounts"] {
     const record: FatcaAccountRecord = {
       accountNumber: (r.account_number || "").trim(),
       ...(r.account_number_type?.trim() ? { accountNumberType: r.account_number_type.trim() } : {}),
-      ...(r.account_closed?.trim() ? { accountClosed: /^(true|yes|1)$/i.test(r.account_closed.trim()) } : {}),
+      ...(r.account_closed?.trim() ? { closed: /^(true|yes|1)$/i.test(r.account_closed.trim()) } : {}),
       holder: organisation
         ? {
             kind: "organisation",
@@ -48,8 +65,7 @@ function parseRows(rows: Row[], mode: Mode): FatcaFilingInput["accounts"] {
               ? { residenceCountry: r.holder_residence_country.trim().toUpperCase() }
               : {}),
             holderType:
-              (r.account_holder_type?.trim() as FatcaAccountHolderType) ||
-              FatcaAccountHolderType.SpecifiedUsPerson,
+              (r.account_holder_type?.trim() as FatcaAccountHolderType),
           }
         : {
             kind: "individual",
@@ -82,6 +98,11 @@ function parseRows(rows: Row[], mode: Mode): FatcaFilingInput["accounts"] {
     if (record.holder.kind === "organisation" && !record.holder.name) {
       throw new Error(`Row ${n}: holder_name is required for an organisation`);
     }
+    if (record.holder.kind === "organisation" && !r.account_holder_type?.trim()) {
+      throw new Error(
+        `Row ${n}: account_holder_type is required for an organisation; the tool will not infer a FATCA classification`,
+      );
+    }
 
     const docRefId = (r.doc_ref_id || "").trim();
     if (!docRefId) throw new Error(`Row ${n}: doc_ref_id is required`);
@@ -112,7 +133,7 @@ export default function FatcaApp() {
   const [tan, setTan] = useState("");
   const [fiName, setFiName] = useState("");
   const [fiCity, setFiCity] = useState("Port Louis");
-  const [filerCategory, setFilerCategory] = useState<string>(FatcaFilerCategory.ReportingModel1Ffi);
+  const [filerCategory, setFilerCategory] = useState<string>("");
   const [period, setPeriod] = useState("2025-12-31");
   const [messageRefId, setMessageRefId] = useState("");
   const [fiDocRefId, setFiDocRefId] = useState("");
@@ -158,6 +179,7 @@ export default function FatcaApp() {
       if (!giin.trim()) throw new Error("GIIN is required.");
       if (!fiName.trim()) throw new Error("Financial institution name is required.");
       if (!period) throw new Error("Reporting period is required.");
+      if (!filerCategory) throw new Error("FATCA filer category is required; select the institution's actual IRS category.");
       if (correcting && (!corrMessageRefId.trim() || !corrFiDocRefId.trim())) {
         throw new Error("Corrected, amended and void filings require the previous MessageRefId and ReportingFI DocRefId.");
       }
@@ -177,18 +199,23 @@ export default function FatcaApp() {
         messageRefId: msg,
         reportingFiDocRefId: fiRef,
         reportingFiDocType: modeCode[mode] as FatcaDocTypeIndic,
-        ...(correcting ? { corrMessageRefId: corrMessageRefId.trim() } : {}),
-        ...(correcting ? { reportingFiCorrMessageRefId: corrMessageRefId.trim() } : {}),
-        ...(correcting ? { reportingFiCorrDocRefId: corrFiDocRefId.trim() } : {}),
-        ...(mode === "nil"
-          ? {
-              nilReport: {
-                docRefId: generatedRefs.nil,
-                docType: FatcaDocTypeIndic.New,
-              },
-            }
-          : { accounts: parseRows(rows, mode) }),
       };
+
+      if (correcting) {
+        input.corrMessageRefId = corrMessageRefId.trim();
+        input.reportingFiCorrMessageRefId = corrMessageRefId.trim();
+        input.reportingFiCorrDocRefId = corrFiDocRefId.trim();
+      }
+
+      if (mode === "nil") {
+        input.nilReport = {
+          docRefId: generatedRefs.nil,
+          docType: FatcaDocTypeIndic.New,
+        };
+      } else {
+        input.accounts = parseRows(rows, mode);
+      }
+
       setXml(emitFatcaXml(input));
     } catch (e) {
       setError((e as Error).message);
@@ -248,6 +275,7 @@ export default function FatcaApp() {
             <label>Institution city<input value={fiCity} onChange={(e) => setFiCity(e.target.value)} /></label>
             <label>Filer category
               <select value={filerCategory} onChange={(e) => setFilerCategory(e.target.value)}>
+                <option value="">Select the actual filer category</option>
                 {Object.entries(FatcaFilerCategory).map(([name, value]) => <option key={value} value={value}>{value} — {name}</option>)}
               </select>
             </label>

@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aeoi/fatca": "workspace:*",
     "@crs/core": "workspace:*",
     "@crs/ingest": "workspace:*",
     "@crs/jurisdictions": "workspace:*",

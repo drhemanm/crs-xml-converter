@@ -10,6 +10,7 @@
     "types": ["vite/client"],
     "baseUrl": ".",
     "paths": {
+      "@aeoi/fatca": ["../../packages/fatca/src/index.ts"],
       "@crs/core": ["../../packages/core/src/index.ts"],
       "@crs/ingest": ["../../packages/ingest/src/index.ts"],
       "@crs/jurisdictions": ["../../packages/jurisdictions/src/index.ts"],

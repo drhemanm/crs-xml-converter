@@ -48,6 +48,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@aeoi/fatca':
+        specifier: workspace:*
+        version: link:../../packages/fatca
       '@crs/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -94,6 +97,9 @@ importers:
       '@crs/core':
         specifier: workspace:*
         version: link:../core
+      libxml2-wasm:
+        specifier: ^0.7.1
+        version: 0.7.1
 
   packages/ingest:
     dependencies:

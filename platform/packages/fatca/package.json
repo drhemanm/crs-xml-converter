@@ -8,6 +8,7 @@
   "exports": { ".": "./src/index.ts" },
   "scripts": { "build": "tsc -b" },
   "dependencies": {
-    "@crs/core": "workspace:*"
+    "@crs/core": "workspace:*",
+    "libxml2-wasm": "^0.7.1"
   }
 }
