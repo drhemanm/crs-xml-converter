@@ -43,7 +43,7 @@ test("files a new return and records it to filing history", async ({ page }) => 
   // The legacy generator put an XSD authoring attribute on the instance root.
   await expect(page.locator("pre.xml")).not.toContainText("targetNamespace");
 
-  await page.getByRole("button", { name: "Record as submitted" }).click();
+  await page.getByRole("button", { name: "Record in local history" }).click();
   await expect(page.getByRole("tab", { name: /Filing history \(4\)/ })).toBeVisible();
   await expect(page.locator("tbody tr")).toHaveCount(4); // 1 ReportingFI + 3 accounts
   await expect(page.locator(".state.pending").first()).toBeVisible();
@@ -53,7 +53,7 @@ test("filing history survives a page reload", async ({ page }) => {
   await fillInstitution(page);
   await page.setInputFiles('input[type="file"]', CSV);
   await generate(page);
-  await page.getByRole("button", { name: "Record as submitted" }).click();
+  await page.getByRole("button", { name: "Record in local history" }).click();
   await expect(page.locator("tbody tr")).toHaveCount(4);
 
   await page.reload();
@@ -67,7 +67,7 @@ test("applies an authority status message and marks records live or rejected", a
   await generate(page);
 
   const messageRefId = (await page.getByTestId("message-ref-id").innerText()).trim();
-  await page.getByRole("button", { name: "Record as submitted" }).click();
+  await page.getByRole("button", { name: "Record in local history" }).click();
 
   const rejected = (await page.locator("tbody tr:last-child td:last-child").innerText()).trim();
   const status = `<?xml version="1.0" encoding="UTF-8"?>
@@ -101,7 +101,7 @@ test("derives CorrDocRefId from filing history when correcting", async ({ page }
   await page.setInputFiles('input[type="file"]', CSV);
   await generate(page);
   const messageRefId = (await page.getByTestId("message-ref-id").innerText()).trim();
-  await page.getByRole("button", { name: "Record as submitted" }).click();
+  await page.getByRole("button", { name: "Record in local history" }).click();
 
   const docRefIds = await page.locator("tbody tr td:last-child").allInnerTexts();
   const accountDocRef = docRefIds[1]!.trim();
@@ -205,7 +205,7 @@ test("never contacts any host other than its own origin", async ({ page }) => {
   await fillInstitution(page);
   await page.setInputFiles('input[type="file"]', CSV);
   await generate(page);
-  await page.getByRole("button", { name: "Record as submitted" }).click();
+  await page.getByRole("button", { name: "Record in local history" }).click();
 
   expect(foreign).toEqual([]);
 });
