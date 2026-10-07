@@ -81,6 +81,7 @@ describe("FATCA structural schema regression", () => {
             tin: "123456789",
             residenceCountry: "US",
             holderType: FatcaAccountHolderType.SpecifiedUsPerson,
+            address: { countryCode: "US", city: "New York", street: "1 Main Street" },
           },
           balance: "1000.00",
           currency: "USD",
