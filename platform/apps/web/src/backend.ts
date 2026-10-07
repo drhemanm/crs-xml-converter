@@ -54,6 +54,7 @@ export interface RemoteLedgerEntry {
   reporting_period_end: string;
   schema_version: string;
   filing_id: string;
+  created_at: string;
 }
 
 export interface WorkspaceSelection {
@@ -242,7 +243,7 @@ export async function loadRemoteLedger(
 ): Promise<RemoteLedgerEntry[]> {
   const query = new URLSearchParams({
     select:
-      "doc_ref_id,record_kind,record_state,doc_type_indic,corr_doc_ref_id,parent_doc_ref_id,superseded_by,business_key,payload_digest,reporting_period_end,schema_version,filing_id,filings(message_ref_id)",
+      "doc_ref_id,record_kind,record_state,doc_type_indic,corr_doc_ref_id,parent_doc_ref_id,superseded_by,business_key,payload_digest,reporting_period_end,schema_version,filing_id,created_at,filings(message_ref_id)",
     organization_id: `eq.${organizationId}`,
     institution_id: `eq.${institutionId}`,
     order: "created_at.asc",
