@@ -7,6 +7,24 @@ export const SUPABASE_PUBLISHABLE_KEY =
 
 const SESSION_KEY = "aeoi.supabase.session.v1";
 
+const REQUEST_TIMEOUT_MS = 20000;
+
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetchWithTimeout(input, { ...init, signal: controller.signal });
+  } catch (cause) {
+    if ((cause as Error)?.name === "AbortError") {
+      throw new Error("The filing workspace did not respond within 20 seconds. No retry was performed for this write.");
+    }
+    throw cause;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+
 export interface BackendUser {
   id: string;
   email?: string;
@@ -116,7 +134,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
 }
 
 export async function signUp(email: string, password: string): Promise<BackendSession | null> {
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/signup`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({ email, password }),
@@ -128,7 +146,7 @@ export async function signUp(email: string, password: string): Promise<BackendSe
 }
 
 export async function signIn(email: string, password: string): Promise<BackendSession> {
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({ email, password }),
@@ -139,7 +157,7 @@ export async function signIn(email: string, password: string): Promise<BackendSe
 }
 
 async function refreshSession(session: BackendSession): Promise<BackendSession> {
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+  const response = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify({ refresh_token: session.refresh_token }),
@@ -165,7 +183,7 @@ export async function validSession(): Promise<BackendSession | null> {
 export async function signOut(): Promise<void> {
   const session = readSession();
   if (session) {
-    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+    await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/logout`, {
       method: "POST",
       headers: headers(session.access_token),
     }).catch(() => undefined);
@@ -177,13 +195,13 @@ async function authedFetch(path: string, init: RequestInit = {}): Promise<Respon
   let session = await validSession();
   if (!session) throw new Error("Sign in to use the connected filing workspace.");
 
-  let response = await fetch(`${SUPABASE_URL}${path}`, {
+  let response = await fetchWithTimeout(`${SUPABASE_URL}${path}`, {
     ...init,
     headers: { ...headers(session.access_token), ...(init.headers ?? {}) },
   });
   if (response.status === 401) {
     session = await refreshSession(session);
-    response = await fetch(`${SUPABASE_URL}${path}`, {
+    response = await fetchWithTimeout(`${SUPABASE_URL}${path}`, {
       ...init,
       headers: { ...headers(session.access_token), ...(init.headers ?? {}) },
     });
