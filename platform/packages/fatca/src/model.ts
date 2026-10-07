@@ -39,6 +39,7 @@ export const FatcaAccountHolderType = {
   PassiveNffeWithSubstantialUsOwners: "FATCA102",
   NonParticipatingFfi: "FATCA103",
   SpecifiedUsPerson: "FATCA104",
+  DirectReportingNffe: "FATCA105",
 } as const;
 export type FatcaAccountHolderType =
   (typeof FatcaAccountHolderType)[keyof typeof FatcaAccountHolderType];
