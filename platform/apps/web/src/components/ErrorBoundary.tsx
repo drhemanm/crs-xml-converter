@@ -4,7 +4,7 @@ interface Props { children: ReactNode }
 interface State { failed: boolean; reference: string }
 
 export class ErrorBoundary extends Component<Props, State> {
-  state: State = { failed: false, reference: "" };
+  override state: State = { failed: false, reference: "" };
 
   static getDerivedStateFromError(): State {
     return {
@@ -13,7 +13,7 @@ export class ErrorBoundary extends Component<Props, State> {
     };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo): void {
+  override componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error("AEOI UI failure", {
       name: error.name,
       message: error.message,
@@ -22,7 +22,7 @@ export class ErrorBoundary extends Component<Props, State> {
     });
   }
 
-  render() {
+  override render() {
     if (this.state.failed) {
       return (
         <main className="shell">
