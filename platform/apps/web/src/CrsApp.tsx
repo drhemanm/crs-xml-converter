@@ -23,7 +23,6 @@ import { inferColumns, mapRows, specFor, templateCsv, type ColumnMapping } from 
 import { PACKS, deadlineFor, packFor, type JurisdictionPack } from "@crs/jurisdictions";
 import { Diagnostics } from "./components/Diagnostics.js";
 import { clearLedger, exportLedger, getLocalLedgerHmacSecret, loadLedger, saveLedger } from "./ledger-storage.js";
-import { browserSchemaProvider } from "./schema-provider.js";
 import { firstUsableSheet, parseSpreadsheet, type ParsedSheet } from "./spreadsheet.js";
 import {
   applyRemoteAuthorityStatus,
@@ -140,11 +139,37 @@ export default function App({ workspace }: Props) {
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const statusInput = useRef<HTMLInputElement>(null);
+  const fileReadVersion = useRef(0);
 
   const ledger = ledgerState.ledger;
+  const [generating, setGenerating] = useState(false);
+  const generatingRef = useRef(false);
+  const inputVersion = useRef(0);
 
   useEffect(() => {
+    inputVersion.current += 1;
+    setOutput(null);
+    setOutputDiagnostics([]);
+  }, [settings, records, selectedSheet, mode, workspace]);
+
+  // Ledger refreshes invalidate generated XML, but authority-response
+  // diagnostics must remain visible in history after reconciliation.
+  useEffect(() => {
+    inputVersion.current += 1;
+    setOutput(null);
+  }, [ledger]);
+
+  useEffect(() => {
+    let active = true;
+    fileReadVersion.current += 1;
+    setFileName(null);
+    setSheets([]);
+    setSelectedSheet("");
+    setMapping(null);
+    setRecords([]);
+    setIngestDiagnostics([]);
     if (!workspace) {
+      setWorkspaceBusy(false);
       setRemoteRows([]);
       try {
         setLedgerState({ ledger: loadLedger(), error: null });
@@ -165,11 +190,13 @@ export default function App({ workspace }: Props) {
     setWorkspaceBusy(true);
     void loadRemoteLedger(workspace.organization.id, fi.id, "CRS")
       .then((rows) => {
+        if (!active) return;
         setRemoteRows(rows);
         setLedgerState({ ledger: remoteToLedger(rows, fi.jurisdiction), error: null });
       })
-      .catch((e) => setLedgerState({ ledger: new InMemoryLedger(), error: (e as Error).message }))
-      .finally(() => setWorkspaceBusy(false));
+      .catch((e) => { if (active) setLedgerState({ ledger: new InMemoryLedger(), error: (e as Error).message }); })
+      .finally(() => { if (active) setWorkspaceBusy(false); });
+    return () => { active = false; };
   }, [workspace]);
 
   /** Re-read from storage so the view reflects what was actually persisted. */
@@ -180,6 +207,13 @@ export default function App({ workspace }: Props) {
       setLedgerState({ ledger: new InMemoryLedger(), error: (e as Error).message });
     }
   }, []);
+
+  useEffect(() => {
+    if (!fileName && !settings.fiName && !output) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [fileName, settings.fiName, output]);
 
   const pack: JurisdictionPack | undefined = packFor(settings.jurisdiction);
   const schemaTarget = pack
@@ -205,15 +239,21 @@ export default function App({ workspace }: Props) {
   }, []);
 
   const readFile = useCallback(async (file: File) => {
+    const version = ++fileReadVersion.current;
+    setRecords([]);
+    setMapping(null);
+    setIngestDiagnostics([]);
     setFileName(file.name);
     setOutput(null);
     setOutputDiagnostics([]);
     try {
       const parsed = await parseSpreadsheet(file);
+      if (version !== fileReadVersion.current) return;
       const usable = firstUsableSheet(parsed);
       setSheets(parsed);
       applySheet(usable);
     } catch (e) {
+      if (version !== fileReadVersion.current) return;
       setSheets([]);
       setSelectedSheet("");
       setMapping(null);
@@ -269,6 +309,9 @@ export default function App({ workspace }: Props) {
 
   const generate = useCallback(async () => {
     if (!pack) return;
+    const version = inputVersion.current;
+    setOutput(null);
+    setOutputDiagnostics([]);
     setFatal(null);
 
     if (workspace && !workspace.institution.pseudonym_key) {
@@ -277,6 +320,7 @@ export default function App({ workspace }: Props) {
     }
     const hmacSecret = workspace ? workspace.institution.pseudonym_key! : getLocalLedgerHmacSecret();
     const { businessKeys, digests } = await deriveKeys(records, hmacSecret);
+    if (version !== inputVersion.current) return;
     const ctx = buildContext(pack, businessKeys, digests);
 
     let plan: FilingPlan | Diagnostic[];
@@ -294,12 +338,12 @@ export default function App({ workspace }: Props) {
         if (!live) unmatched.push(record.accountNumber);
         else corrections.push({ record, targetDocRefId: live.docRefId });
       }
-      if (corrections.length === 0) {
+      if (corrections.length === 0 || unmatched.length > 0) {
         setOutputDiagnostics([
           {
             code: "CORR-002",
             severity: "error",
-            message: `No accepted records found to correct${unmatched.length ? `: ${unmatched.join(", ")}` : ""}.`,
+            message: `No accepted records found to correct${unmatched.length ? `: ${unmatched.join(", ")}` : ""}. No partial correction was generated.`,
             remediation:
               "These accounts have no live version. File them as new data instead — an authority cannot correct a record it never accepted.",
           },
@@ -308,9 +352,7 @@ export default function App({ workspace }: Props) {
         return;
       }
       plan = planCorrection(ctx, corrections);
-      note =
-        `Correcting ${corrections.length} record(s).` +
-        (unmatched.length ? ` ${unmatched.length} had no accepted version and were skipped.` : "");
+      note = `Correcting ${corrections.length} record(s).`;
     } else {
       plan = planNewFiling(ctx, records);
       note = `New information for ${records.length} account(s).`;
@@ -342,9 +384,10 @@ export default function App({ workspace }: Props) {
 
     // The libxml2 WebAssembly module is ~1 MB and is only needed once a
     // document exists, so it is loaded on demand rather than at startup.
-    const { SchemaValidator, describeOutcome } = await import("@crs/validate");
+    const [{ SchemaValidator, describeOutcome }, { browserSchemaProvider }] = await Promise.all([import("@crs/validate"), import("./schema-provider.js")]);
+    if (version !== inputVersion.current) return;
     const outcome = new SchemaValidator(browserSchemaProvider).validate(xml, plan.schemaTarget);
-    const all = [...plan.diagnostics, ...invariants, ...emitDiagnostics, ...outcome.diagnostics];
+    const all = [...(mode === "nil" ? [] : ingestDiagnostics), ...plan.diagnostics, ...invariants, ...emitDiagnostics, ...outcome.diagnostics];
 
     setOutputDiagnostics(all);
     if (!outcome.available || !outcome.valid || hasErrors(all)) {
@@ -352,7 +395,25 @@ export default function App({ workspace }: Props) {
       return;
     }
     setOutput({ xml, plan, note: `${note} ${describeOutcome(outcome)}.` });
-  }, [pack, records, settings, mode, buildContext, ledger, workspace]);
+  }, [pack, records, settings, mode, buildContext, ledger, workspace, ingestDiagnostics]);
+
+  const runGenerate = async () => {
+    if (generatingRef.current) return;
+    generatingRef.current = true;
+    setGenerating(true);
+    const version = inputVersion.current;
+    try {
+      await generate();
+    } catch (e) {
+      if (version === inputVersion.current) {
+        setOutput(null);
+        setFatal(`Could not generate return: ${(e as Error).message}`);
+      }
+    } finally {
+      generatingRef.current = false;
+      setGenerating(false);
+    }
+  };
 
   const recordAsFiled = useCallback(async () => {
     if (!output) return;
@@ -489,6 +550,7 @@ export default function App({ workspace }: Props) {
   );
 
   const settingsComplete = settings.fiName.trim() !== "" && settings.fiId.trim() !== "";
+  const sourceReady = mode === "nil" || (records.length > 0 && !hasErrors(ingestDiagnostics));
   const canGenerate = Boolean(pack) && settingsComplete && (mode === "nil" || records.length > 0);
   const entries = ledger.all();
 
@@ -499,10 +561,11 @@ export default function App({ workspace }: Props) {
         <p>Prepare, validate and correct CRS/AEOI returns. By Evologics Ltd.</p>
         <div className="privacy-note">
           <strong>Account data stays in this browser.</strong> Spreadsheets are parsed, mapped and converted
-          locally; the generated XML is produced on this device and never uploaded. You can verify this — open
-          your browser's network panel and observe that no request is made while you work.
+          locally. Connected workspaces synchronise filing metadata and reference history, never source rows or generated XML.
         </div>
       </header>
+
+      <div className="filing-guidance"><strong>Your filing workflow</strong><p>Confirm the institution and period, choose a filing type, then review your data before generating XML. Saving history does not submit a return.</p></div>
 
       {fatal || ledgerState.error ? (
         <div className="diagnostic error" role="alert">
@@ -511,14 +574,14 @@ export default function App({ workspace }: Props) {
         </div>
       ) : null}
 
-      <div className="tabs" role="tablist">
-        <button role="tab" aria-current={tab === "prepare"} onClick={() => setTab("prepare")}>
+      <nav className="tabs" aria-label="CRS filing views">
+        <button aria-pressed={tab === "prepare"} aria-current={tab === "prepare"} onClick={() => setTab("prepare")}>
           Prepare filing
         </button>
-        <button role="tab" aria-current={tab === "history"} onClick={() => setTab("history")}>
+        <button aria-pressed={tab === "history"} aria-current={tab === "history"} onClick={() => setTab("history")}>
           Filing history{entries.length ? ` (${entries.length})` : ""}
         </button>
-      </div>
+      </nav>
 
       {tab === "prepare" ? (
         <>
@@ -624,8 +687,8 @@ export default function App({ workspace }: Props) {
                   <strong>Institution</strong>
                 </div>
                 <div className="readiness-item">
-                  <span className={(mode === "nil" || records.length > 0) ? "state live" : "state pending"}>
-                    {(mode === "nil" || records.length > 0) ? "ready" : "needed"}
+                  <span className={sourceReady ? "state live" : "state pending"}>
+                    {sourceReady ? "ready" : "needed"}
                   </span>
                   <strong>Source data</strong>
                 </div>
@@ -646,6 +709,7 @@ export default function App({ workspace }: Props) {
                 {(["new", "correct", "nil"] as Mode[]).map((m) => (
                   <button
                     key={m}
+                    aria-pressed={mode === m}
                     className={mode === m ? "primary" : ""}
                     onClick={() => {
                       setMode(m);
@@ -682,7 +746,9 @@ export default function App({ workspace }: Props) {
                 role="button"
                 tabIndex={0}
                 onClick={() => fileInput.current?.click()}
-                onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && fileInput.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.current?.click(); }
+                }}
                 onDragOver={(e) => {
                   e.preventDefault();
                   setDragOver(true);
@@ -777,8 +843,8 @@ export default function App({ workspace }: Props) {
             <h2>{mode === "nil" ? "3" : "4"} · Generate</h2>
             <div className="panel">
               <div className="actions" style={{ marginTop: 0 }}>
-                <button className="primary" disabled={!canGenerate || workspaceBusy} onClick={() => void generate()}>
-                  Generate return
+                <button className="primary" disabled={!canGenerate || workspaceBusy || generating} aria-busy={generating} onClick={() => void runGenerate()}>
+                  {generating ? "Validating return…" : "Generate return"}
                 </button>
                 {!settingsComplete ? (
                   <span className="hint">Institution name and identifier are required.</span>
@@ -901,7 +967,7 @@ export default function App({ workspace }: Props) {
                 >
                   Export history
                 </button>
-                <button
+                {!workspace ? <button
                   onClick={() => {
                     if (
                       confirm(
@@ -914,7 +980,7 @@ export default function App({ workspace }: Props) {
                   }}
                 >
                   Clear
-                </button>
+                </button> : null}
               </div>
 
               <p className="summary-line">

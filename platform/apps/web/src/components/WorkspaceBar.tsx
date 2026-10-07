@@ -62,12 +62,14 @@ export function WorkspaceBar({ value, onChange }: Props) {
   };
 
   useEffect(() => {
+    setBusy(true);
     void validSession()
       .then((s) => {
         if (s) return reloadOrganizations(s);
         return undefined;
       })
-      .catch((e) => setMessage((e as Error).message));
+      .catch((e) => setMessage((e as Error).message))
+      .finally(() => setBusy(false));
     // Startup only. Workspace changes are driven explicitly below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -87,6 +89,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
         if (s) await reloadOrganizations(s);
         else setMessage("Account created. Check your email if confirmation is enabled, then sign in.");
       }
+      setPassword("");
     } catch (e) {
       setMessage((e as Error).message);
     } finally {
@@ -175,12 +178,12 @@ export function WorkspaceBar({ value, onChange }: Props) {
           <span className="hint"> Account data stays on this device. Sign in to persist filing metadata and correction history.</span>
         </div>
         <div className="workspace-actions">
-          <input aria-label="Workspace email" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input aria-label="Workspace password" type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input aria-label="Workspace email" type="email" autoComplete="username" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input aria-label="Workspace password" type="password" autoComplete="current-password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
           <button disabled={busy} onClick={() => void authenticate("signin")}>Sign in</button>
           <button disabled={busy} onClick={() => void authenticate("signup")}>Create account</button>
         </div>
-        {message ? <p className="hint">{message}</p> : null}
+        {message ? <p className="hint" role="status">{message}</p> : null}
       </section>
     );
   }
@@ -198,6 +201,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
         {organizations.length ? (
           <select
             aria-label="Organization"
+            disabled={busy}
             value={activeOrg?.id ?? selectedOrgId}
             onChange={(e) => void selectOrganization(e.target.value)}
           >
@@ -213,13 +217,17 @@ export function WorkspaceBar({ value, onChange }: Props) {
         {activeOrg && institutions.length ? (
           <select
             aria-label="Reporting institution"
+            disabled={busy}
             value={value?.institution.id ?? institutions[0]!.id}
             onChange={(e) => {
               const fi = institutions.find((x) => x.id === e.target.value);
               if (fi) {
-                void hydrateInstitutionForFiling(fi).then((institution) =>
-                  onChange({ session, organization: activeOrg, institution }),
-                );
+                setBusy(true);
+                setMessage("");
+                void hydrateInstitutionForFiling(fi)
+                  .then((institution) => onChange({ session, organization: activeOrg, institution }))
+                  .catch((e) => setMessage((e as Error).message))
+                  .finally(() => setBusy(false));
               }
             }}
           >
@@ -235,6 +243,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
         ) : null}
 
         <button
+          disabled={busy}
           onClick={() => void signOut().then(() => {
             setSession(null);
             setOrganizations([]);
@@ -246,7 +255,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
           Sign out
         </button>
       </div>
-      {message ? <p className="hint">{message}</p> : null}
+      {message ? <p className="hint" role="status">{message}</p> : null}
     </section>
   );
 }

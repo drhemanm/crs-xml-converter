@@ -1,4 +1,4 @@
-# CRS filing platform
+# CRS & FATCA filing platform
 
 A CRS/AEOI **filing system of record** — not a converter.
 
@@ -19,6 +19,8 @@ tests and browser end-to-end tests covering successful and failing paths.
 The production web build, high-severity dependency audit and browser suite are
 release gates. Controlled MRA acceptance remains the final external regulatory
 gate before the product is described as MRA-approved or production-certified.
+
+See [DESIGN.md](DESIGN.md) for the interface philosophy and state-safety behaviour. Use Node.js 22 and the pinned pnpm 10.33.0 version.
 
 ## Why it is built this way
 
@@ -123,7 +125,7 @@ jurisdiction.
 ## Try it
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm test:all      # typecheck + unit/integration + browser end-to-end
 
 # What columns does it accept?

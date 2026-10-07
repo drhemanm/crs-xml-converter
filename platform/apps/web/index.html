@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CRS filing — Evologics</title>
+    <title>CRS &amp; FATCA reporting | Evologics</title>
     <meta
       name="description"
-      content="Prepare CRS/AEOI returns. Account data is processed entirely in your browser and is never uploaded."
+      content="Prepare and validate CRS and FATCA returns. Account data is processed entirely in your browser and is never uploaded."
     />
     <!--
-      No external origin is referenced anywhere in this document or the bundle,
-      and `connect-src 'self'` is the enforcement behind the claim that account
-      data never leaves the browser: a request to any other host fails.
+      Only this origin and the dedicated metadata endpoint may receive requests.
+      Keep this policy aligned with platform/vercel.json; CSP policies intersect.
+      Custom backend deployments must update both allowlists.
 
       `frame-ancestors` and `X-Frame-Options` are deliberately absent here —
       browsers ignore frame-ancestors when delivered via <meta>, so it must be
@@ -20,7 +20,7 @@
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://prlarcyfngvwkavmktex.supabase.co; form-action 'none'; base-uri 'none'; object-src 'none'"
     />
     <link
       rel="icon"

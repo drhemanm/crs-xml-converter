@@ -44,7 +44,7 @@ test("files a new return and records it to filing history", async ({ page }) => 
   await expect(page.locator("pre.xml")).not.toContainText("targetNamespace");
 
   await page.getByRole("button", { name: "Record in local history" }).click();
-  await expect(page.getByRole("tab", { name: /Filing history \(4\)/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Filing history \(4\)/ })).toBeVisible();
   await expect(page.locator("tbody tr")).toHaveCount(4); // 1 ReportingFI + 3 accounts
   await expect(page.locator(".state.pending").first()).toBeVisible();
 });
@@ -57,7 +57,7 @@ test("filing history survives a page reload", async ({ page }) => {
   await expect(page.locator("tbody tr")).toHaveCount(4);
 
   await page.reload();
-  await page.getByRole("tab", { name: /Filing history/ }).click();
+  await page.getByRole("button", { name: /Filing history/ }).click();
   await expect(page.locator("tbody tr")).toHaveCount(4);
 });
 
@@ -122,7 +122,7 @@ test("derives CorrDocRefId from filing history when correcting", async ({ page }
   });
   await expect(page.locator(".state.live")).toHaveCount(4);
 
-  await page.getByRole("tab", { name: "Prepare filing" }).click();
+  await page.getByRole("button", { name: "Prepare filing" }).click();
   await page.getByRole("button", { name: "Correction" }).click();
   await page.setInputFiles('input[type="file"][accept*="csv"]', CSV);
   await generate(page);

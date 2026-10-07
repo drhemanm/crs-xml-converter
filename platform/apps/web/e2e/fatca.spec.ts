@@ -9,14 +9,14 @@ async function openFatca(page: import("@playwright/test").Page) {
   await page.goto("/");
   await page.getByRole("button", { name: "FATCA", exact: true }).click();
   await expect(page.getByRole("heading", { name: "FATCA reporting" })).toBeVisible();
-  await page.getByLabel("GIIN").fill("ABCDEF.00000.ME.480");
-  await page.getByLabel("Institution name").fill("Example Mauritius FI");
-  await page.getByLabel("Filer category").selectOption("FATCA602");
+  await page.locator('[data-regime-panel="FATCA"]').getByLabel("GIIN").fill("ABCDEF.00000.ME.480");
+  await page.locator('[data-regime-panel="FATCA"]').getByLabel("Institution name").fill("Example Mauritius FI");
+  await page.locator('[data-regime-panel="FATCA"]').getByLabel("Filer category").selectOption("FATCA602");
 }
 
 test("generates a Mauritius FATCA v2.0.1 account report locally", async ({ page }) => {
   await openFatca(page);
-  await page.setInputFiles('input[type="file"][accept*="csv"]', {
+  await page.setInputFiles('[data-regime-panel="FATCA"] input[type="file"][accept*="csv"]', {
     name: "fatca.csv",
     mimeType: "text/csv",
     buffer: Buffer.from(FATCA_CSV),
@@ -49,7 +49,7 @@ test("generates a Mauritius FATCA nil report without account data", async ({ pag
 
 test("refuses MRA-discouraged character sequences before generating FATCA XML", async ({ page }) => {
   await openFatca(page);
-  await page.getByLabel("Institution name").fill("Example & Mauritius FI");
+  await page.locator('[data-regime-panel="FATCA"]').getByLabel("Institution name").fill("Example & Mauritius FI");
   await page.getByRole("button", { name: "Nil", exact: true }).click();
   await page.getByRole("button", { name: "Generate FATCA XML" }).click();
 

@@ -5,10 +5,10 @@ node_modules/
 .pnp.js
 
 # Testing
-/coverage
+coverage/
 
 # Production
-/build
+build/
 
 # Misc
 .DS_Store
@@ -31,5 +31,9 @@ firestore-debug.log
 .env
 
 # Playwright
-/test-results
-/playwright-report
+test-results/
+playwright-report/
+
+# Workspace build output
+dist/
+*.tsbuildinfo
