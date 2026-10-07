@@ -54,7 +54,7 @@ const base: Omit<FatcaFilingInput, "accounts" | "nilReport"> = {
     giin: "ABCDEF.00000.ME.480",
     name: "Example Mauritius FI",
     residenceCountry: "MU",
-    filerCategory: FatcaFilerCategory.ReportingModel1Ffi,
+    filerCategory: FatcaFilerCategory.RegisteredDeemedCompliantFfi,
     address: { countryCode: "MU", city: "Port Louis" },
   },
   transmittingCountry: "MU",
