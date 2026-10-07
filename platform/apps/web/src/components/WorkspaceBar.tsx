@@ -4,6 +4,7 @@ import {
   createOrganization,
   listInstitutions,
   listOrganizations,
+  hydrateInstitutionForFiling,
   signIn,
   signOut,
   signUp,
@@ -49,10 +50,11 @@ export function WorkspaceBar({ value, onChange }: Props) {
     const fis = await listInstitutions(org.id);
     setInstitutions(fis);
     if (fis.length) {
-      const institution =
+      const selected =
         value?.institution && fis.some((fi) => fi.id === value.institution.id)
           ? value.institution
           : fis[0]!;
+      const institution = await hydrateInstitutionForFiling(selected);
       onChange({ session: s, organization: org, institution });
     } else {
       onChange(null);
@@ -122,7 +124,12 @@ export function WorkspaceBar({ value, onChange }: Props) {
     try {
       const fis = await listInstitutions(org.id);
       setInstitutions(fis);
-      onChange(fis[0] ? { session, organization: org, institution: fis[0] } : null);
+      if (fis[0]) {
+        const institution = await hydrateInstitutionForFiling(fis[0]);
+        onChange({ session, organization: org, institution });
+      } else {
+        onChange(null);
+      }
     } catch (e) {
       setMessage((e as Error).message);
     } finally {
@@ -152,7 +159,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
       setInstitutions(fis);
       setFiName("");
       setFiId("");
-      onChange({ session, organization: org, institution: fi });
+      onChange({ session, organization: org, institution: await hydrateInstitutionForFiling(fi) });
     } catch (e) {
       setMessage((e as Error).message);
     } finally {
@@ -209,7 +216,11 @@ export function WorkspaceBar({ value, onChange }: Props) {
             value={value?.institution.id ?? institutions[0]!.id}
             onChange={(e) => {
               const fi = institutions.find((x) => x.id === e.target.value);
-              if (fi) onChange({ session, organization: activeOrg, institution: fi });
+              if (fi) {
+                void hydrateInstitutionForFiling(fi).then((institution) =>
+                  onChange({ session, organization: activeOrg, institution }),
+                );
+              }
             }}
           >
             {institutions.map((fi) => <option key={fi.id} value={fi.id}>{fi.legal_name}</option>)}
