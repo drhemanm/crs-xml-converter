@@ -38,7 +38,7 @@ function parseRows(rows: Row[], mode: Mode): FatcaFilingInput["accounts"] {
     const record: FatcaAccountRecord = {
       accountNumber: (r.account_number || "").trim(),
       ...(r.account_number_type?.trim() ? { accountNumberType: r.account_number_type.trim() } : {}),
-      ...(r.account_closed?.trim() ? { accountClosed: /^(true|yes|1)$/i.test(r.account_closed.trim()) } : {}),
+      ...(r.account_closed?.trim() ? { closed: /^(true|yes|1)$/i.test(r.account_closed.trim()) } : {}),
       holder: organisation
         ? {
             kind: "organisation",
