@@ -21,7 +21,7 @@ import {
 import { inferColumns, mapRows, specFor, templateCsv, type ColumnMapping, type Row } from "@crs/ingest";
 import { PACKS, deadlineFor, packFor, type JurisdictionPack } from "@crs/jurisdictions";
 import { Diagnostics } from "./components/Diagnostics.js";
-import { clearLedger, exportLedger, loadLedger, saveLedger } from "./ledger-storage.js";
+import { clearLedger, exportLedger, getLocalLedgerHmacSecret, loadLedger, saveLedger } from "./ledger-storage.js";
 import { browserSchemaProvider } from "./schema-provider.js";
 
 type Mode = "new" | "correct" | "nil";
@@ -188,7 +188,7 @@ export default function App() {
     if (!pack) return;
     setFatal(null);
 
-    const { businessKeys, digests } = await deriveKeys(records, settings.fiId);
+    const { businessKeys, digests } = await deriveKeys(records, getLocalLedgerHmacSecret());
     const ctx = buildContext(pack, businessKeys, digests);
 
     let plan: FilingPlan | Diagnostic[];
