@@ -3,6 +3,7 @@ import {
   InMemoryLedger,
   RefIdAllocator,
   CounterSequence,
+  DiagnosticCode,
   applyStatusMessage,
   emitterFor,
   hasErrors,
@@ -434,7 +435,7 @@ export default function App({ workspace }: Props) {
           setOutputDiagnostics([
             ...result.diagnostics,
             {
-              code: "LEDGER-REMOTE-001",
+              code: DiagnosticCode.MESSAGEREFID_FORMAT,
               severity: "error",
               message: "The authority response refers to a filing that is not present in this connected workspace.",
               remediation: "Select the reporting institution that made the filing, then apply the status message again.",
@@ -452,7 +453,7 @@ export default function App({ workspace }: Props) {
           filingId: filing.filing_id,
           authority: parsed.validatedBy ?? "MRA",
           overallStatus: parsed.status,
-          responseRef: parsed.transmissionId,
+          ...(parsed.transmissionId ? { responseRef: parsed.transmissionId } : {}),
           responseSha256: await sha256Hex(source),
           parsedErrors: [
             ...parsed.fileErrors.map((e) => ({ scope: "file", ...e })),
