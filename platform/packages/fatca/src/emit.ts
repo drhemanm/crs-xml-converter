@@ -15,6 +15,29 @@ function required(value: string | undefined, name: string): string {
   return value.trim();
 }
 
+function assertMauritiusSafe(value: unknown, path = "filing"): void {
+  if (typeof value === "string") {
+    if (value.includes("--") || value.includes("/*") || value.includes("&#")) {
+      throw new Error(`${path} contains a prohibited FATCA character sequence.`);
+    }
+    if (/[#'&<>]/.test(value)) {
+      throw new Error(
+        `${path} contains a character MRA advises filers not to use in FATCA XML values (#, apostrophe, &, < or >).`,
+      );
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((v, i) => assertMauritiusSafe(v, `${path}[${i}]`));
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      assertMauritiusSafe(v, `${path}.${k}`);
+    }
+  }
+}
+
 function address(a: FatcaAddress): XmlElement {
   return el("sfa:Address", {}, [
     el("sfa:CountryCode", {}, [text(required(a.countryCode, "Address country code"))]),
@@ -88,13 +111,15 @@ function accountReport(
     holder(record.holder),
     ...(record.substantialOwners ?? []).map((owner) =>
       el("ftc:SubstantialOwner", {}, [
-        owner.residenceCountry ? el("sfa:ResCountryCode", {}, [text(owner.residenceCountry)]) : undefined,
-        owner.tin ? el("sfa:TIN", { issuedBy: "US" }, [text(owner.tin)]) : undefined,
-        el("sfa:Name", {}, [
-          el("sfa:FirstName", {}, [text(required(owner.firstName, "Substantial owner first name"))]),
-          el("sfa:LastName", {}, [text(required(owner.lastName, "Substantial owner last name"))]),
+        el("ftc:Individual", {}, [
+          owner.residenceCountry ? el("sfa:ResCountryCode", {}, [text(owner.residenceCountry)]) : undefined,
+          owner.tin ? el("sfa:TIN", { issuedBy: "US" }, [text(owner.tin)]) : undefined,
+          el("sfa:Name", {}, [
+            el("sfa:FirstName", {}, [text(required(owner.firstName, "Substantial owner first name"))]),
+            el("sfa:LastName", {}, [text(required(owner.lastName, "Substantial owner last name"))]),
+          ]),
+          owner.address ? address(owner.address) : undefined,
         ]),
-        owner.address ? address(owner.address) : undefined,
       ]),
     ),
     el("ftc:AccountBalance", { currCode: required(record.currency, "Balance currency") }, [
@@ -115,6 +140,7 @@ function accountReport(
  * Mauritius FIs upload the FATCA XML to MRA eServices, which forwards it.
  */
 export function emitFatcaXml(input: FatcaFilingInput): string {
+  assertMauritiusSafe(input);
   const receivingCountry = input.receivingCountry ?? "US";
   const timestamp = input.timestamp ?? new Date().toISOString();
 
