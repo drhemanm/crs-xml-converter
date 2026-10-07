@@ -456,7 +456,14 @@ export default function FatcaApp({ workspace }: Props) {
 
         <section className="card">
           <h2>{mode === "nil" ? "3" : "4"}. Generate</h2>
-          <button type="button" className="primary" onClick={() => void generate()}>Generate FATCA XML</button>
+          <div className="readiness-grid" aria-label="FATCA filing readiness">
+            <div className="readiness-item"><span className={giin && fiName && filerCategory ? "state live" : "state pending"}>{giin && fiName && filerCategory ? "ready" : "needed"}</span><strong>FI details</strong></div>
+            <div className="readiness-item"><span className={mode === "nil" || rows.length ? "state live" : "state pending"}>{mode === "nil" || rows.length ? "ready" : "needed"}</span><strong>Source data</strong></div>
+            <div className="readiness-item"><span className={xml ? "state live" : "state pending"}>{xml ? "passed" : "on generate"}</span><strong>v2.0.1 rules</strong></div>
+            <div className="readiness-item"><span className={workspace ? "state live" : "state pending"}>{workspace ? "durable" : "local"}</span><strong>Filing history</strong></div>
+            <div className="readiness-item"><span className="state pending">pending</span><strong>MRA acceptance</strong></div>
+          </div>
+          <button type="button" className="primary" disabled={workspaceBusy} onClick={() => void generate()}>Generate FATCA XML</button>
           {error && <div className="diagnostic error">{error}</div>}
           {xml && (
             <>
