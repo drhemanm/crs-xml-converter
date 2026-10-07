@@ -163,6 +163,10 @@ function PaymentRows({
                     <strong className="block">
                       {money(r.amount_minor, r.currency)}
                     </strong>
+                    <small className="block">
+                      {r.filing_limit} new/nil filings per year ·{" "}
+                      {r.institution_limit} reporting institutions
+                    </small>
                   </td>
                   <td>
                     <span
@@ -358,6 +362,10 @@ export function CompanyBillingPanel({
   const returnedId =
     pendingId ||
     new URLSearchParams(window.location.search).get("billing_request");
+  const cancelled =
+    !pendingId &&
+    new URLSearchParams(window.location.search).get("billing_return") ===
+      "cancelled";
   const returned = billing?.payment_requests.find((r) => r.id === returnedId);
   return (
     <div className="commercial-page">
@@ -375,14 +383,19 @@ export function CompanyBillingPanel({
       ) : null}
       {returned?.status === "issued" ? (
         <section className="card">
-          <h2>Confirm your payment</h2>
+          <h2>{cancelled ? "Checkout cancelled" : "Confirm your payment"}</h2>
           <p>
-            Returning from checkout does not confirm payment. Verify it with the
-            provider to activate your licence. If you cancelled checkout, no
-            licence has been granted.
+            {cancelled
+              ? "Checkout was cancelled. Your company licence has not changed. You can resume payment when ready."
+              : "Returning from checkout does not confirm payment. Verify it with the provider to activate your licence."}
           </p>
-          <button disabled={busy} onClick={() => void act(returned, "capture")}>
-            Confirm payment
+          <button
+            disabled={busy}
+            onClick={() =>
+              void act(returned, cancelled ? "checkout" : "capture")
+            }
+          >
+            {cancelled ? "Resume checkout" : "Confirm payment"}
           </button>
         </section>
       ) : null}

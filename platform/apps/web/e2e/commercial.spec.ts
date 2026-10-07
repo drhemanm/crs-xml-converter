@@ -13,6 +13,8 @@ const payment = {
   id: REQUEST,
   plan_name: "Professional",
   amount_minor: 9900,
+  filing_limit: 50,
+  institution_limit: 5,
   currency: "USD",
   status: "issued",
   created_at: "2026-10-07T00:00:00Z",
@@ -213,9 +215,11 @@ test("Evologics operators inspect company activity and record a bank payment", a
     .getByLabel("Bank statement / transfer reference")
     .fill("BANK-STATEMENT-001");
   await page.getByRole("button", { name: "Confirm and record" }).click();
-  await expect(page.getByRole("status")).toContainText(
-    "recorded in the operator audit",
-  );
+  await expect(
+    page
+      .getByRole("status")
+      .filter({ hasText: "recorded in the operator audit" }),
+  ).toContainText("recorded in the operator audit");
   await expect(page.getByText("bank transfer", { exact: true })).toBeVisible();
 });
 test("commercial pages fit phone width and switching back preserves the filing draft", async ({
@@ -224,6 +228,9 @@ test("commercial pages fit phone width and switching back preserves the filing d
   await connected(page, true);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+  await expect(
+    page.locator('[data-regime-panel="CRS"]').getByLabel("Institution name"),
+  ).toHaveValue("Example FI");
   await page
     .locator('[data-regime-panel="CRS"]')
     .getByLabel("Institution city")
@@ -245,4 +252,21 @@ test("commercial pages fit phone width and switching back preserves the filing d
   await expect(page.getByLabel("Institution city")).toHaveValue(
     "My draft city",
   );
+});
+
+test("cancelled checkout offers a safe resume without requesting capture", async ({
+  page,
+}) => {
+  const state = await connected(page);
+  await page.goto(`/?billing_request=${REQUEST}&billing_return=cancelled`);
+  await expect(
+    page.getByRole("heading", { name: "Checkout cancelled" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Resume checkout" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Confirm payment", exact: true }),
+  ).toHaveCount(0);
+  expect(state.captures()).toBe(0);
 });

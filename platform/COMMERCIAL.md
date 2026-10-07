@@ -45,6 +45,10 @@ Seeded Professional (50 filings / 5 institutions) and Firm (250 / 50) plans are
 draft commercial defaults. Their prices are **unset and unavailable** until an
 Evologics operator configures them. Plan edits affect future payment requests;
 issued requests and paid terms preserve their original price and allowances.
+Payment requests display the purchased annual allowances alongside the total
+price. A plan must cover the company's active institutions; an unpaid smaller
+plan also limits new institution additions so it cannot be oversold before
+payment confirmation. Institutions cannot be reassigned between companies.
 
 ## Payment lifecycle
 

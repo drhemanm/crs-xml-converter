@@ -146,8 +146,10 @@ from public.organizations o;
 -- constraint. Corrections/amendments/voids are tracked but do not consume quota.
 create function aeoi_private.enforce_commercial_limits() returns trigger
 language plpgsql security definer set search_path = '' as $$
-declare c aeoi_private.contracts; used bigint;
+declare c aeoi_private.contracts; used bigint; institution_cap integer;
 begin
+  if tg_table_name='reporting_institutions' and tg_op='UPDATE' and old.organization_id<>new.organization_id
+  then raise exception 'Reporting institutions cannot be moved between companies. Create a new institution instead.'; end if;
   perform aeoi_private.activate_renewal(new.organization_id);
   select * into c from aeoi_private.contracts where organization_id=new.organization_id for update;
   if not found or c.status='suspended' or now()>=c.period_end or now()<c.period_start
@@ -159,9 +161,11 @@ begin
       if used>=c.filing_limit then raise exception 'Company filing allowance reached. Corrections do not consume allowance.'; end if;
     end if;
   elsif new.active and (tg_op='INSERT' or not old.active or old.organization_id<>new.organization_id) then
+    select least(c.institution_limit,coalesce(min(r.institution_limit),c.institution_limit)) into institution_cap
+    from aeoi_private.payment_requests r where r.organization_id=new.organization_id and r.status='issued';
     select count(*) into used from public.reporting_institutions ri
     where ri.organization_id=new.organization_id and ri.active and ri.id<>new.id;
-    if used>=c.institution_limit then raise exception 'Company reporting-institution allowance reached'; end if;
+    if used>=institution_cap then raise exception 'Company or pending plan reporting-institution allowance reached'; end if;
   end if;
   return new;
 end;
@@ -191,7 +195,7 @@ begin
       from public.reporting_institutions ri where ri.organization_id=p_org),'[]'::jsonb),
     'payment_requests',coalesce((select jsonb_agg(jsonb_build_object('id',r.id,'plan_name',r.plan_name,'amount_minor',r.amount_minor,
       'currency',r.currency,'status',r.status,'created_at',r.created_at,'paid_at',r.paid_at,'payment_method',r.payment_method,
-      'period_start',r.period_start,'period_end',r.period_end) order by r.created_at desc)
+      'period_start',r.period_start,'period_end',r.period_end,'filing_limit',r.filing_limit,'institution_limit',r.institution_limit) order by r.created_at desc)
       from aeoi_private.payment_requests r where r.organization_id=p_org),'[]'::jsonb)
   ) into result from aeoi_private.contracts c join aeoi_private.plans p on p.id=c.plan_id where c.organization_id=p_org;
   return result;
@@ -231,8 +235,11 @@ language plpgsql security definer set search_path = '' as $$
 declare p aeoi_private.plans; result uuid;
 begin
   perform aeoi_private.require_operator();
+  perform 1 from aeoi_private.contracts where organization_id=p_org for update;
   select * into p from aeoi_private.plans where id=p_plan and available and price_minor is not null;
   if not found then raise exception 'Configure and publish the plan price first'; end if;
+  if (select count(*) from public.reporting_institutions where organization_id=p_org and active)>p.institution_limit
+  then raise exception 'Choose a plan that covers this company''s active reporting institutions'; end if;
   if exists(select 1 from aeoi_private.payment_requests where organization_id=p_org and status='paid' and period_start>now())
   then raise exception 'This company already has a paid renewal queued'; end if;
   insert into aeoi_private.payment_requests(organization_id,plan_id,plan_name,filing_limit,institution_limit,amount_minor,currency,issued_by)

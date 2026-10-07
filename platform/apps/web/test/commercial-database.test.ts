@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const OP = "00000000-0000-4000-8000-000000000001",
   A = "00000000-0000-4000-8000-000000000002",
   B = "00000000-0000-4000-8000-000000000003";
+const VIEWER = "00000000-0000-4000-8000-000000000004";
 const ORG = "00000000-0000-4000-8000-000000000010",
   OTHER = "00000000-0000-4000-8000-000000000011",
   FI = "00000000-0000-4000-8000-000000000020";
@@ -50,7 +51,7 @@ beforeAll(async () => {
     create table auth.users(id uuid primary key);
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     grant usage on schema auth to authenticated,service_role;
-    insert into auth.users values('${OP}'),('${A}'),('${B}');`);
+    insert into auth.users values('${OP}'),('${A}'),('${B}'),('${VIEWER}');`);
   const migration = (name: string) =>
     readFileSync(
       new URL(`../../../supabase/migrations/${name}`, import.meta.url),
@@ -82,12 +83,28 @@ beforeAll(async () => {
     "insert into public.organizations(id,name,created_by) values($1,'Company B',$2)",
     [OTHER, B],
   );
+  await user(A);
+  await db.query(
+    "insert into public.organization_members(organization_id,user_id,role) values($1,$2,'viewer')",
+    [ORG, VIEWER],
+  );
 }, 30000);
 afterAll(async () => {
   await db.close();
 });
 
 describe("commercial database authorization and transaction behaviour", () => {
+  test("company viewers may inspect usage but cannot pay or manage commercial settings", async () => {
+    await user(VIEWER);
+    expect(
+      (await rpc<{ can_manage: boolean }>("aeoi_company_billing", [ORG]))
+        .can_manage,
+    ).toBe(false);
+    await expect(rpc("aeoi_admin_dashboard")).rejects.toThrow(/operator/);
+    await expect(
+      rpc("aeoi_issue_payment_request", [ORG, "professional"]),
+    ).rejects.toThrow(/operator/);
+  });
   test("members cannot inspect other companies or provision themselves as operators", async () => {
     await user(A);
     expect(await rpc("aeoi_commercial_access")).toBe(false);
@@ -167,6 +184,12 @@ describe("commercial database authorization and transaction behaviour", () => {
         [A],
       ),
     ).rejects.toThrow(/one evaluation/i);
+    await expect(
+      db.query(
+        "update public.reporting_institutions set organization_id=$1 where id=$2",
+        [OTHER, FI],
+      ),
+    ).rejects.toThrow(/cannot be moved/);
   });
   test("unconfigured prices cannot issue payment requests; company owners cannot set prices", async () => {
     await user(OP);
@@ -223,6 +246,32 @@ describe("commercial database authorization and transaction behaviour", () => {
     await expect(
       rpc("aeoi_record_bank_payment", [id, "BANK-002", 9900, "USD"]),
     ).rejects.toThrow(/operator/);
+  });
+  test("a pending smaller plan cannot be oversold by adding institutions before capture", async () => {
+    await user(OP);
+    await rpc("aeoi_configure_plan", [
+      "solo",
+      "Solo",
+      20,
+      1,
+      5000,
+      "USD",
+      true,
+    ]);
+    const id = await rpc<string>("aeoi_issue_payment_request", [ORG, "solo"]);
+    await user(A);
+    await expect(
+      db.query(
+        "insert into public.reporting_institutions(organization_id,legal_name,jurisdiction,identifier_type,identifier_value) values($1,'Second FI','MU','TAN','MU999')",
+        [ORG],
+      ),
+    ).rejects.toThrow(/pending plan/);
+    await user(OP);
+    await rpc("aeoi_change_payment_request", [
+      id,
+      "void",
+      "Customer chose a different plan",
+    ]);
   });
   test("renewal is queued without resetting the current allowance, and suspension blocks filing", async () => {
     await user(A);

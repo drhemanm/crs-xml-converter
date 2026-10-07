@@ -1,6 +1,8 @@
 import { authedFetch } from "./backend.js";
 
 export interface PaymentRequest {
+  filing_limit: number;
+  institution_limit: number;
   id: string;
   plan_name: string;
   amount_minor: number;
