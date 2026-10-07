@@ -240,12 +240,14 @@ export async function createInstitution(
 export async function loadRemoteLedger(
   organizationId: string,
   institutionId: string,
+  regime: "CRS" | "FATCA",
 ): Promise<RemoteLedgerEntry[]> {
   const query = new URLSearchParams({
     select:
       "doc_ref_id,record_kind,record_state,doc_type_indic,corr_doc_ref_id,parent_doc_ref_id,superseded_by,business_key,payload_digest,reporting_period_end,schema_version,filing_id,created_at,filings(message_ref_id)",
     organization_id: `eq.${organizationId}`,
     institution_id: `eq.${institutionId}`,
+    regime: `eq.${regime}`,
     order: "created_at.asc",
   });
   const r = await authedFetch(`/rest/v1/ledger_entries?${query.toString()}`);
