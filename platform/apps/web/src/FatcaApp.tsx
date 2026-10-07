@@ -29,6 +29,9 @@ interface Row {
   holder_name?: string;
   holder_tin?: string;
   holder_residence_country?: string;
+  holder_address_country?: string;
+  holder_address_city?: string;
+  holder_address_street?: string;
   account_holder_type?: string;
   account_balance?: string;
   currency?: string;
@@ -59,6 +62,16 @@ function parseRows(rows: Row[], mode: Exclude<Mode, "nil">): NonNullable<FatcaFi
     const n = i + 2;
     const holderType = (r.holder_kind || "individual").trim().toLowerCase();
     const organisation = holderType === "organisation" || holderType === "organization";
+    const addressCountry = (r.holder_address_country || r.holder_residence_country || "").trim().toUpperCase();
+    const addressCity = (r.holder_address_city || "").trim();
+    if (!addressCountry || !addressCity) {
+      throw new Error(`Row ${n}: holder_address_country and holder_address_city are required by the FATCA schema`);
+    }
+    const holderAddress = {
+      countryCode: addressCountry,
+      city: addressCity,
+      ...(r.holder_address_street?.trim() ? { street: r.holder_address_street.trim() } : {}),
+    };
     const record: FatcaAccountRecord = {
       accountNumber: (r.account_number || "").trim(),
       ...(r.account_number_type?.trim() ? { accountNumberType: r.account_number_type.trim() } : {}),
@@ -73,6 +86,7 @@ function parseRows(rows: Row[], mode: Exclude<Mode, "nil">): NonNullable<FatcaFi
               : {}),
             holderType:
               (r.account_holder_type?.trim() as FatcaAccountHolderType),
+            address: holderAddress,
           }
         : {
             kind: "individual",
@@ -82,6 +96,7 @@ function parseRows(rows: Row[], mode: Exclude<Mode, "nil">): NonNullable<FatcaFi
             ...(r.holder_residence_country?.trim()
               ? { residenceCountry: r.holder_residence_country.trim().toUpperCase() }
               : {}),
+            address: holderAddress,
           },
       balance: money(r.account_balance || "", `Row ${n} account_balance`),
       currency: (r.currency || "").trim().toUpperCase(),
@@ -130,8 +145,8 @@ function parseRows(rows: Row[], mode: Exclude<Mode, "nil">): NonNullable<FatcaFi
 }
 
 const TEMPLATE = [
-  "account_number,account_number_type,holder_kind,first_name,last_name,holder_name,holder_tin,holder_residence_country,account_holder_type,account_balance,currency,payment_type,payment_amount,payment_currency,doc_ref_id,corr_message_ref_id,corr_doc_ref_id",
-  "ACC-001,OECD605,individual,Jane,Doe,,123456789,US,,1000.00,USD,FATCA502,25.00,USD,GIIN.REPLACE-ME-001,,",
+  "account_number,account_number_type,holder_kind,first_name,last_name,holder_name,holder_tin,holder_residence_country,holder_address_country,holder_address_city,holder_address_street,account_holder_type,account_balance,currency,payment_type,payment_amount,payment_currency,doc_ref_id,corr_message_ref_id,corr_doc_ref_id",
+  "ACC-001,OECD605,individual,Jane,Doe,,123456789,US,US,New York,1 Main Street,,1000.00,USD,FATCA502,25.00,USD,GIIN.REPLACE-ME-001,,",
 ].join("\n");
 
 interface Props {
