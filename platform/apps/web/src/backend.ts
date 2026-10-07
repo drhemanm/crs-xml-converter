@@ -227,7 +227,7 @@ export async function createInstitution(
     "legal_name" | "jurisdiction" | "identifier_type" | "identifier_value" | "city"
   >,
 ): Promise<ReportingInstitution> {
-  const r = await authedFetch("/rest/v1/reporting_institutions?select=id,organization_id,legal_name,jurisdiction,identifier_type,identifier_value,city,active", {
+  const r = await authedFetch("/rest/v1/reporting_institutions?select=id,organization_id,legal_name,jurisdiction,identifier_type,identifier_value,city,active,pseudonym_key", {
     method: "POST",
     headers: { Prefer: "return=representation" },
     body: JSON.stringify({ organization_id: organizationId, ...input }),
