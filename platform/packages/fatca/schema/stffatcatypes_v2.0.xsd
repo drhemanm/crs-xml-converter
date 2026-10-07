@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- edited with XMLSpy v2011 rel. 3 (http://www.altova.com) by IRS (Internal Revenue Service) -->
 <xsd:schema xmlns:sfa="urn:oecd:ties:stffatcatypes:v2" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:stf="urn:oecd:ties:stf:v4" xmlns:iso="urn:oecd:ties:isofatcatypes:v1" targetNamespace="urn:oecd:ties:stffatcatypes:v2" elementFormDefault="qualified" attributeFormDefault="unqualified" version="2.0">
-	<xsd:import namespace="urn:oecd:ties:isofatcatypes:v1" schemaLocation="isofatcatypes_v1.1.xsd"/>
+	<xsd:import namespace="urn:oecd:ties:isofatcatypes:v1" schemaLocation="isofatcatypes_v1.2.xsd"/>
 	<xsd:import namespace="urn:oecd:ties:stf:v4" schemaLocation="oecdtypes_v4.2.xsd"/>
 	<!--+++++++++++++++++++++++  Reusable Simple types ++++++++++++++++++++++++++++++++++++++ -->
 	<xsd:simpleType name="StringMax10_Type">
