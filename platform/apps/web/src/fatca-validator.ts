@@ -6,16 +6,16 @@ import {
   xmlRegisterInputProvider,
 } from "libxml2-wasm";
 
-import entry from "../../../packages/fatca/schema/FatcaXML_v2.0.xsd?raw";
+import entry from "../../../packages/fatca/schema/FatcaXML_v2.0.1.xsd?raw";
 import stf from "../../../packages/fatca/schema/stffatcatypes_v2.0.xsd?raw";
 import oecd from "../../../packages/fatca/schema/oecdtypes_v4.2.xsd?raw";
-import iso from "../../../packages/fatca/schema/isofatcatypes_v1.1.xsd?raw";
+import iso from "../../../packages/fatca/schema/isofatcatypes_v1.2.xsd?raw";
 
 const files: Record<string, string> = {
-  "FatcaXML_v2.0.xsd": entry,
+  "FatcaXML_v2.0.1.xsd": entry,
   "stffatcatypes_v2.0.xsd": stf,
   "oecdtypes_v4.2.xsd": oecd,
-  "isofatcatypes_v1.1.xsd": iso,
+  "isofatcatypes_v1.2.xsd": iso,
 };
 
 export interface FatcaStructuralValidation {
@@ -24,10 +24,10 @@ export interface FatcaStructuralValidation {
 }
 
 /**
- * Structural backstop using the IRS-published FATCA v2 schema family.
- * The product target is v2.0.1. Until that exact bundle is installed and
- * MRA accepts a controlled test file, this result must not be described as
- * production certification.
+ * Current-rule FATCA v2.0.1 validation bundle.
+ * The base schemas are IRS-published and the v1.2 ISO amendments are applied
+ * from the IRS January 2026 clarification. MRA acceptance remains the final
+ * production release gate.
  */
 export function validateFatcaStructure(xml: string): FatcaStructuralValidation {
   const encoder = new TextEncoder();
@@ -41,13 +41,13 @@ export function validateFatcaStructure(xml: string): FatcaStructuralValidation {
   let instanceDoc: XmlDocument | undefined;
   let validator: XsdValidator | undefined;
   try {
-    schemaDoc = XmlDocument.fromString(entry, { url: "FatcaXML_v2.0.xsd" });
+    schemaDoc = XmlDocument.fromString(entry, { url: "FatcaXML_v2.0.1.xsd" });
     validator = XsdValidator.fromDoc(schemaDoc);
     instanceDoc = XmlDocument.fromString(xml);
     validator.validate(instanceDoc);
     return {
       valid: true,
-      message: "IRS FATCA v2 structural schema check passed. Exact v2.0.1 and MRA acceptance remain release gates.",
+      message: "FATCA v2.0.1 current-rule schema check passed. MRA acceptance remains the final release gate.",
     };
   } catch (cause) {
     return {
