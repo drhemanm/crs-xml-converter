@@ -14,10 +14,11 @@ the legacy application it replaces.
 
 ## Status
 
-Working end to end: 100 unit/integration tests plus 11 browser tests covering
-every filing mode — new information, correction, void, nil return — including
-the paths that must fail. Not production-ready; see
-[Before production](#before-production).
+Working end to end across CRS and FATCA with strict TypeScript, unit/integration
+tests and browser end-to-end tests covering successful and failing paths.
+The production web build, high-severity dependency audit and browser suite are
+release gates. Controlled MRA acceptance remains the final external regulatory
+gate before the product is described as MRA-approved or production-certified.
 
 ## Why it is built this way
 
@@ -148,10 +149,11 @@ For the web app:
 pnpm --filter @crs/web dev
 ```
 
-Account data never leaves the browser, and that is verifiable rather than
-asserted: a CSP with `connect-src 'self'` blocks any other origin, and a
-headless run driving upload through generation records zero external requests.
-Open the network panel and check.
+Source account data and generated XML remain in the browser. In connected
+workspace mode, only organisation/FI metadata, reference IDs, pseudonymous
+business keys, hashes, lifecycle state and authority-response metadata are sent
+to the dedicated `taxmu` Supabase project. CSP permits only the app origin
+and that dedicated metadata endpoint.
 
 ## Jurisdiction packs
 
@@ -170,20 +172,24 @@ The UK is modelled as `uk-combined` with **no emitter**. HMRC requires its own
 combined FATCA/CDOT/CRS schema, which we have not read. Failing loudly is
 correct; emitting a guessed shape would be worse.
 
-## Before production
+## Production readiness
 
-1. **Vendor the OECD XSDs** into `packages/schema` (published as a ZIP on the
-   OECD Tax Transparency Resource Centre). Confirm the OECD's terms of use for
-   redistribution. Until then nothing is schema-validated.
-2. **Verify the rules marked `secondary` / `unverified`** in the jurisdiction
-   packs against primary sources. The OECD-level rules are now verified against
-   the User Guide (see below); the outstanding ones are jurisdiction-specific. Start with `mra.mu/download/CRSFAQ.pdf` — the
-   home market — and validate output against MRA's published `Sample-Valid.xml`.
-3. **Add golden-file tests** against the OECD's published sample instance
-   documents once the schemas are available.
-5. **XLSX ingestion.** Only CSV is wired up (`pnpm cli template` generates a
-   conforming file, and a test asserts it round-trips). `xlsx@0.18.5` has known
-   CVEs and is unmaintained on npm — use a patched SheetJS build or a vetted
-   alternative.
-5. **Replace the in-memory ledger** with a database, and implement the
-   client-side-encrypted payload vault described in `CONCEPT.md` §6.1.
+Implemented:
+- CRS v2.0/v3.0 browser XSD validation, with Mauritius v3.0 selected from reporting year 2026.
+- FATCA v2.0.1 current-rule validation using the IRS-published v2 structure plus documented ISO v1.2 amendments.
+- CSV and XLSX ingestion with worksheet selection and input safeguards.
+- Durable multi-organisation / multi-FI filing metadata ledger in Supabase.
+- Tenant-scoped RLS, guarded filing RPCs and append-only audit history.
+- Stable per-FI pseudonym keys; source taxpayer data is not persisted server-side.
+- Authority-status reconciliation for CRS and durable correction chains.
+- Production CSP/security headers, production-build CI, dependency audit and browser E2E.
+- Production operations/recovery runbook in `PRODUCTION_RUNBOOK.md`.
+
+Final external gate:
+1. Controlled MRA acceptance of representative CRS v3.0 output.
+2. Controlled MRA acceptance of representative FATCA v2.0.1 output.
+3. Preserve accepted XML and status responses as golden regression fixtures.
+4. Confirm the selected production Supabase plan/backup configuration meets the stated RPO/RTO and perform one documented restore test.
+
+Until MRA acceptance, the software may be used for controlled validation and
+pilot work but must not be marketed as MRA-approved or regulator-certified.
