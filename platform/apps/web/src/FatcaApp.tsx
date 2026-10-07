@@ -1,5 +1,4 @@
-import { useMemo, useState } from "react";
-import { parse as parseCsv } from "csv-parse/browser/esm/sync";
+import { useEffect, useMemo, useState } from "react";
 import {
   FatcaAccountHolderType,
   FatcaDocTypeIndic,
@@ -9,6 +8,14 @@ import {
   type FatcaAccountRecord,
   type FatcaFilingInput,
 } from "@aeoi/fatca";
+import { validateFatcaStructure } from "./fatca-validator.js";
+import { firstUsableSheet, parseSpreadsheet, type ParsedSheet } from "./spreadsheet.js";
+import {
+  loadRemoteLedger,
+  recordRemoteFiling,
+  sha256Hex,
+  type WorkspaceSelection,
+} from "./backend.js";
 
 type Mode = "new" | "corrected" | "void" | "amended" | "nil";
 
@@ -22,6 +29,9 @@ interface Row {
   holder_name?: string;
   holder_tin?: string;
   holder_residence_country?: string;
+  holder_address_country?: string;
+  holder_address_city?: string;
+  holder_address_street?: string;
   account_holder_type?: string;
   account_balance?: string;
   currency?: string;
@@ -52,6 +62,16 @@ function parseRows(rows: Row[], mode: Exclude<Mode, "nil">): NonNullable<FatcaFi
     const n = i + 2;
     const holderType = (r.holder_kind || "individual").trim().toLowerCase();
     const organisation = holderType === "organisation" || holderType === "organization";
+    const addressCountry = (r.holder_address_country || r.holder_residence_country || "").trim().toUpperCase();
+    const addressCity = (r.holder_address_city || "").trim();
+    if (!addressCountry || !addressCity) {
+      throw new Error(`Row ${n}: holder_address_country and holder_address_city are required by the FATCA schema`);
+    }
+    const holderAddress = {
+      countryCode: addressCountry,
+      city: addressCity,
+      ...(r.holder_address_street?.trim() ? { street: r.holder_address_street.trim() } : {}),
+    };
     const record: FatcaAccountRecord = {
       accountNumber: (r.account_number || "").trim(),
       ...(r.account_number_type?.trim() ? { accountNumberType: r.account_number_type.trim() } : {}),
@@ -66,6 +86,7 @@ function parseRows(rows: Row[], mode: Exclude<Mode, "nil">): NonNullable<FatcaFi
               : {}),
             holderType:
               (r.account_holder_type?.trim() as FatcaAccountHolderType),
+            address: holderAddress,
           }
         : {
             kind: "individual",
@@ -75,6 +96,7 @@ function parseRows(rows: Row[], mode: Exclude<Mode, "nil">): NonNullable<FatcaFi
             ...(r.holder_residence_country?.trim()
               ? { residenceCountry: r.holder_residence_country.trim().toUpperCase() }
               : {}),
+            address: holderAddress,
           },
       balance: money(r.account_balance || "", `Row ${n} account_balance`),
       currency: (r.currency || "").trim().toUpperCase(),
@@ -123,11 +145,28 @@ function parseRows(rows: Row[], mode: Exclude<Mode, "nil">): NonNullable<FatcaFi
 }
 
 const TEMPLATE = [
-  "account_number,account_number_type,holder_kind,first_name,last_name,holder_name,holder_tin,holder_residence_country,account_holder_type,account_balance,currency,payment_type,payment_amount,payment_currency,doc_ref_id,corr_message_ref_id,corr_doc_ref_id",
-  "ACC-001,OECD605,individual,Jane,Doe,,123456789,US,,1000.00,USD,FATCA502,25.00,USD,GIIN.REPLACE-ME-001,,",
+  "account_number,account_number_type,holder_kind,first_name,last_name,holder_name,holder_tin,holder_residence_country,holder_address_country,holder_address_city,holder_address_street,account_holder_type,account_balance,currency,payment_type,payment_amount,payment_currency,doc_ref_id,corr_message_ref_id,corr_doc_ref_id",
+  "ACC-001,OECD605,individual,Jane,Doe,,123456789,US,US,New York,1 Main Street,,1000.00,USD,FATCA502,25.00,USD,GIIN.REPLACE-ME-001,,",
 ].join("\n");
 
-export default function FatcaApp() {
+interface Props {
+  workspace: WorkspaceSelection | null;
+}
+
+async function keyedDigest(secret: string, value: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(value));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export default function FatcaApp({ workspace }: Props) {
   const [mode, setMode] = useState<Mode>("new");
   const [giin, setGiin] = useState("");
   const [tan, setTan] = useState("");
@@ -140,9 +179,30 @@ export default function FatcaApp() {
   const [corrMessageRefId, setCorrMessageRefId] = useState("");
   const [corrFiDocRefId, setCorrFiDocRefId] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
+  const [sheets, setSheets] = useState<ParsedSheet[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
   const [xml, setXml] = useState("");
   const [error, setError] = useState("");
+  const [structuralStatus, setStructuralStatus] = useState<string>("");
+  const [lastInput, setLastInput] = useState<FatcaFilingInput | null>(null);
+  const [workspaceBusy, setWorkspaceBusy] = useState(false);
+  const [workspaceHistoryCount, setWorkspaceHistoryCount] = useState(0);
+
+  useEffect(() => {
+    if (!workspace) {
+      setWorkspaceHistoryCount(0);
+      return;
+    }
+    setTan(workspace.institution.identifier_type === "TAN" ? workspace.institution.identifier_value : "");
+    setFiName(workspace.institution.legal_name);
+    setFiCity(workspace.institution.city ?? "Port Louis");
+    setWorkspaceBusy(true);
+    void loadRemoteLedger(workspace.organization.id, workspace.institution.id, "FATCA")
+      .then((rows) => setWorkspaceHistoryCount(rows.length))
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setWorkspaceBusy(false));
+  }, [workspace]);
 
   const correcting = mode === "corrected" || mode === "void" || mode === "amended";
   const generatedRefs = useMemo(() => {
@@ -154,25 +214,35 @@ export default function FatcaApp() {
     };
   }, [giin, period]);
 
+  const applySheet = (sheet: ParsedSheet) => {
+    if (!sheet.rows.length) throw new Error(`Sheet "${sheet.name}" contains no account rows.`);
+    setSelectedSheet(sheet.name);
+    setRows(sheet.rows as Row[]);
+  };
+
   const readFile = async (file: File) => {
     setError("");
     setXml("");
+    setLastInput(null);
     try {
-      const text = await file.text();
-      const parsed = parseCsv(text, { columns: true, skip_empty_lines: true, trim: true }) as Row[];
-      if (!parsed.length) throw new Error("The file contains no account rows.");
-      setRows(parsed);
+      const parsed = await parseSpreadsheet(file);
+      const usable = firstUsableSheet(parsed);
+      setSheets(parsed);
+      applySheet(usable);
       setFileName(file.name);
     } catch (e) {
       setRows([]);
+      setSheets([]);
+      setSelectedSheet("");
       setFileName(null);
       setError((e as Error).message);
     }
   };
 
-  const generate = () => {
+  const generate = async () => {
     setError("");
     setXml("");
+    setStructuralStatus("");
     try {
       const msg = messageRefId.trim() || generatedRefs.message;
       const fiRef = fiDocRefId.trim() || generatedRefs.fi;
@@ -216,9 +286,82 @@ export default function FatcaApp() {
         input.accounts = parseRows(rows, mode);
       }
 
-      setXml(emitFatcaXml(input));
+      const generated = emitFatcaXml(input);
+      const structural = validateFatcaStructure(generated);
+      if (!structural.valid) {
+        throw new Error(`FATCA structural XSD validation failed: ${structural.message}`);
+      }
+      setStructuralStatus(structural.message);
+      setLastInput(input);
+      setXml(generated);
     } catch (e) {
       setError((e as Error).message);
+    }
+  };
+
+  const saveToWorkspace = async () => {
+    if (!workspace || !lastInput || !xml) return;
+    setWorkspaceBusy(true);
+    setError("");
+    try {
+      const secret = workspace.institution.pseudonym_key;
+      const entries = [];
+
+      entries.push({
+        record_kind: "ReportingFI" as const,
+        doc_ref_id: lastInput.reportingFiDocRefId,
+        doc_type_indic: lastInput.reportingFiDocType,
+        ...(lastInput.reportingFiCorrDocRefId ? { corr_doc_ref_id: lastInput.reportingFiCorrDocRefId } : {}),
+        business_key: "reporting-fi",
+        payload_digest: await sha256Hex(JSON.stringify(lastInput.reportingFi)),
+        record_state: "pending" as const,
+      });
+
+      if (lastInput.nilReport) {
+        entries.push({
+          record_kind: "NilReport" as const,
+          doc_ref_id: lastInput.nilReport.docRefId,
+          doc_type_indic: lastInput.nilReport.docType,
+          ...(lastInput.nilReport.corrDocRefId ? { corr_doc_ref_id: lastInput.nilReport.corrDocRefId } : {}),
+          business_key: "nil-report",
+          payload_digest: await sha256Hex(JSON.stringify(lastInput.nilReport)),
+          record_state: "pending" as const,
+        });
+      }
+
+      for (const item of lastInput.accounts ?? []) {
+        entries.push({
+          record_kind: "AccountReport" as const,
+          doc_ref_id: item.docRefId,
+          doc_type_indic: item.docType,
+          ...(item.corrDocRefId ? { corr_doc_ref_id: item.corrDocRefId } : {}),
+          business_key: (await keyedDigest(secret, item.record.accountNumber)).slice(0, 32),
+          payload_digest: await keyedDigest(secret, JSON.stringify(item.record)),
+          record_state: "pending" as const,
+        });
+      }
+
+      await recordRemoteFiling({
+        organizationId: workspace.organization.id,
+        institutionId: workspace.institution.id,
+        regime: "FATCA",
+        reportingPeriodEnd: period,
+        schemaVersion: "fatca-v2.0.1-prevalidation",
+        filingKind:
+          mode === "corrected" ? "correction" :
+          mode === "amended" ? "amended" :
+          mode === "void" ? "void" :
+          mode === "nil" ? "nil" : "new",
+        messageRefId: lastInput.messageRefId,
+        xmlSha256: await sha256Hex(xml),
+        entries,
+      });
+      const history = await loadRemoteLedger(workspace.organization.id, workspace.institution.id, "FATCA");
+      setWorkspaceHistoryCount(history.length);
+    } catch (e) {
+      setError(`Could not save FATCA filing metadata: ${(e as Error).message}`);
+    } finally {
+      setWorkspaceBusy(false);
     }
   };
 
@@ -249,7 +392,7 @@ export default function FatcaApp() {
         <h1>FATCA reporting</h1>
         <p>Prepare Mauritius FATCA XML for submission through MRA eServices.</p>
         <div className="privacy-note">
-          <strong>Account data stays in this browser.</strong> The CSV is parsed and the XML is generated locally.
+          <strong>Account data stays in this browser.</strong> CSV/XLSX data is parsed and the XML is generated locally.
           MRA requires Mauritius FIs to submit FATCA XML to MRA using the FI's GIIN credentials.
         </div>
       </header>
@@ -298,24 +441,64 @@ export default function FatcaApp() {
             <div className="actions">
               <button type="button" onClick={downloadTemplate}>Download FATCA template</button>
               <label className="button">
-                Upload CSV
-                <input hidden type="file" accept=".csv,text/csv" onChange={(e) => e.target.files?.[0] && void readFile(e.target.files[0])} />
+                Upload CSV / XLSX
+                <input hidden type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => e.target.files?.[0] && void readFile(e.target.files[0])} />
               </label>
             </div>
             {fileName && <p><strong>{fileName}</strong> — {rows.length} row(s) loaded.</p>}
+            {sheets.length > 1 ? (
+              <label>Workbook sheet
+                <select
+                  value={selectedSheet}
+                  onChange={(e) => {
+                    const sheet = sheets.find((s) => s.name === e.target.value);
+                    if (sheet) {
+                      try { applySheet(sheet); setError(""); }
+                      catch (err) { setError((err as Error).message); }
+                    }
+                  }}
+                >
+                  {sheets.map((sheet) => (
+                    <option key={sheet.name} value={sheet.name} disabled={!sheet.rows.length}>
+                      {sheet.name}{sheet.rows.length ? ` — ${sheet.rows.length} row(s)` : " (empty)"}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
           </section>
         )}
 
         <section className="card">
           <h2>{mode === "nil" ? "3" : "4"}. Generate</h2>
-          <button type="button" className="primary" onClick={generate}>Generate FATCA XML</button>
+          <div className="readiness-grid" aria-label="FATCA filing readiness">
+            <div className="readiness-item"><span className={giin && fiName && filerCategory ? "state live" : "state pending"}>{giin && fiName && filerCategory ? "ready" : "needed"}</span><strong>FI details</strong></div>
+            <div className="readiness-item"><span className={mode === "nil" || rows.length ? "state live" : "state pending"}>{mode === "nil" || rows.length ? "ready" : "needed"}</span><strong>Source data</strong></div>
+            <div className="readiness-item"><span className={xml ? "state live" : "state pending"}>{xml ? "passed" : "on generate"}</span><strong>v2.0.1 rules</strong></div>
+            <div className="readiness-item"><span className={workspace ? "state live" : "state pending"}>{workspace ? "durable" : "local"}</span><strong>Filing history</strong></div>
+            <div className="readiness-item"><span className="state pending">pending</span><strong>MRA acceptance</strong></div>
+          </div>
+          <button type="button" className="primary" disabled={workspaceBusy} onClick={() => void generate()}>Generate FATCA XML</button>
           {error && <div className="diagnostic error">{error}</div>}
           {xml && (
             <>
-              <div className="diagnostic warning">
-                XML generated. The FATCA v2.0.1 XSD must pass before this is treated as production-ready.
+              <div className="diagnostic info">
+                {structuralStatus}
               </div>
-              <div className="actions"><button type="button" onClick={downloadXml}>Download XML</button></div>
+              <div className="diagnostic warning">
+                Pre-validation mode: the FATCA v2.0.1 current-rule schema check passed, but this file is not yet authorised for production submission. A controlled MRA acceptance test remains mandatory.
+              </div>
+              <div className="actions">
+                <button type="button" onClick={downloadXml}>Download test XML</button>
+                {workspace ? (
+                  <button type="button" disabled={workspaceBusy} onClick={() => void saveToWorkspace()}>
+                    Save filing metadata to workspace
+                  </button>
+                ) : null}
+              </div>
+              {workspace ? (
+                <p className="hint">Connected FATCA history: {workspaceHistoryCount} ledger record(s). No account-holder source data is uploaded.</p>
+              ) : null}
               <pre className="xml">{xml}</pre>
             </>
           )}

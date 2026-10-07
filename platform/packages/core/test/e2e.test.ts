@@ -193,11 +193,9 @@ describe("full filing lifecycle", () => {
     expect(new Set(allRefs).size).toBe(allRefs.length);
   });
 
-  it("selects v3.0 for the same period once filed after the 2027 cutover", () => {
+  it("uses v3.0 for Mauritius reporting periods from calendar year 2026", () => {
     const ledger = new InMemoryLedger();
-    // Same 2025 period — but filed in 2027, when the amended schema applies to
-    // everything, including corrections of earlier years.
-    const ctx = context(ledger, "2025-12-31", "2027-03-01");
+    const ctx = context(ledger, "2026-12-31", "2027-03-01");
     expect(ctx.schemaTarget).toBe("crs-v3.0");
 
     const mapping = inferColumns(HEADERS);
@@ -205,11 +203,14 @@ describe("full filing lifecycle", () => {
     const plan = planNewFiling(ctx, records);
     if (!isPlan(plan)) throw new Error("expected a plan");
 
-    const { xml, diagnostics } = emitterFor("crs-v3.0")!.emit(plan);
+    const { xml } = emitterFor("crs-v3.0")!.emit(plan);
     expect(xml).toContain('version="3.0"');
-    // The 2025 period still permits the transitional sentinels, so v3.0-only
-    // fields the filer never supplied do not become a hard error.
-    expect(diagnostics.filter((d) => d.severity === "error")).toHaveLength(0);
+  });
+
+  it("does not silently re-version a pre-2026 Mauritius period based only on filing date", () => {
+    const ledger = new InMemoryLedger();
+    const ctx = context(ledger, "2025-12-31", "2027-03-01");
+    expect(ctx.schemaTarget).toBe("crs-v2.0");
   });
 
   it("refuses to file at all for a jurisdiction whose schema is not implemented", () => {

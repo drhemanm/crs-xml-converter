@@ -44,7 +44,10 @@ export const MU: JurisdictionPack = {
   name: "Mauritius",
   authority: "Mauritius Revenue Authority (MRA)",
   portal: "https://eservices13.mra.mu/crsreporting/",
-  schemaFor: standardSchemaFor,
+  // MRA's 22 May 2026 communique states the amended CRS requirements and
+  // OECD CRS XML Schema v3.0 apply for the calendar year starting 1 Jan 2026.
+  // Do not apply another jurisdiction's filing-date cutover to Mauritius.
+  schemaFor: (periodEnd) => (periodEnd >= "2026-01-01" ? "crs-v3.0" : "crs-v2.0"),
   messageRefSpec: DEFAULT_MESSAGE_REF_SPEC,
   docRefSpec: DEFAULT_DOC_REF_SPEC,
   receivingCountry: unsafeBrand.iso3166("MU"),
@@ -56,10 +59,14 @@ export const MU: JurisdictionPack = {
   sentinelsPermitted: oecdSentinels,
   verification: [
     {
-      source: "MRA CRS guidance: 'As from 1 February 2021, the CRS User Guide Version 3.0 and CRS XML Schema Version 2.0 are applicable.'",
-      confidence: "secondary",
-      checkedOn: CHECKED,
-      note: "mra.mu was unreachable during research. Confirm before filing.",
+      source: "MRA CRS portal: CRS XML Schema Version 2.0 applies to the pre-amended CRS filing flow.",
+      confidence: "verified",
+      checkedOn: "2026-10-07",
+    },
+    {
+      source: "MRA communique dated 22 May 2026: amended CRS requirements, including OECD CRS XML Schema v3.0, apply in respect of the calendar year starting 1 January 2026.",
+      confidence: "verified",
+      checkedOn: "2026-10-07",
     },
     {
       source: "MRA: an FI may upload only one file per reporting year, consolidated across all reportable jurisdictions.",
@@ -79,10 +86,9 @@ export const MU: JurisdictionPack = {
       note: "Highest-value item to verify: it is the core of the local commercial case. See mra.mu/download/CRSFAQ.pdf.",
     },
     {
-      source: "MRA has not published a position on adopting schema v3.0.",
-      confidence: "unverified",
-      checkedOn: CHECKED,
-      note: "schemaFor() currently applies the standard OECD transition; revisit when MRA announces.",
+      source: "MRA states CRS XML files must comply with the prevailing CRS XML Schema and publishes sample valid, nil and corrected reports through its CRS reporting portal.",
+      confidence: "verified",
+      checkedOn: "2026-10-07",
     },
   ],
   notes: [

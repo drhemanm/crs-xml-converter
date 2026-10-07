@@ -19,10 +19,10 @@ const schema = (name: string) =>
   readFileSync(new URL(`../schema/${name}`, import.meta.url), "utf8");
 
 const files = {
-  "FatcaXML_v2.0.xsd": schema("FatcaXML_v2.0.xsd"),
+  "FatcaXML_v2.0.1.xsd": schema("FatcaXML_v2.0.1.xsd"),
   "stffatcatypes_v2.0.xsd": schema("stffatcatypes_v2.0.xsd"),
   "oecdtypes_v4.2.xsd": schema("oecdtypes_v4.2.xsd"),
-  "isofatcatypes_v1.1.xsd": schema("isofatcatypes_v1.1.xsd"),
+  "isofatcatypes_v1.2.xsd": schema("isofatcatypes_v1.2.xsd"),
 };
 
 function validate(xml: string): void {
@@ -37,7 +37,7 @@ function validate(xml: string): void {
   let validator: XsdValidator | undefined;
 
   try {
-    schemaDoc = XmlDocument.fromString(files["FatcaXML_v2.0.xsd"]!, { url: "FatcaXML_v2.0.xsd" });
+    schemaDoc = XmlDocument.fromString(files["FatcaXML_v2.0.1.xsd"]!, { url: "FatcaXML_v2.0.1.xsd" });
     validator = XsdValidator.fromDoc(schemaDoc);
     instanceDoc = XmlDocument.fromString(xml);
     validator.validate(instanceDoc);
@@ -67,7 +67,7 @@ const base: Omit<FatcaFilingInput, "accounts" | "nilReport"> = {
 };
 
 describe("FATCA structural schema regression", () => {
-  it("validates a representative v2.0.1 account report against the official IRS v2.0 structural schema", () => {
+  it("validates a representative v2.0.1 account report against the current-rule schema bundle", () => {
     const xml = emitFatcaXml({
       ...base,
       accounts: [{
@@ -81,6 +81,7 @@ describe("FATCA structural schema regression", () => {
             tin: "123456789",
             residenceCountry: "US",
             holderType: FatcaAccountHolderType.SpecifiedUsPerson,
+            address: { countryCode: "US", city: "New York", street: "1 Main Street" },
           },
           balance: "1000.00",
           currency: "USD",
@@ -91,7 +92,7 @@ describe("FATCA structural schema regression", () => {
     expect(() => validate(xml)).not.toThrow();
   });
 
-  it("validates a representative nil report against the official IRS v2.0 structural schema", () => {
+  it("validates a representative nil report against the current-rule schema bundle", () => {
     const xml = emitFatcaXml({
       ...base,
       nilReport: {
