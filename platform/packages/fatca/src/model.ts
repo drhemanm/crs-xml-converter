@@ -20,7 +20,7 @@ export type FatcaDocTypeIndic =
 
 export const FatcaFilerCategory = {
   ParticipatingFfi: "FATCA601",
-  ReportingModel1Ffi: "FATCA602",
+  RegisteredDeemedCompliantFfi: "FATCA602",
   LimitedBranchOrFfi: "FATCA603",
   ReportingModel2Ffi: "FATCA604",
   QiWpOrWt: "FATCA605",
