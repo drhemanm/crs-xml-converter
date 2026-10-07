@@ -614,7 +614,31 @@ export default function App({ workspace }: Props) {
           <section className="step">
             <h2>2 · Filing type</h2>
             <div className="panel">
-              <div className="actions" style={{ marginTop: 0 }}>
+              <div className="readiness-grid" aria-label="Filing readiness">
+                <div className="readiness-item">
+                  <span className={settingsComplete ? "state live" : "state pending"}>{settingsComplete ? "ready" : "needed"}</span>
+                  <strong>Institution</strong>
+                </div>
+                <div className="readiness-item">
+                  <span className={(mode === "nil" || records.length > 0) ? "state live" : "state pending"}>
+                    {(mode === "nil" || records.length > 0) ? "ready" : "needed"}
+                  </span>
+                  <strong>Source data</strong>
+                </div>
+                <div className="readiness-item">
+                  <span className={output ? "state live" : "state pending"}>{output ? "passed" : "on generate"}</span>
+                  <strong>XSD + rules</strong>
+                </div>
+                <div className="readiness-item">
+                  <span className={workspace ? "state live" : "state pending"}>{workspace ? "durable" : "local"}</span>
+                  <strong>Filing history</strong>
+                </div>
+                <div className="readiness-item">
+                  <span className="state pending">pending</span>
+                  <strong>MRA acceptance</strong>
+                </div>
+              </div>
+              <div className="actions">
                 {(["new", "correct", "nil"] as Mode[]).map((m) => (
                   <button
                     key={m}
