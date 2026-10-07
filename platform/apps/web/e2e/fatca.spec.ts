@@ -11,6 +11,7 @@ async function openFatca(page: import("@playwright/test").Page) {
   await expect(page.getByRole("heading", { name: "FATCA reporting" })).toBeVisible();
   await page.getByLabel("GIIN").fill("ABCDEF.00000.ME.480");
   await page.getByLabel("Institution name").fill("Example Mauritius FI");
+  await page.getByLabel("Filer category").selectOption("FATCA602");
 }
 
 test("generates a Mauritius FATCA v2.0.1 account report locally", async ({ page }) => {
