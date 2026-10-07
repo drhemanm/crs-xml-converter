@@ -217,5 +217,5 @@ export function emitFatcaXml(input: FatcaFilingInput): string {
     ],
   );
 
-  return serialize(root, { encoding: "UTF-8", indent: "  " });
+  return serialize(root, { encoding: "UTF-8", indent: true });
 }
