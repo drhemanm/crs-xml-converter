@@ -43,6 +43,7 @@ export interface RemoteLedgerEntry {
   doc_ref_id: string;
   record_kind: "ReportingFI" | "AccountReport" | "NilReport";
   record_state: "pending" | "live" | "superseded" | "deleted" | "rejected";
+  doc_type_indic: string;
   message_ref_id?: string;
   corr_doc_ref_id: string | null;
   parent_doc_ref_id: string | null;
@@ -240,7 +241,7 @@ export async function loadRemoteLedger(
 ): Promise<RemoteLedgerEntry[]> {
   const query = new URLSearchParams({
     select:
-      "doc_ref_id,record_kind,record_state,corr_doc_ref_id,parent_doc_ref_id,superseded_by,business_key,payload_digest,reporting_period_end,schema_version,filing_id,filings(message_ref_id)",
+      "doc_ref_id,record_kind,record_state,doc_type_indic,corr_doc_ref_id,parent_doc_ref_id,superseded_by,business_key,payload_digest,reporting_period_end,schema_version,filing_id,filings(message_ref_id)",
     organization_id: `eq.${organizationId}`,
     institution_id: `eq.${institutionId}`,
     order: "created_at.asc",
@@ -261,6 +262,7 @@ export interface FilingMetadataEntry {
   business_key: string;
   payload_digest: string;
   record_state: "pending" | "live" | "superseded" | "deleted" | "rejected";
+  doc_type_indic: string;
   superseded_by?: string;
 }
 
@@ -295,4 +297,37 @@ export async function recordRemoteFiling(input: {
 export async function sha256Hex(value: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+
+export interface AuthorityLedgerUpdate {
+  doc_ref_id: string;
+  record_state: "pending" | "live" | "superseded" | "deleted" | "rejected";
+  superseded_by?: string;
+}
+
+export async function applyRemoteAuthorityStatus(input: {
+  organizationId: string;
+  filingId: string;
+  authority: string;
+  overallStatus: string;
+  responseRef?: string;
+  responseSha256?: string;
+  parsedErrors: unknown[];
+  updates: AuthorityLedgerUpdate[];
+}): Promise<void> {
+  const r = await authedFetch("/rest/v1/rpc/aeoi_apply_authority_status", {
+    method: "POST",
+    body: JSON.stringify({
+      p_organization_id: input.organizationId,
+      p_filing_id: input.filingId,
+      p_authority: input.authority,
+      p_overall_status: input.overallStatus,
+      p_response_ref: input.responseRef ?? "",
+      p_response_sha256: input.responseSha256 ?? "",
+      p_parsed_errors: input.parsedErrors,
+      p_updates: input.updates,
+    }),
+  });
+  if (!r.ok) await parseResponse<unknown>(r);
 }
