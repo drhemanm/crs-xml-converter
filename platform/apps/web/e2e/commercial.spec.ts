@@ -220,7 +220,7 @@ test("Evologics operators inspect company activity and record a bank payment", a
       .getByRole("status")
       .filter({ hasText: "recorded in the operator audit" }),
   ).toContainText("recorded in the operator audit");
-  await expect(page.getByText("bank transfer", { exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: /bank transfer/ })).toBeVisible();
 });
 test("commercial pages fit phone width and switching back preserves the filing draft", async ({
   page,
