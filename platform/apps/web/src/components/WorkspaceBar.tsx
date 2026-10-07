@@ -62,12 +62,14 @@ export function WorkspaceBar({ value, onChange }: Props) {
   };
 
   useEffect(() => {
+    setBusy(true);
     void validSession()
       .then((s) => {
         if (s) return reloadOrganizations(s);
         return undefined;
       })
-      .catch((e) => setMessage((e as Error).message));
+      .catch((e) => setMessage((e as Error).message))
+      .finally(() => setBusy(false));
     // Startup only. Workspace changes are driven explicitly below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -241,6 +243,7 @@ export function WorkspaceBar({ value, onChange }: Props) {
         ) : null}
 
         <button
+          disabled={busy}
           onClick={() => void signOut().then(() => {
             setSession(null);
             setOrganizations([]);

@@ -150,7 +150,14 @@ export default function App({ workspace }: Props) {
     inputVersion.current += 1;
     setOutput(null);
     setOutputDiagnostics([]);
-  }, [settings, records, selectedSheet, mode, workspace, ledger]);
+  }, [settings, records, selectedSheet, mode, workspace]);
+
+  // Ledger refreshes invalidate generated XML, but authority-response
+  // diagnostics must remain visible in history after reconciliation.
+  useEffect(() => {
+    inputVersion.current += 1;
+    setOutput(null);
+  }, [ledger]);
 
   useEffect(() => {
     let active = true;

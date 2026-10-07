@@ -49,6 +49,9 @@ unsupported compliance claims and pressure to complete a filing prematurely.
 - CRS ingestion errors block the output, including when other rows mapped
   successfully. Corrections with unmatched accounts fail as a whole instead
   of silently skipping them.
+- FATCA source ingestion rejects unknown holder kinds, ambiguous account-closed
+  flags, incomplete payments, unknown payment codes and correction references
+  in new information. It does not silently omit supplied payment data.
 - Connected history does not offer a local-only clear operation.
 - Page and deployment CSP both permit the dedicated metadata endpoint, while
   retaining the existing restrictive source allowlist.
@@ -62,7 +65,7 @@ dependency audit and browser suite before release. Browser regressions cover
 draft retention, stale output, blocked partial imports, replacement sources,
 CSP authentication and narrow viewports.
 
-The Vitest configuration now includes FATCA tests under `packages/fatca/src/`;
+The Vitest configuration includes local React DOM state tests and FATCA tests under `packages/fatca/src/`;
 previously the `test/`-only glob omitted them.
 
 This change is not a claim of a completed visual/accessibility audit, regulator

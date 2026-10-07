@@ -5,7 +5,7 @@ export default defineConfig({
   // Vite searches upward and would load it; an inline empty config stops that.
   css: { postcss: {} },
   test: {
-    include: ["packages/**/test/**/*.test.ts", "packages/fatca/src/**/*.test.ts"],
+    include: ["packages/**/test/**/*.test.ts", "packages/fatca/src/**/*.test.ts", "apps/web/test/**/*.test.{ts,tsx}"],
     environment: "node",
   },
   resolve: {
