@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from "react";
-import { parse as parseCsv } from "csv-parse/browser/esm/sync";
 import {
   InMemoryLedger,
   RefIdAllocator,
@@ -18,11 +17,12 @@ import {
   type FilingPlan,
   type PlanContext,
 } from "@crs/core";
-import { inferColumns, mapRows, specFor, templateCsv, type ColumnMapping, type Row } from "@crs/ingest";
+import { inferColumns, mapRows, specFor, templateCsv, type ColumnMapping } from "@crs/ingest";
 import { PACKS, deadlineFor, packFor, type JurisdictionPack } from "@crs/jurisdictions";
 import { Diagnostics } from "./components/Diagnostics.js";
 import { clearLedger, exportLedger, getLocalLedgerHmacSecret, loadLedger, saveLedger } from "./ledger-storage.js";
 import { browserSchemaProvider } from "./schema-provider.js";
+import { firstUsableSheet, parseSpreadsheet, type ParsedSheet } from "./spreadsheet.js";
 
 type Mode = "new" | "correct" | "nil";
 
@@ -84,6 +84,8 @@ export default function App() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [mode, setMode] = useState<Mode>("new");
   const [fileName, setFileName] = useState<string | null>(null);
+  const [sheets, setSheets] = useState<ParsedSheet[]>([]);
+  const [selectedSheet, setSelectedSheet] = useState<string>("");
   const [mapping, setMapping] = useState<ColumnMapping | null>(null);
   const [records, setRecords] = useState<readonly AccountRecord[]>([]);
   const [ingestDiagnostics, setIngestDiagnostics] = useState<readonly Diagnostic[]>([]);
@@ -118,27 +120,41 @@ export default function App() {
     : undefined;
   const emitterAvailable = schemaTarget ? emitterFor(schemaTarget) !== undefined : false;
 
+  const applySheet = useCallback((sheet: ParsedSheet) => {
+    if (sheet.rows.length === 0) {
+      setFatal(`Sheet "${sheet.name}" contains no data rows.`);
+      setMapping(null);
+      setRecords([]);
+      setIngestDiagnostics([]);
+      return;
+    }
+    const m = inferColumns(Object.keys(sheet.rows[0] ?? {}));
+    const result = mapRows(sheet.rows, m, { sheet: sheet.name });
+    setSelectedSheet(sheet.name);
+    setMapping(m);
+    setRecords(result.records);
+    setIngestDiagnostics(result.diagnostics);
+    setFatal(null);
+  }, []);
+
   const readFile = useCallback(async (file: File) => {
     setFileName(file.name);
     setOutput(null);
     setOutputDiagnostics([]);
     try {
-      const text = await file.text();
-      const rows = parseCsv(text, { columns: true, skip_empty_lines: true, trim: true }) as Row[];
-      if (rows.length === 0) {
-        setFatal(`${file.name} contains no data rows.`);
-        return;
-      }
-      const m = inferColumns(Object.keys(rows[0] ?? {}));
-      const result = mapRows(rows, m, { sheet: file.name });
-      setMapping(m);
-      setRecords(result.records);
-      setIngestDiagnostics(result.diagnostics);
-      setFatal(null);
+      const parsed = await parseSpreadsheet(file);
+      const usable = firstUsableSheet(parsed);
+      setSheets(parsed);
+      applySheet(usable);
     } catch (e) {
+      setSheets([]);
+      setSelectedSheet("");
+      setMapping(null);
+      setRecords([]);
+      setIngestDiagnostics([]);
       setFatal(`Could not read ${file.name}: ${(e as Error).message}`);
     }
-  }, []);
+  }, [applySheet]);
 
   const buildContext = useCallback(
     (
@@ -501,19 +517,40 @@ export default function App() {
                     <span className="file">{fileName}</span> — {records.length} record(s) mapped
                   </p>
                 ) : (
-                  <p>Drop a CSV file here, or click to choose one</p>
+                  <p>Drop a CSV or XLSX file here, or click to choose one</p>
                 )}
               </div>
               <input
                 ref={fileInput}
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 hidden
                 onChange={(e) => {
                   const f = e.target.files?.[0];
                   if (f) void readFile(f);
                 }}
               />
+
+              {sheets.length > 1 ? (
+                <div className="field" style={{ marginTop: 14, maxWidth: 420 }}>
+                  <label htmlFor="sheet-select">Workbook sheet</label>
+                  <select
+                    id="sheet-select"
+                    value={selectedSheet}
+                    onChange={(e) => {
+                      const sheet = sheets.find((s) => s.name === e.target.value);
+                      if (sheet) applySheet(sheet);
+                    }}
+                  >
+                    {sheets.map((sheet) => (
+                      <option key={sheet.name} value={sheet.name} disabled={sheet.rows.length === 0}>
+                        {sheet.name}{sheet.rows.length === 0 ? " (empty)" : ` — ${sheet.rows.length} row(s)`}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="hint">Select the worksheet that contains the CRS account table.</p>
+                </div>
+              ) : null}
 
               {mapping ? (
                 <>
@@ -595,7 +632,7 @@ export default function App() {
                     </button>
                     <button onClick={recordAsFiled}>Record as submitted</button>
                     <span className="hint">
-                      Recording writes the DocRefIds to your filing history so this return can be corrected later.
+                      Evaluation mode stores DocRefIds on this device. Production mode will synchronise filing metadata to the protected ledger so corrections work across devices and users.
                     </span>
                   </div>
                 </div>
