@@ -1,4 +1,6 @@
-# CRS & FATCA filing workspace
+# FilingBridge
+
+**CRS & FATCA reporting, made clearer.** By Evologics.
 
 The current product lives in [`platform/`](platform/): a TypeScript workspace for preparing CRS and FATCA returns, validating XML and maintaining filing metadata and correction history.
 

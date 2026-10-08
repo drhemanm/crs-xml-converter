@@ -56,8 +56,8 @@ export default function App() {
       </a>
       <header className="application-header">
         <div className="brand">
-          <strong>Evologics</strong>
-          <span>Tax reporting workspace</span>
+          <strong>FilingBridge</strong>
+          <span>CRS &amp; FATCA reporting, made clearer. By Evologics</span>
         </div>
         <span className="environment-label">MRA acceptance pending</span>
       </header>
