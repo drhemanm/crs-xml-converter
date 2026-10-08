@@ -3589,10 +3589,10 @@ const Navigation = () => {
           <div className="flex items-center justify-between h-16 lg:h-[72px]">
             <div className="flex items-baseline gap-3 animate-slide-left delay-200">
               <span className="font-display font-medium text-ink text-[26px] lg:text-[30px] tracking-display leading-none">
-                Evologics
+                FilingBridge
               </span>
               <span className="hidden sm:inline text-[13px] text-ink-400 tracking-tight">
-                CRS Reporting
+                By Evologics
               </span>
             </div>
 
@@ -5104,9 +5104,9 @@ const Footer = () => {
       <div className="max-w-shell mx-auto px-5 sm:px-8 lg:px-10 py-16 lg:py-20">
         <div className="grid gap-12 md:grid-cols-[2fr_1fr_1fr]">
           <div>
-            <div className="font-display font-medium text-[30px] tracking-display leading-none">Evologics</div>
+            <div className="font-display font-medium text-[30px] tracking-display leading-none">FilingBridge</div>
             <p className="mt-4 text-[15px] leading-relaxed text-white/50 max-w-sm">
-              CRS and AEOI reporting for financial institutions. Account data is processed in your
+              By Evologics. CRS and AEOI reporting for financial institutions. Account data is processed in your
               browser and is never uploaded.
             </p>
           </div>
