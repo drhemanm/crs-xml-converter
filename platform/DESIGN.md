@@ -1,4 +1,7 @@
-# CRS and FATCA workspace design
+# FilingBridge workspace design
+
+FilingBridge is the product name. Evologics is the provider and billing entity.
+The customer-facing tagline is “CRS & FATCA reporting, made clearer.”
 
 ## Purpose and users
 
