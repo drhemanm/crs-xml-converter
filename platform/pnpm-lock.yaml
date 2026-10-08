@@ -12,6 +12,9 @@ importers:
         specifier: ^0.7.1
         version: 0.7.1
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: 0.5.0
+        version: 0.5.0
       '@playwright/test':
         specifier: ^1.62.0
         version: 1.62.0
@@ -243,6 +246,9 @@ packages:
   '@csstools/css-tokenizer@3.0.4':
     resolution: {integrity: sha512-Vd/9EVDiu6PPJt9yAh6roZP6El1xHrdvIVGjyBsHR0RYwNHgL7FJPyIIW4fANJNG6FtyZfvlRPpFI4ZM/lubvw==}
     engines: {node: '>=18'}
+
+  '@electric-sql/pglite@0.5.0':
+    resolution: {integrity: sha512-SEsBA6yZ8JD1XIpoaSX+KDgHlHytDa6Jz8YIhzI4WyXr4x1M5YAtvNoECvlLav4EOAMYGglTRv8uwJii6XyUUA==}
 
   '@esbuild/aix-ppc64@0.21.5':
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
@@ -1391,6 +1397,8 @@ snapshots:
       '@csstools/css-tokenizer': 3.0.4
 
   '@csstools/css-tokenizer@3.0.4': {}
+
+  '@electric-sql/pglite@0.5.0': {}
 
   '@esbuild/aix-ppc64@0.21.5':
     optional: true

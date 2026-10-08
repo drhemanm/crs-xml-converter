@@ -191,7 +191,7 @@ export async function signOut(): Promise<void> {
   saveSession(null);
 }
 
-async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+export async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
   let session = await validSession();
   if (!session) throw new Error("Sign in to use the connected filing workspace.");
 

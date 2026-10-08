@@ -37,3 +37,7 @@ playwright-report/
 # Workspace build output
 dist/
 *.tsbuildinfo
+
+# Supabase local state
+platform/supabase/.temp/
+platform/supabase/.branches/

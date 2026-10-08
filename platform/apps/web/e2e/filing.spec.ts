@@ -101,10 +101,11 @@ test("derives CorrDocRefId from filing history when correcting", async ({ page }
   await page.setInputFiles('input[type="file"]', CSV);
   await generate(page);
   const messageRefId = (await page.getByTestId("message-ref-id").innerText()).trim();
+  const originalXml = await page.locator("pre.xml").innerText();
+  const accountDocRef = originalXml.match(/<AccountReport>[\s\S]*?<stf:DocRefId>([^<]+)<\/stf:DocRefId>/)![1]!;
   await page.getByRole("button", { name: "Record in local history" }).click();
-
-  const docRefIds = await page.locator("tbody tr td:last-child").allInnerTexts();
-  const accountDocRef = docRefIds[1]!.trim();
+  await expect(page.locator("tbody tr")).toHaveCount(4);
+  await expect(page.getByRole("cell", { name: accountDocRef, exact: true })).toBeVisible();
 
   // Accept everything so the records become correctable.
   await page.setInputFiles('input[type="file"][accept*="xml"]', {

@@ -11,12 +11,13 @@
     "build": "pnpm -r --filter './packages/**' build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p packages/core/tsconfig.json && tsc -p packages/jurisdictions/tsconfig.json && tsc -p packages/ingest/tsconfig.json && tsc -p packages/validate/tsconfig.json && tsc -p packages/fatca/tsconfig.json && tsc -p apps/cli/tsconfig.json && tsc -p apps/web/tsconfig.json",
+    "typecheck": "tsc -p packages/core/tsconfig.json && tsc -p packages/jurisdictions/tsconfig.json && tsc -p packages/ingest/tsconfig.json && tsc -p packages/validate/tsconfig.json && tsc -p packages/fatca/tsconfig.json && tsc -p apps/cli/tsconfig.json && tsc -p apps/web/tsconfig.json && tsc -p supabase/functions/tsconfig.json",
     "cli": "tsx apps/cli/src/index.ts",
     "test:e2e": "playwright test",
     "test:all": "pnpm typecheck && pnpm test && pnpm test:e2e"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.0",
     "@playwright/test": "^1.62.0",
     "@types/node": "^22.10.2",
     "jsdom": "26.1.0",

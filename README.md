@@ -34,7 +34,7 @@ Browser tests build their own production preview. Unit tests include filing-doma
 
 `platform/` has its own package manifest, lockfile and CI. The root application uses npm and Firebase; its commands and hosting instructions remain in [LEGACY.md](LEGACY.md). Run each tool from the corresponding application directory. Keep generated builds, browser traces and local environment files out of Git.
 
-For the legacy app, copy `.env.example` to `.env` and configure the required values locally or in the hosting environment. Production credentials must be supplied through the hosting provider or GitHub secrets. Previously committed environment values remain in Git history; removing the file does not revoke them.
+For the legacy app, copy `.env.example` to `.env` and configure the required values locally or in the hosting environment. The legacy production build retains its browser-visible Firebase and PayPal identifiers in `.env.production`; these are public client configuration. Server credentials and webhook settings must be supplied through the hosting provider or GitHub secrets. Previously committed environment values remain in Git history; removing the file does not revoke them.
 
 ## Release status
 

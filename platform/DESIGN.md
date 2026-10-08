@@ -73,3 +73,19 @@ acceptance or zero defects. Cloud Browser could not reach the local preview in
 the implementation session. Visual inspection of the deployed preview, live
 workspace end-to-end verification and controlled MRA acceptance remain separate
 release gates. See `PRODUCTION_RUNBOOK.md` for the operational requirements.
+
+## Commercial administration
+
+Company billing and Evologics operations use the same workspace tokens and
+readable form controls. Operator navigation is distinct from reporting regimes;
+opening it preserves an unfinished filing draft. Portfolio tables show company
+licence status, actual recorded usage and the last filing date. Currency totals
+are never combined into an invented revenue number.
+
+Customer billing explains what consumes allowance and what is excluded. A
+checkout return is shown as a confirmation step until the provider capture is
+verified. Operator bank reconciliation states the exact amount and requires a
+statement reference; suspension and restoration require an audit reason.
+
+Both surfaces enforce permissions in the backend, display loading/error/empty
+states, and keep account-holder source information out of commercial reporting.
