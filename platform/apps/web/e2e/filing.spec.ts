@@ -69,6 +69,9 @@ test("applies an authority status message and marks records live or rejected", a
   const messageRefId = (await page.getByTestId("message-ref-id").innerText()).trim();
   await page.getByRole("button", { name: "Record in local history" }).click();
 
+  // IndexedDB commits asynchronously; read references from the saved history,
+  // not the spreadsheet mapping table that is still visible during the save.
+  await expect(page.locator("tbody tr")).toHaveCount(4);
   const rejected = (await page.locator("tbody tr:last-child td:last-child").innerText()).trim();
   const status = `<?xml version="1.0" encoding="UTF-8"?>
 <CRSStatusMessage_OECD xmlns="urn:oecd:ties:csm:v1" version="1.0">

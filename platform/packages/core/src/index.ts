@@ -1,6 +1,7 @@
 export * from "./result.js";
 export * from "./brand.js";
 export * from "./diagnostics.js";
+export * from "./duplicates.js";
 export * from "./model.js";
 export * from "./xml.js";
 export * from "./ledger.js";

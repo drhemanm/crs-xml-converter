@@ -7,6 +7,21 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App.js";
 
+// These tests isolate draft state. Real IndexedDB persistence, migration,
+// transaction failure and reload are exercised by the browser regression suite.
+vi.mock("../src/ledger-storage.js", async () => {
+  const { InMemoryLedger } = await import("@crs/core");
+  return {
+    loadLedger: async () => new InMemoryLedger(),
+    getLocalLedgerHmacSecret: async () => "S".repeat(32),
+    commitLedgerMutations: async (base: InstanceType<typeof InMemoryLedger>, mutations: Parameters<InstanceType<typeof InMemoryLedger>["apply"]>[0]) => {
+      const next = new InMemoryLedger(base.all()); next.apply(mutations); return next;
+    },
+    clearLedger: async () => new InMemoryLedger(),
+    exportLedger: () => "{}",
+  };
+});
+
 vi.mock("@crs/validate", () => ({
   SchemaValidator: class {
     validate() { return { available: true, valid: true, diagnostics: [] }; }

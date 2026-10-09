@@ -54,6 +54,7 @@ export const DiagnosticCode = {
   COLUMN_INFERRED: "DATA-006",
   VALUE_TRUNCATED: "DATA-007",
   NOT_REPORTED_SENTINEL_USED: "DATA-008",
+  DUPLICATE_ACCOUNT_RECORD: "DATA-009",
 
   // --- reference ids ----------------------------------------------------
   DOCREFID_REUSED: "REF-001",

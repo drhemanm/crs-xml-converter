@@ -15,6 +15,7 @@ import {
   ControllingPersonSelfCert,
   ControllingPersonType,
   DiagnosticCode,
+  duplicateAccountDiagnostics,
   DueDiligence,
   PaymentType,
   SelfCert,
@@ -563,5 +564,6 @@ export function mapRows(rows: readonly Row[], mapping: ColumnMapping, options: M
     });
   });
 
+  diagnostics.push(...duplicateAccountDiagnostics(records));
   return { records, diagnostics };
 }

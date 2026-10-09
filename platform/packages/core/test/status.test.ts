@@ -4,6 +4,7 @@ import {
   applyStatusMessage,
   parseStatusMessage,
   planNewFiling,
+  unsafeBrand,
   type FilingPlan,
   type StatusMessage,
 } from "../src/index.js";
@@ -109,7 +110,7 @@ describe("reconciliation with the ledger", () => {
     const ledger = new InMemoryLedger();
     const plan = planNewFiling(planContext(ledger), [
       completeRecord({ businessKey: "A" }),
-      completeRecord({ businessKey: "B" }),
+      completeRecord({ businessKey: "B", accountNumber: unsafeBrand.accountNumber("ACC-0002") }),
     ]);
     if (!isPlan(plan)) throw new Error("expected a plan");
     ledger.apply(plan.mutations);
