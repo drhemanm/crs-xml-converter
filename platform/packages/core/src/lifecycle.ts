@@ -24,6 +24,7 @@ import { reportingYear } from "./model.js";
 import type { LedgerEntry, LedgerMutation, LedgerSnapshot, CorrectableKind } from "./ledger.js";
 import { type Diagnostic, DiagnosticCode, error as diagError, warning as diagWarning } from "./diagnostics.js";
 import type { RefIdAllocator, RefIdSpec, RefIdContext } from "./refid.js";
+import { duplicateAccountDiagnostics } from "./duplicates.js";
 
 export type Environment = "production" | "test";
 
@@ -177,6 +178,8 @@ function entryFor(
 // ---------------------------------------------------------------------------
 
 export function planNewFiling(ctx: PlanContext, records: readonly AccountRecord[]): FilingPlan | Diagnostic[] {
+  const duplicates = duplicateAccountDiagnostics(records);
+  if (duplicates.length) return duplicates;
   const diagnostics: Diagnostic[] = [];
   const rc = refIdContext(ctx);
 
@@ -633,7 +636,7 @@ export function planNilReturn(ctx: PlanContext): FilingPlan | Diagnostic[] {
 // ---------------------------------------------------------------------------
 
 export function validatePlan(plan: FilingPlan): Diagnostic[] {
-  const out: Diagnostic[] = [];
+  const out: Diagnostic[] = duplicateAccountDiagnostics(plan.accountReports.flatMap((r) => r.account ? [r.account] : []));
   const all: PlannedRecord[] = [plan.reportingFiRecord, ...plan.accountReports];
 
   // Environment segregation (CTS 50010 / 50011).

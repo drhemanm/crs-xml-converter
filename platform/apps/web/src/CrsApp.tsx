@@ -22,7 +22,7 @@ import {
 import { inferColumns, mapRows, specFor, templateCsv, type ColumnMapping } from "@crs/ingest";
 import { PACKS, deadlineFor, packFor, type JurisdictionPack } from "@crs/jurisdictions";
 import { Diagnostics } from "./components/Diagnostics.js";
-import { clearLedger, exportLedger, getLocalLedgerHmacSecret, loadLedger, saveLedger } from "./ledger-storage.js";
+import { clearLedger, commitLedgerMutations, exportLedger, getLocalLedgerHmacSecret, loadLedger } from "./ledger-storage.js";
 import { firstUsableSheet, parseSpreadsheet, type ParsedSheet } from "./spreadsheet.js";
 import {
   applyRemoteAuthorityStatus,
@@ -126,16 +126,11 @@ export default function App({ workspace }: Props) {
   const [ingestDiagnostics, setIngestDiagnostics] = useState<readonly Diagnostic[]>([]);
   const [output, setOutput] = useState<{ xml: string; plan: FilingPlan; note: string } | null>(null);
   const [outputDiagnostics, setOutputDiagnostics] = useState<readonly Diagnostic[]>([]);
-  const [ledgerState, setLedgerState] = useState<{ ledger: InMemoryLedger; error: string | null }>(() => {
-    try {
-      return { ledger: loadLedger(), error: null };
-    } catch (e) {
-      return { ledger: new InMemoryLedger(), error: (e as Error).message };
-    }
-  });
+  const [ledgerState, setLedgerState] = useState<{ ledger: InMemoryLedger; error: string | null }>({ ledger: new InMemoryLedger(), error: null });
   const [fatal, setFatal] = useState<string | null>(null);
   const [remoteRows, setRemoteRows] = useState<RemoteLedgerEntry[]>([]);
-  const [workspaceBusy, setWorkspaceBusy] = useState(false);
+  const [workspaceBusy, setWorkspaceBusy] = useState(true);
+  const savingRef = useRef(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const statusInput = useRef<HTMLInputElement>(null);
@@ -169,14 +164,13 @@ export default function App({ workspace }: Props) {
     setRecords([]);
     setIngestDiagnostics([]);
     if (!workspace) {
-      setWorkspaceBusy(false);
+      setWorkspaceBusy(true);
       setRemoteRows([]);
-      try {
-        setLedgerState({ ledger: loadLedger(), error: null });
-      } catch (e) {
-        setLedgerState({ ledger: new InMemoryLedger(), error: (e as Error).message });
-      }
-      return;
+      void loadLedger()
+        .then((loaded) => { if (active) setLedgerState({ ledger: loaded, error: null }); })
+        .catch((e) => { if (active) setLedgerState({ ledger: new InMemoryLedger(), error: (e as Error).message }); })
+        .finally(() => { if (active) setWorkspaceBusy(false); });
+      return () => { active = false; };
     }
 
     const fi = workspace.institution;
@@ -198,15 +192,6 @@ export default function App({ workspace }: Props) {
       .finally(() => { if (active) setWorkspaceBusy(false); });
     return () => { active = false; };
   }, [workspace]);
-
-  /** Re-read from storage so the view reflects what was actually persisted. */
-  const reloadLedger = useCallback(() => {
-    try {
-      setLedgerState({ ledger: loadLedger(), error: null });
-    } catch (e) {
-      setLedgerState({ ledger: new InMemoryLedger(), error: (e as Error).message });
-    }
-  }, []);
 
   useEffect(() => {
     if (!fileName && !settings.fiName && !output) return;
@@ -318,7 +303,7 @@ export default function App({ workspace }: Props) {
       setFatal("Your workspace role can view this institution but is not authorised to prepare filings.");
       return;
     }
-    const hmacSecret = workspace ? workspace.institution.pseudonym_key! : getLocalLedgerHmacSecret();
+    const hmacSecret = workspace ? workspace.institution.pseudonym_key! : await getLocalLedgerHmacSecret();
     const { businessKeys, digests } = await deriveKeys(records, hmacSecret);
     if (version !== inputVersion.current) return;
     const ctx = buildContext(pack, businessKeys, digests);
@@ -416,8 +401,10 @@ export default function App({ workspace }: Props) {
   };
 
   const recordAsFiled = useCallback(async () => {
-    if (!output) return;
+    if (!output || savingRef.current) return;
+    savingRef.current = true;
     setWorkspaceBusy(true);
+    setFatal(null);
     try {
       if (workspace) {
         const appendEntries = output.plan.mutations
@@ -449,9 +436,8 @@ export default function App({ workspace }: Props) {
         setRemoteRows(rows);
         setLedgerState({ ledger: remoteToLedger(rows, workspace.institution.jurisdiction), error: null });
       } else {
-        ledger.apply(output.plan.mutations);
-        saveLedger(ledger);
-        reloadLedger();
+        const saved = await commitLedgerMutations(ledger, output.plan.mutations);
+        setLedgerState({ ledger: saved, error: null });
       }
       setOutput(null);
       setOutputDiagnostics([]);
@@ -459,9 +445,10 @@ export default function App({ workspace }: Props) {
     } catch (e) {
       setFatal(`Could not save filing history: ${(e as Error).message}`);
     } finally {
+      savingRef.current = false;
       setWorkspaceBusy(false);
     }
-  }, [output, ledger, reloadLedger, workspace, settings.periodEnd, mode]);
+  }, [output, ledger, workspace, settings.periodEnd, mode]);
 
   const download = useCallback(() => {
     if (!output) return;
@@ -540,18 +527,17 @@ export default function App({ workspace }: Props) {
         setRemoteRows(rows);
         setLedgerState({ ledger: remoteToLedger(rows, workspace.institution.jurisdiction), error: null });
       } else {
-        ledger.apply(result.mutations);
-        saveLedger(ledger);
-        reloadLedger();
+        const saved = await commitLedgerMutations(ledger, result.mutations);
+        setLedgerState({ ledger: saved, error: null });
       }
       setOutputDiagnostics(result.diagnostics);
     },
-    [ledger, reloadLedger, remoteRows, workspace],
+    [ledger, remoteRows, workspace],
   );
 
   const settingsComplete = settings.fiName.trim() !== "" && settings.fiId.trim() !== "";
   const sourceReady = mode === "nil" || (records.length > 0 && !hasErrors(ingestDiagnostics));
-  const canGenerate = Boolean(pack) && settingsComplete && (mode === "nil" || records.length > 0);
+  const canGenerate = !ledgerState.error && Boolean(pack) && settingsComplete && (mode === "nil" || records.length > 0);
   const entries = ledger.all();
 
   return (
@@ -943,7 +929,7 @@ export default function App({ workspace }: Props) {
               </div>
 
               <div className="actions">
-                <button onClick={() => statusInput.current?.click()}>Apply authority status message</button>
+                <button disabled={workspaceBusy} onClick={() => statusInput.current?.click()}>Apply authority status message</button>
                 <input
                   ref={statusInput}
                   type="file"
@@ -951,7 +937,13 @@ export default function App({ workspace }: Props) {
                   hidden
                   onChange={(e) => {
                     const f = e.target.files?.[0];
-                    if (f) void applyStatus(f);
+                    if (f) {
+                      setWorkspaceBusy(true);
+                      setFatal(null);
+                      void applyStatus(f)
+                        .catch((e) => setFatal(`Could not save authority status: ${(e as Error).message}`))
+                        .finally(() => setWorkspaceBusy(false));
+                    }
                   }}
                 />
                 <button
@@ -968,14 +960,18 @@ export default function App({ workspace }: Props) {
                   Export history
                 </button>
                 {!workspace ? <button
+                  disabled={workspaceBusy}
                   onClick={() => {
                     if (
                       confirm(
                         "Clear filing history? Corrections to past returns will no longer be possible, and DocRefIds may be reused — which authorities reject. Export first.",
                       )
                     ) {
-                      clearLedger();
-                      reloadLedger();
+                      setWorkspaceBusy(true);
+                      void clearLedger()
+                        .then((cleared) => setLedgerState({ ledger: cleared, error: null }))
+                        .catch((e) => setFatal(`Could not clear filing history: ${(e as Error).message}`))
+                        .finally(() => setWorkspaceBusy(false));
                     }
                   }}
                 >
