@@ -979,6 +979,15 @@ const getFirebaseErrorMessage = (errorCode) => {
       return 'No account found with this email address.';
     case 'auth/wrong-password':
       return 'Invalid password. Please try again.';
+    // Firebase v10 with email-enumeration protection (on by default) reports
+    // both an unknown email and a wrong password as this one code.
+    case 'auth/invalid-credential':
+    case 'auth/invalid-login-credentials':
+      return 'Incorrect email or password. If you have not created an account yet, choose "Create one".';
+    case 'auth/operation-not-allowed':
+      return 'This sign-in method is not enabled. Please contact support.';
+    case 'auth/unauthorized-domain':
+      return 'Sign-in is not enabled for this site address. Please contact support.';
     case 'auth/email-already-in-use':
       return 'An account with this email already exists.';
     case 'auth/weak-password':
@@ -996,6 +1005,7 @@ const getFirebaseErrorMessage = (errorCode) => {
     case 'auth/user-disabled':
       return 'This account has been disabled. Please contact support.';
     default:
+      if (errorCode) console.warn('Unmapped auth error code:', errorCode);
       return 'An error occurred. Please try again.';
   }
 };
@@ -3047,9 +3057,15 @@ const AuthProvider = ({ children }) => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const loggedInUser = userCredential.user;
       
-      await updateDoc(doc(db, 'users', loggedInUser.uid), {
-        lastLogin: serverTimestamp()
-      });
+      // Sign-in has already succeeded. A missing profile document or a refused
+      // write must not be reported to the user as a failed sign-in.
+      try {
+        await updateDoc(doc(db, 'users', loggedInUser.uid), {
+          lastLogin: serverTimestamp()
+        });
+      } catch (lastLoginError) {
+        console.warn('Last-login time was not recorded:', lastLoginError.message);
+      }
       
       clearAnonymousUsage();
       

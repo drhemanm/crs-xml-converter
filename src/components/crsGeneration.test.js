@@ -1016,3 +1016,17 @@ describe('column matching does not mis-claim a header', () => {
     expect(m.address_country).toBe('address_country');
   });
 });
+
+const { getFirebaseErrorMessage } = require('./CRSXMLConverter');
+
+describe('sign-in error messages', () => {
+  test('the Firebase v10 credential error is explained, not reported as generic', () => {
+    const message = getFirebaseErrorMessage('auth/invalid-credential');
+    expect(message).toMatch(/Incorrect email or password/);
+    expect(message).not.toBe('An error occurred. Please try again.');
+  });
+
+  test('a disabled sign-in provider is named', () => {
+    expect(getFirebaseErrorMessage('auth/operation-not-allowed')).toMatch(/not enabled/);
+  });
+});
